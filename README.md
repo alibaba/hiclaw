@@ -1,5 +1,7 @@
 # HiClaw
 
+[English](./README.md) | [中文](./README.zh-CN.md)
+
 **Open-source Agent Teams system with IM-based multi-Agent collaboration and human-in-the-loop oversight.**
 
 HiClaw lets you deploy a team of AI Agents that communicate via instant messaging (Matrix protocol), coordinate tasks through a centralized file system, and are fully observable and controllable by human administrators.
