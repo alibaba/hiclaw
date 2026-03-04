@@ -1,0 +1,6827 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Higress Console",
+    "description": "Higress is a next-generation cloud-native gateway based on Alibaba's internal gateway practices.",
+    "contact": {
+      "name": "Higress Authors",
+      "url": "https://github.com/higress-group/higress-console"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Generated server url"
+    }
+  ],
+  "paths": {
+    "/v1/wasm-plugins/{name}": {
+      "get": {
+        "tags": [
+          "Wasm Plugin APIs"
+        ],
+        "summary": "Get Wasm plugin by name",
+        "operationId": "query",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "description": "Available languages: zh-CN/en-US",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Plugin not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Plugin found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wasm Plugin APIs"
+        ],
+        "summary": "Update an existed plugin",
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WasmPlugin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Plugin updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Plugin data is not valid or plugin name in the URL doesn't match the one in the body.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Plugin already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wasm Plugin APIs"
+        ],
+        "summary": "Delete a custom plugin",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Plugin deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginConfig"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tls-certificates/{name}": {
+      "get": {
+        "tags": [
+          "TLS Certificate APIs"
+        ],
+        "summary": "Get TLS certificate by name",
+        "operationId": "query_1",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "TLS certificate not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "TLS certificate found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "TLS Certificate APIs"
+        ],
+        "summary": "Update an existed TLS certificate",
+        "operationId": "put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TlsCertificate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "TLS certificate updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "TLS certificate data is not valid or TLS certificate name in the URL doesn't match the one in the body.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TLS certificate already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "TLS Certificate APIs"
+        ],
+        "summary": "Delete a TLS certificate",
+        "operationId": "delete_1",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "TLS certificate deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/services/{serviceName}/plugin-instances/{name}": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Get a specific service-bound plugin instance",
+        "operationId": "queryServiceInstance",
+        "parameters": [
+          {
+            "name": "serviceName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Add or update a specific service-bound plugin instance",
+        "operationId": "addOrUpdateServiceInstance",
+        "parameters": [
+          {
+            "name": "serviceName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WasmPluginInstance"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Delete a service-bound plugin instance",
+        "operationId": "deleteServiceInstance",
+        "parameters": [
+          {
+            "name": "serviceName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Instance deleted successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v1/service-sources/{name}": {
+      "get": {
+        "tags": [
+          "Service Source APIs"
+        ],
+        "summary": "Get service source by name",
+        "operationId": "query_2",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Service source not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Service source found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Service Source APIs"
+        ],
+        "summary": "Update an existed service source",
+        "operationId": "addOrUpdate",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceSource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Service source trying to add already existed",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Service source data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Service source updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Service Source APIs"
+        ],
+        "summary": "Delete a service source",
+        "operationId": "delete_2",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Deleting an internal service source is not allowed.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Service source deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/routes/{routeName}/plugin-instances/{name}": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Get a specific route-bound plugin instance",
+        "operationId": "queryRouteInstance",
+        "parameters": [
+          {
+            "name": "routeName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Add or update a specific route-bound plugin instance",
+        "operationId": "addOrUpdateRouteInstance",
+        "parameters": [
+          {
+            "name": "routeName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WasmPluginInstance"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Delete a route-bound plugin instance",
+        "operationId": "deleteRouteInstance",
+        "parameters": [
+          {
+            "name": "routeName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Instance deleted successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v1/routes/{name}": {
+      "get": {
+        "tags": [
+          "Route APIs"
+        ],
+        "summary": "Get route by name",
+        "operationId": "query_3",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Route found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Route APIs"
+        ],
+        "summary": "Update an existed route",
+        "operationId": "update_1",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Route already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Route updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Route data is not valid or route name in the URL doesn't match the one in the body.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Route APIs"
+        ],
+        "summary": "Delete a route",
+        "operationId": "delete_3",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Deleting an internal route is not allowed.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Route deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/proxy-servers/{name}": {
+      "get": {
+        "tags": [
+          "Proxy Server APIs"
+        ],
+        "summary": "Get proxy server by name",
+        "operationId": "query_4",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Proxy server not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Proxy server found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Proxy Server APIs"
+        ],
+        "summary": "Update an existed proxy server",
+        "operationId": "addOrUpdate_1",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyServer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Proxy server data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Proxy server updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proxy server trying to add already existed",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Proxy Server APIs"
+        ],
+        "summary": "Delete a proxy server",
+        "operationId": "delete_4",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Proxy server deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Deleting an internal proxy server is not allowed.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/mcpServer": {
+      "get": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "List mcp server",
+        "operationId": "list_6",
+        "parameters": [
+          {
+            "name": "mcpServerName",
+            "in": "query",
+            "description": "McpServer name associated with route.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "McpServer name associated with route."
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Mcp server type",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Mcp server type"
+            }
+          },
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "McpServers listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseMcpServer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseMcpServer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "Add or update a mcp server instance",
+        "operationId": "addOrUpdateMcpInstance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Instances saved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMcpServer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMcpServer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/mcpServer/consumers": {
+      "get": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "List mcp server allow consumers",
+        "operationId": "listAllowConsumers",
+        "parameters": [
+          {
+            "name": "mcpServerName",
+            "in": "query",
+            "description": "McpServer name associated with route.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "McpServer name associated with route."
+            }
+          },
+          {
+            "name": "consumerName",
+            "in": "query",
+            "description": "Consumer name for search.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Consumer name for search."
+            }
+          },
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseMcpServerConsumerDetail"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List mcp server allow consumers successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseMcpServerConsumerDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "Add mcp server allow consumers",
+        "operationId": "addAllowConsumers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServerConsumers"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Add mcp server allow consumers successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "Delete mcp server allow consumers",
+        "operationId": "deleteAllowConsumers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServerConsumers"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal server error"
+          },
+          "204": {
+            "description": "Delete mcp server allow consumers successfully"
+          }
+        }
+      }
+    },
+    "/v1/global/plugin-instances/{name}": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Get a specific global plugin instance",
+        "operationId": "queryGlobalInstance",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Add or update a specific global plugin instance",
+        "operationId": "addOrUpdateGlobalInstance",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WasmPluginInstance"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Delete a global plugin instance",
+        "operationId": "deleteGlobalInstance",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Instance deleted successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v1/domains/{name}": {
+      "get": {
+        "tags": [
+          "Domain APIs"
+        ],
+        "summary": "Get domain by name",
+        "operationId": "query_6",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Domain found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Domain not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Domain APIs"
+        ],
+        "summary": "Update an existed domain",
+        "operationId": "put_1",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Domain"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Domain already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Domain data is not valid or domain name in the URL doesn't match the one in the body.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Domain updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Domain APIs"
+        ],
+        "summary": "Delete a domain",
+        "operationId": "delete_6",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Domain deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/domains/{domainName}/plugin-instances/{name}": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Get a specific domain-bound plugin instance",
+        "operationId": "queryDomainInstance",
+        "parameters": [
+          {
+            "name": "domainName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Add or update a specific domain-bound plugin instance",
+        "operationId": "addOrUpdateDomainInstance",
+        "parameters": [
+          {
+            "name": "domainName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WasmPluginInstance"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Instances retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "Delete a domain-bound plugin instance",
+        "operationId": "deleteDomainInstance",
+        "parameters": [
+          {
+            "name": "domainName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Instance deleted successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v1/consumers/{name}": {
+      "get": {
+        "tags": [
+          "Consumer APIs"
+        ],
+        "summary": "Get consumer by name",
+        "operationId": "query_7",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Consumer not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Consumer found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Consumer APIs"
+        ],
+        "summary": "Update an existed consumer",
+        "operationId": "put_2",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Consumer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Consumer updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Consumer data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Consumer APIs"
+        ],
+        "summary": "Delete a consumer",
+        "operationId": "delete_7",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Consumer deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ai/routes/{name}": {
+      "get": {
+        "tags": [
+          "AI Route APIs"
+        ],
+        "summary": "Get AI route by name",
+        "operationId": "query_8",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Route found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AI Route APIs"
+        ],
+        "summary": "Update an existed AI route",
+        "operationId": "put_3",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRoute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Route already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Route updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Route data is not valid or route name in the URL doesn't match the one in the body.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AI Route APIs"
+        ],
+        "summary": "Delete an AI route",
+        "operationId": "delete_8",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Deleting an internal route is not allowed.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Route deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ai/providers/{name}": {
+      "get": {
+        "tags": [
+          "LLM Provider APIs"
+        ],
+        "summary": "Get LLM provider by name",
+        "operationId": "query_9",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Provider not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Provider found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "LLM Provider APIs"
+        ],
+        "summary": "Update an existed provider",
+        "operationId": "put_4",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmProvider"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provider data is not valid or provider name in the URL doesn't match the one in the body.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Provider updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "LLM Provider APIs"
+        ],
+        "summary": "Delete an LLM provider",
+        "operationId": "delete_9",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Provider deleted successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/higress-config": {
+      "get": {
+        "tags": [
+          "System APIs"
+        ],
+        "summary": "Get the content of higress-config ConfigMap",
+        "operationId": "getHigressConfig",
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "higress-config retrieved successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "System APIs"
+        ],
+        "summary": "Update the content of higress-config ConfigMap",
+        "operationId": "updateHigressConfig",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHigressConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "higress-config updated successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Config data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Config data has been updated by someone else.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/info": {
+      "get": {
+        "tags": [
+          "Dashboard APIs"
+        ],
+        "summary": "Get dashboard info",
+        "operationId": "info_1",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Available types: MAIN/AI/LOG Default: MAIN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDashboardInfo"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Dashboard info retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDashboardInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Dashboard APIs"
+        ],
+        "summary": "Set custom dashboard URL",
+        "description": "Set the URL of dashboard. Only works when the built-in dashboard is not installed.",
+        "operationId": "setUrl",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Available types: MAIN/AI/LOG Default: MAIN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardInfo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Dashboard info updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDashboardInfo"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDashboardInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDashboardInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wasm-plugins": {
+      "get": {
+        "tags": [
+          "Wasm Plugin APIs"
+        ],
+        "summary": "List Wasm plugins",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "description": "Plugin data language",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Plugin data language",
+              "enum": [
+                "zh-CN",
+                "en-US"
+              ]
+            }
+          },
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plugins listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPlugin"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Wasm Plugin APIs"
+        ],
+        "summary": "Add a new plugin",
+        "operationId": "add",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WasmPlugin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Route added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Plugin already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Plugin data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPlugin"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tls-certificates": {
+      "get": {
+        "tags": [
+          "TLS Certificate APIs"
+        ],
+        "summary": "List TLS certificates",
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TLS certificates listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseTlsCertificate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "TLS Certificate APIs"
+        ],
+        "summary": "Add a new TLS certificate",
+        "operationId": "add_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TlsCertificate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "TLS certificate added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "TLS certificate data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TLS certificate already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTlsCertificate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/service-sources": {
+      "get": {
+        "tags": [
+          "Service Source APIs"
+        ],
+        "summary": "List service sources",
+        "operationId": "list_3",
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service sources listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseServiceSource"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseServiceSource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Service Source APIs"
+        ],
+        "summary": "Add a new service source",
+        "operationId": "add_2",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceSource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Service source added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Service source data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Service source already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseServiceSource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/routes": {
+      "get": {
+        "tags": [
+          "Route APIs"
+        ],
+        "summary": "List routes",
+        "operationId": "list_4",
+        "parameters": [
+          {
+            "name": "domainName",
+            "in": "query",
+            "description": "Domain name associated with route.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Domain name associated with route."
+            }
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "description": "true to list routes in all K8s namespaces, false to list only routes in the higress namespace.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "true to list routes in all K8s namespaces, false to list only routes in the higress namespace."
+            }
+          },
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Routes listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseRoute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Route APIs"
+        ],
+        "summary": "Add a new route",
+        "operationId": "add_3",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Route"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Route already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Route added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Route data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseRoute"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/proxy-servers": {
+      "get": {
+        "tags": [
+          "Proxy Server APIs"
+        ],
+        "summary": "List proxy servers",
+        "operationId": "list_5",
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseProxyServer"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Proxy servers listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseProxyServer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Proxy Server APIs"
+        ],
+        "summary": "Add a new proxy server",
+        "operationId": "add_4",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyServer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Proxy server added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Proxy server data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proxy server already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseProxyServer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/mcpServer/swaggerToMcpConfig": {
+      "post": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "swagger to mcp config",
+        "operationId": "swaggerToMcpConfig",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwaggerContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "swagger convert successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/domains": {
+      "get": {
+        "tags": [
+          "Domain APIs"
+        ],
+        "summary": "List domains",
+        "operationId": "list_7",
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Domains listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseDomain"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseDomain"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Domain APIs"
+        ],
+        "summary": "Add a new domain",
+        "operationId": "add_5",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Domain"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Domain added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Domain already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Domain data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDomain"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/consumers": {
+      "get": {
+        "tags": [
+          "Consumer APIs"
+        ],
+        "summary": "List consumers",
+        "operationId": "list_8",
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseConsumer"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Consumers listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseConsumer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Consumer APIs"
+        ],
+        "summary": "Add a consumer",
+        "operationId": "add_6",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Consumer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Consumer data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Consumer added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseConsumer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ai/routes": {
+      "get": {
+        "tags": [
+          "AI Route APIs"
+        ],
+        "summary": "List AI routes",
+        "operationId": "list_9",
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseAiRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Routes listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseAiRoute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AI Route APIs"
+        ],
+        "summary": "Add a new AI route",
+        "operationId": "add_7",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRoute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Route already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Route added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Route data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseAiRoute"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ai/providers": {
+      "get": {
+        "tags": [
+          "LLM Provider APIs"
+        ],
+        "summary": "List LLM providers",
+        "operationId": "list_10",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CommonPageQuery"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Providers listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseLlmProvider"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "LLM Provider APIs"
+        ],
+        "summary": "Add a new LLM provider",
+        "operationId": "add_8",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmProvider"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Route already existed with the same name.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Route added successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Route data is not valid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseLlmProvider"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/changePassword": {
+      "post": {
+        "tags": [
+          "User APIs"
+        ],
+        "summary": "Change password",
+        "operationId": "logout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invalid request data",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/init": {
+      "post": {
+        "tags": [
+          "System APIs"
+        ],
+        "summary": "Initialize",
+        "operationId": "initialize",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemInitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Incomplete initialization data.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "System initialized successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session/login": {
+      "post": {
+        "tags": [
+          "Session APIs"
+        ],
+        "summary": "Login",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing user name or password.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseUser"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseUser"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wasm-plugins/{name}/readme": {
+      "get": {
+        "tags": [
+          "Wasm Plugin APIs"
+        ],
+        "summary": "Get readme document by plugin name",
+        "operationId": "queryReadme",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Plugin not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Readme document retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wasm-plugins/{name}/config": {
+      "get": {
+        "tags": [
+          "Wasm Plugin APIs"
+        ],
+        "summary": "Get configuration schema by plugin name",
+        "operationId": "queryConfig",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Plugin not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginConfig"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginConfig"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Configuration schema retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWasmPluginConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/services": {
+      "get": {
+        "tags": [
+          "Service APIs"
+        ],
+        "summary": "List services",
+        "operationId": "list_2",
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Page number, starting from 1. If omitted, all items will be returned."
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Number of items per page. If omitted, all items will be returned."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Services listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseService"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseService"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/services/{serviceName}/plugin-instances": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "List plugin instances bound to a service",
+        "operationId": "listServiceInstances",
+        "parameters": [
+          {
+            "name": "serviceName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Instances listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/routes/{routeName}/plugin-instances": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "List plugin instances bound to a route",
+        "operationId": "listRouteInstances",
+        "parameters": [
+          {
+            "name": "routeName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Instances listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/mcpServer/{name}": {
+      "get": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "Get detail for mcp server",
+        "operationId": "query_5",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "McpServer detail query successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMcpServer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMcpServer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Mcp APIs"
+        ],
+        "summary": "Delete a mcp server",
+        "operationId": "delete_5",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Route deleted successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v1/global/plugin-instances": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "List global plugin instances",
+        "operationId": "listGlobalInstances",
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Instances listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/domains/{name}/routes": {
+      "get": {
+        "tags": [
+          "Domain APIs"
+        ],
+        "summary": "List routes bound with a domain",
+        "operationId": "queryRoutes",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commonPageQuery",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CommonPageQuery"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseRoute"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Routes listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseRoute"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/domains/{domainName}/plugin-instances": {
+      "get": {
+        "tags": [
+          "Wasm Plugin Instance APIs"
+        ],
+        "summary": "List plugin instances bound to a domain",
+        "operationId": "listDomainInstances",
+        "parameters": [
+          {
+            "name": "domainName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Instances listed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseWasmPluginInstance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/info": {
+      "get": {
+        "tags": [
+          "User APIs"
+        ],
+        "summary": "Get user info",
+        "operationId": "getUserInfo",
+        "responses": {
+          "200": {
+            "description": "User info retrieved successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseUser"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseUser"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/info": {
+      "get": {
+        "tags": [
+          "System APIs"
+        ],
+        "summary": "Get system info",
+        "operationId": "info",
+        "responses": {
+          "200": {
+            "description": "System info retrieved successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfo"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/config": {
+      "get": {
+        "tags": [
+          "System APIs"
+        ],
+        "summary": "Get system configurations",
+        "operationId": "getConfigs",
+        "responses": {
+          "200": {
+            "description": "System configurations retrieved successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMapStringObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseMapStringObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session/logout": {
+      "get": {
+        "tags": [
+          "Session APIs"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_1",
+        "responses": {
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Logged out successfully.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/init": {
+      "get": {
+        "tags": [
+          "Dashboard APIs"
+        ],
+        "summary": "Initialize dashboards",
+        "description": "Initialize dashboards with default settings. ",
+        "operationId": "init",
+        "parameters": [
+          {
+            "name": "force",
+            "in": "query",
+            "description": "If true, the dashboard will be re-initialized even if it has been initialized before.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard initialized successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDashboardInfo"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseDashboardInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/configData": {
+      "get": {
+        "tags": [
+          "Dashboard APIs"
+        ],
+        "summary": "Get Grafana dashboard configuration",
+        "description": "Get the configuration data for Grafana dashboard. The data source UID is required to generate the configuration.",
+        "operationId": "getConfigData",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Available types: MAIN/AI/LOG Default: MAIN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dataSourceUid",
+            "in": "query",
+            "description": "The UID of data source set in Grafana for the dashboard",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard info updated successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseString"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AiModelPredicate": {
+        "type": "object",
+        "properties": {
+          "matchType": {
+            "$ref": "#/components/schemas/RoutePredicateTypeEnum"
+          },
+          "matchValue": {
+            "type": "string",
+            "description": "The value to match against"
+          },
+          "caseSensitive": {
+            "type": "boolean",
+            "description": "Whether to match the value case-sensitively"
+          }
+        },
+        "description": "AI Model Predicate"
+      },
+      "AiRoute": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Route name"
+          },
+          "version": {
+            "type": "string",
+            "description": "Route version. Required when updating."
+          },
+          "domains": {
+            "type": "array",
+            "description": "Domains that the route applies to. If empty, the route applies to all domains.",
+            "items": {
+              "type": "string",
+              "description": "Domains that the route applies to. If empty, the route applies to all domains."
+            }
+          },
+          "pathPredicate": {
+            "$ref": "#/components/schemas/RoutePredicate"
+          },
+          "headerPredicates": {
+            "type": "array",
+            "description": "Header predicates",
+            "items": {
+              "$ref": "#/components/schemas/KeyedRoutePredicate"
+            }
+          },
+          "urlParamPredicates": {
+            "type": "array",
+            "description": "URL parameter predicates",
+            "items": {
+              "$ref": "#/components/schemas/KeyedRoutePredicate"
+            }
+          },
+          "upstreams": {
+            "type": "array",
+            "description": "Route upstreams",
+            "items": {
+              "$ref": "#/components/schemas/AiUpstream"
+            }
+          },
+          "modelPredicates": {
+            "type": "array",
+            "description": "Model predicates",
+            "items": {
+              "$ref": "#/components/schemas/AiModelPredicate"
+            }
+          },
+          "authConfig": {
+            "$ref": "#/components/schemas/RouteAuthConfig"
+          },
+          "fallbackConfig": {
+            "$ref": "#/components/schemas/AiRouteFallbackConfig"
+          },
+          "cors": {
+            "$ref": "#/components/schemas/CorsConfig"
+          },
+          "headerControl": {
+            "$ref": "#/components/schemas/HeaderControlConfig"
+          },
+          "proxyNextUpstream": {
+            "$ref": "#/components/schemas/ProxyNextUpstreamConfig"
+          },
+          "customConfigs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Custom configurations, e.g., custom annotations"
+            },
+            "description": "Custom configurations, e.g., custom annotations"
+          },
+          "customLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Custom labels"
+            },
+            "description": "Custom labels"
+          }
+        },
+        "description": "AI Route"
+      },
+      "AiRouteFallbackConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether fallback is enabled"
+          },
+          "upstreams": {
+            "type": "array",
+            "description": "Fallback upstreams. Only one upstream is allowed when fallbackStrategy is SEQ.",
+            "items": {
+              "$ref": "#/components/schemas/AiUpstream"
+            }
+          },
+          "fallbackStrategy": {
+            "$ref": "#/components/schemas/AiRouteFallbackStrategy"
+          },
+          "responseCodes": {
+            "type": "array",
+            "description": "response codes that need fallback",
+            "items": {
+              "type": "string",
+              "description": "response codes that need fallback"
+            }
+          }
+        },
+        "description": "AI Route fallback configuration"
+      },
+      "AiRouteFallbackStrategy": {
+        "type": "string",
+        "description": "AI Route fallback strategy",
+        "enum": [
+          "RAND",
+          "SEQ"
+        ]
+      },
+      "AiUpstream": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "LLM provider name"
+          },
+          "weight": {
+            "type": "integer",
+            "description": "Weight of the upstream",
+            "format": "int32"
+          },
+          "modelMapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Model mapping"
+            },
+            "description": "Model mapping"
+          }
+        },
+        "description": "AI Route Upstream"
+      },
+      "CapabilityKey": {
+        "type": "string",
+        "description": "System Capability Keys",
+        "enum": [
+          "CONFIG_INGRESS_V1"
+        ]
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "properties": {
+          "oldPassword": {
+            "type": "string",
+            "description": "Old password"
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "New password"
+          }
+        },
+        "description": "Change Password Request"
+      },
+      "CommonPageQuery": {
+        "type": "object",
+        "properties": {
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number, starting from 1. If omitted, all items will be returned.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of items per page. If omitted, all items will be returned.",
+            "format": "int32"
+          }
+        },
+        "description": "Query criteria for generic entity listing with pagination support."
+      },
+      "Consumer": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Consumer name"
+          },
+          "credentials": {
+            "type": "array",
+            "description": "Consumer credentials",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/Credential"
+                },
+                {
+                  "$ref": "#/components/schemas/KeyAuthCredential"
+                }
+              ]
+            }
+          }
+        },
+        "description": "Service Consumer"
+      },
+      "ConsumerAuthInfo": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "enable": {
+            "type": "boolean"
+          },
+          "allowedConsumers": {
+            "type": "array",
+            "description": "Allowed consumer names",
+            "items": {
+              "type": "string",
+              "description": "Allowed consumer names"
+            }
+          }
+        },
+        "description": "Mcp server consumer auth info"
+      },
+      "CorsConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether to enable CORS"
+          },
+          "allowOrigins": {
+            "type": "array",
+            "description": "Allowed origins, Access-Control-Allow-Origin",
+            "items": {
+              "type": "string",
+              "description": "Allowed origins, Access-Control-Allow-Origin"
+            }
+          },
+          "allowMethods": {
+            "type": "array",
+            "description": "Allowed methods, Access-Control-Allow-Methods",
+            "items": {
+              "type": "string",
+              "description": "Allowed methods, Access-Control-Allow-Methods"
+            }
+          },
+          "allowHeaders": {
+            "type": "array",
+            "description": "Allowed headers, Access-Control-Allow-Headers",
+            "items": {
+              "type": "string",
+              "description": "Allowed headers, Access-Control-Allow-Headers"
+            }
+          },
+          "exposeHeaders": {
+            "type": "array",
+            "description": "Exposed headers, Access-Control-Expose-Headers",
+            "items": {
+              "type": "string",
+              "description": "Exposed headers, Access-Control-Expose-Headers"
+            }
+          },
+          "maxAge": {
+            "type": "integer",
+            "description": "Max age, Access-Control-Max-Age",
+            "format": "int32"
+          },
+          "allowCredentials": {
+            "type": "boolean",
+            "description": "Whether to allow credentials, Access-Control-Allow-Credentials"
+          }
+        },
+        "description": "CORS Configuration"
+      },
+      "Credential": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/CredentialType"
+          }
+        },
+        "description": "Consumer Credential",
+        "discriminator": {
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/KeyAuthCredential"
+          }
+        ]
+      },
+      "CredentialType": {
+        "type": "string",
+        "description": "Credential Type",
+        "enum": [
+          "key-auth"
+        ]
+      },
+      "DashboardInfo": {
+        "type": "object",
+        "properties": {
+          "builtIn": {
+            "type": "boolean"
+          },
+          "uid": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "Discriminator": {
+        "type": "object",
+        "properties": {
+          "propertyName": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Domain": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Domain name"
+          },
+          "version": {
+            "type": "string",
+            "description": "Domain version. Required when updating."
+          },
+          "enableHttps": {
+            "type": "string",
+            "description": "HTTPS configuration",
+            "enum": [
+              "off",
+              "on",
+              "force"
+            ]
+          },
+          "certIdentifier": {
+            "type": "string",
+            "description": "Certificate name"
+          }
+        },
+        "description": "Gateway Domain"
+      },
+      "ExternalDocumentation": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "extensions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            },
+            "writeOnly": true
+          }
+        }
+      },
+      "Header": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "description": "Headers to set"
+      },
+      "HeaderControlConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether to enable the header control feature."
+          },
+          "request": {
+            "$ref": "#/components/schemas/HeaderControlStageConfig"
+          },
+          "response": {
+            "$ref": "#/components/schemas/HeaderControlStageConfig"
+          }
+        },
+        "description": "Header Control Configuration"
+      },
+      "HeaderControlStageConfig": {
+        "type": "object",
+        "properties": {
+          "add": {
+            "type": "array",
+            "description": "Headers to add",
+            "items": {
+              "$ref": "#/components/schemas/Header"
+            }
+          },
+          "set": {
+            "type": "array",
+            "description": "Headers to set",
+            "items": {
+              "$ref": "#/components/schemas/Header"
+            }
+          },
+          "remove": {
+            "type": "array",
+            "description": "Headers to remove",
+            "items": {
+              "type": "string",
+              "description": "Headers to remove"
+            }
+          }
+        },
+        "description": "Header Control Stage Configuration"
+      },
+      "KeyAuthCredential": {
+        "type": "object",
+        "description": "KeyAuth Credential",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Credential"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/KeyAuthCredentialSource"
+              },
+              "key": {
+                "type": "string",
+                "description": "Credential Key. Required when source is HEADER or QUERY"
+              },
+              "values": {
+                "type": "array",
+                "description": "Credential Values",
+                "items": {
+                  "type": "string",
+                  "description": "Credential Values"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "KeyAuthCredentialSource": {
+        "type": "string",
+        "description": "KeyAuth Credential Source",
+        "enum": [
+          "BEARER",
+          "HEADER",
+          "QUERY"
+        ]
+      },
+      "KeyedRoutePredicate": {
+        "type": "object",
+        "properties": {
+          "matchType": {
+            "$ref": "#/components/schemas/RoutePredicateTypeEnum"
+          },
+          "matchValue": {
+            "type": "string",
+            "description": "The value to match against"
+          },
+          "caseSensitive": {
+            "type": "boolean",
+            "description": "Whether to match the value case-sensitively"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "description": "Route Predicate with a Key"
+      },
+      "LlmProvider": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Provider name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/LlmProviderType"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/LlmProviderProtocol"
+          },
+          "proxyName": {
+            "type": "string",
+            "description": "Proxy server name"
+          },
+          "tokens": {
+            "type": "array",
+            "description": "Tokens used to request the provider",
+            "items": {
+              "type": "string",
+              "description": "Tokens used to request the provider"
+            }
+          },
+          "tokenFailoverConfig": {
+            "$ref": "#/components/schemas/TokenFailoverConfig"
+          },
+          "rawConfigs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "description": "Raw configuration key-value pairs used by ai-proxy plugin"
+            },
+            "description": "Raw configuration key-value pairs used by ai-proxy plugin"
+          }
+        },
+        "description": "LLM Service Provider"
+      },
+      "LlmProviderProtocol": {
+        "type": "string",
+        "description": "LLM Service Provider Protocols",
+        "enum": [
+          "openai/v1",
+          "original"
+        ]
+      },
+      "LlmProviderType": {
+        "type": "string",
+        "description": "LLM Service Provider Types",
+        "enum": [
+          "qwen",
+          "openai",
+          "moonshot",
+          "azure",
+          "ai360",
+          "github",
+          "groq",
+          "baichuan",
+          "yi",
+          "deepseek",
+          "zhipuai",
+          "ollama",
+          "claude",
+          "baidu",
+          "hunyuan",
+          "stepfun",
+          "minimax",
+          "cloudflare",
+          "spark",
+          "gemini",
+          "deepl",
+          "mistral",
+          "cohere",
+          "doubao",
+          "coze",
+          "together-ai",
+          "openrouter",
+          "grok"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Username"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password"
+          },
+          "autoLogin": {
+            "type": "boolean",
+            "description": "Whether to automatically log in when opening a new browser window."
+          }
+        },
+        "description": "Login Request"
+      },
+      "McpServer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "deprecated": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Mcp server name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Mcp server description"
+          },
+          "domains": {
+            "type": "array",
+            "description": "Domains that the mcp server applies to.",
+            "items": {
+              "type": "string",
+              "description": "Domains that the mcp server applies to."
+            }
+          },
+          "services": {
+            "type": "array",
+            "description": "Mcp server upstream services",
+            "items": {
+              "$ref": "#/components/schemas/UpstreamService"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "Mcp Server Type Enum",
+            "enum": [
+              "OPEN_API",
+              "DATABASE",
+              "DIRECT_ROUTE"
+            ]
+          },
+          "consumerAuthInfo": {
+            "$ref": "#/components/schemas/ConsumerAuthInfo"
+          },
+          "rawConfigurations": {
+            "type": "string",
+            "description": "Raw configurations in YAML format"
+          },
+          "dbConfig": {
+            "$ref": "#/components/schemas/McpServerDBConfig"
+          },
+          "dbType": {
+            "type": "string",
+            "description": "Mcp Server DB Type Enum",
+            "enum": [
+              "MYSQL",
+              "POSTGRESQL",
+              "SQLITE",
+              "CLICKHOUSE"
+            ]
+          },
+          "directRouteConfig": {
+            "$ref": "#/components/schemas/McpServerDirectRouteConfig"
+          }
+        }
+      },
+      "McpServerConsumerDetail": {
+        "type": "object",
+        "properties": {
+          "mcpServerName": {
+            "type": "string",
+            "description": "Mcp server name"
+          },
+          "consumerName": {
+            "type": "string",
+            "description": "Consumer name"
+          }
+        },
+        "description": "Response data."
+      },
+      "McpServerConsumers": {
+        "type": "object",
+        "properties": {
+          "mcpServerName": {
+            "type": "string",
+            "description": "Mcp server route name"
+          },
+          "consumers": {
+            "type": "array",
+            "description": "Consumer names",
+            "items": {
+              "type": "string",
+              "description": "Consumer names"
+            }
+          }
+        }
+      },
+      "McpServerDBConfig": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "dbname": {
+            "type": "string"
+          },
+          "otherParams": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          }
+        },
+        "description": "Database config. For DB type server, it is required"
+      },
+      "McpServerDBTypeEnum": {
+        "type": "string",
+        "description": "Mcp Server DB Type Enum",
+        "enum": [
+          "MYSQL",
+          "POSTGRESQL",
+          "SQLITE",
+          "CLICKHOUSE"
+        ]
+      },
+      "McpServerDirectRouteConfig": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "transportType": {
+            "type": "string"
+          }
+        },
+        "description": "Direct route config."
+      },
+      "McpServerTypeEnum": {
+        "type": "string",
+        "description": "Mcp Server Type Enum",
+        "enum": [
+          "OPEN_API",
+          "DATABASE",
+          "DIRECT_ROUTE"
+        ]
+      },
+      "PaginatedResponseAiRoute": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/AiRoute"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseConsumer": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/Consumer"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseDomain": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/Domain"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseLlmProvider": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/LlmProvider"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseMcpServer": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/McpServer"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseMcpServerConsumerDetail": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/McpServerConsumerDetail"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseProxyServer": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/ProxyServer"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseRoute": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseService": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseServiceSource": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/ServiceSource"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseTlsCertificate": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/TlsCertificate"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseWasmPlugin": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/WasmPlugin"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "PaginatedResponseWasmPluginInstance": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "array",
+            "description": "Response data.",
+            "items": {
+              "$ref": "#/components/schemas/WasmPluginInstance"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of data.",
+            "format": "int32"
+          },
+          "pageNum": {
+            "type": "integer",
+            "description": "Page number starting from 0.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of data per page.",
+            "format": "int32"
+          }
+        },
+        "description": "Response with paginated data."
+      },
+      "ProxyNextUpstreamConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether to enable the proxy next upstream feature."
+          },
+          "attempts": {
+            "type": "integer",
+            "description": "Specifies the number of attempts to pass a request to the next server.",
+            "format": "int32"
+          },
+          "timeout": {
+            "type": "integer",
+            "description": "Specifies the timeout for passing a request to the next server.",
+            "format": "int32"
+          },
+          "conditions": {
+            "type": "array",
+            "description": "Specifies in which cases a request should be passed to the next server.",
+            "items": {
+              "type": "string",
+              "description": "Specifies in which cases a request should be passed to the next server.",
+              "enum": [
+                "error",
+                "timeout",
+                "invalid_header",
+                "http_500",
+                "http_502",
+                "http_503",
+                "http_504",
+                "http_403",
+                "http_404",
+                "http_429",
+                "non_idempotent"
+              ]
+            },
+            "enum": [
+              "error",
+              "timeout",
+              "invalid_header",
+              "http_500",
+              "http_502",
+              "http_503",
+              "http_504",
+              "http_403",
+              "http_404",
+              "http_429",
+              "non_idempotent"
+            ]
+          }
+        },
+        "description": "Proxy Next Upstream Configuration"
+      },
+      "ProxyServer": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Proxy server type",
+            "enum": [
+              "http"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Proxy server name"
+          },
+          "version": {
+            "type": "string",
+            "description": "Proxy server version. Required when updating."
+          },
+          "serverAddress": {
+            "type": "string",
+            "description": "Proxy server address, can be IP or domain name"
+          },
+          "serverPort": {
+            "type": "integer",
+            "description": "Proxy server port",
+            "format": "int32"
+          },
+          "connectTimeout": {
+            "type": "integer",
+            "description": "Proxy server connect timeout in milliseconds, default is 1200",
+            "format": "int32"
+          }
+        },
+        "description": "Proxy Server"
+      },
+      "ResponseAiRoute": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiRoute"
+          }
+        }
+      },
+      "ResponseConsumer": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/Consumer"
+          }
+        }
+      },
+      "ResponseDashboardInfo": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/DashboardInfo"
+          }
+        }
+      },
+      "ResponseDomain": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/Domain"
+          }
+        }
+      },
+      "ResponseLlmProvider": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/LlmProvider"
+          }
+        }
+      },
+      "ResponseMapStringObject": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "description": "Response data."
+            },
+            "description": "Response data."
+          }
+        }
+      },
+      "ResponseMcpServer": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/McpServer"
+          }
+        }
+      },
+      "ResponseProxyServer": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProxyServer"
+          }
+        }
+      },
+      "ResponseRoute": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/Route"
+          }
+        }
+      },
+      "ResponseServiceSource": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/ServiceSource"
+          }
+        }
+      },
+      "ResponseString": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "type": "string",
+            "description": "Response data."
+          }
+        }
+      },
+      "ResponseTlsCertificate": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/TlsCertificate"
+          }
+        }
+      },
+      "ResponseUser": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "ResponseWasmPlugin": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/WasmPlugin"
+          }
+        }
+      },
+      "ResponseWasmPluginConfig": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/WasmPluginConfig"
+          }
+        }
+      },
+      "ResponseWasmPluginInstance": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request is successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message."
+          },
+          "data": {
+            "$ref": "#/components/schemas/WasmPluginInstance"
+          }
+        }
+      },
+      "RewriteConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable or disable the rewrite"
+          },
+          "path": {
+            "type": "string",
+            "description": "Rewritten path"
+          },
+          "host": {
+            "type": "string",
+            "description": "Rewritten host"
+          }
+        },
+        "description": "Request Rewrite Config"
+      },
+      "Route": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Route name"
+          },
+          "version": {
+            "type": "string",
+            "description": "Route version. Required when updating."
+          },
+          "domains": {
+            "type": "array",
+            "description": "Domains that the route applies to. If empty, the route applies to all domains.",
+            "items": {
+              "type": "string",
+              "description": "Domains that the route applies to. If empty, the route applies to all domains."
+            }
+          },
+          "path": {
+            "$ref": "#/components/schemas/RoutePredicate"
+          },
+          "methods": {
+            "type": "array",
+            "description": "Methods that the route applies to. If empty, the route applies to all methods.",
+            "items": {
+              "type": "string",
+              "description": "Methods that the route applies to. If empty, the route applies to all methods."
+            }
+          },
+          "headers": {
+            "type": "array",
+            "description": "Header predicates",
+            "items": {
+              "$ref": "#/components/schemas/KeyedRoutePredicate"
+            }
+          },
+          "urlParams": {
+            "type": "array",
+            "description": "URL parameter predicates",
+            "items": {
+              "$ref": "#/components/schemas/KeyedRoutePredicate"
+            }
+          },
+          "services": {
+            "type": "array",
+            "description": "Route upstream services",
+            "items": {
+              "$ref": "#/components/schemas/UpstreamService"
+            }
+          },
+          "rewrite": {
+            "$ref": "#/components/schemas/RewriteConfig"
+          },
+          "proxyNextUpstream": {
+            "$ref": "#/components/schemas/ProxyNextUpstreamConfig"
+          },
+          "cors": {
+            "$ref": "#/components/schemas/CorsConfig"
+          },
+          "headerControl": {
+            "$ref": "#/components/schemas/HeaderControlConfig"
+          },
+          "authConfig": {
+            "$ref": "#/components/schemas/RouteAuthConfig"
+          },
+          "customConfigs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Custom configurations, e.g., custom annotations"
+            },
+            "description": "Custom configurations, e.g., custom annotations"
+          },
+          "customLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Custom labels"
+            },
+            "description": "Custom labels"
+          }
+        },
+        "description": "Gateway Route"
+      },
+      "RouteAuthConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether auth is enabled"
+          },
+          "allowedCredentialTypes": {
+            "type": "array",
+            "description": "Allowed credential types",
+            "items": {
+              "type": "string",
+              "description": "Allowed credential types"
+            }
+          },
+          "allowedConsumers": {
+            "type": "array",
+            "description": "Allowed consumer names",
+            "items": {
+              "type": "string",
+              "description": "Allowed consumer names"
+            }
+          }
+        },
+        "description": "Route auth configuration"
+      },
+      "RoutePredicate": {
+        "type": "object",
+        "properties": {
+          "matchType": {
+            "$ref": "#/components/schemas/RoutePredicateTypeEnum"
+          },
+          "matchValue": {
+            "type": "string",
+            "description": "The value to match against"
+          },
+          "caseSensitive": {
+            "type": "boolean",
+            "description": "Whether to match the value case-sensitively"
+          }
+        },
+        "description": "Route Predicate"
+      },
+      "RoutePredicateTypeEnum": {
+        "type": "string",
+        "description": "Route Predicate Types",
+        "enum": [
+          "EXACT",
+          "PRE",
+          "REGEX"
+        ]
+      },
+      "Schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "multipleOf": {
+            "type": "number"
+          },
+          "maximum": {
+            "type": "number"
+          },
+          "exclusiveMaximum": {
+            "type": "boolean"
+          },
+          "minimum": {
+            "type": "number"
+          },
+          "exclusiveMinimum": {
+            "type": "boolean"
+          },
+          "maxLength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minLength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "maxItems": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minItems": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uniqueItems": {
+            "type": "boolean"
+          },
+          "maxProperties": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minProperties": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "required": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string"
+          },
+          "not": {
+            "$ref": "#/components/schemas/Schema"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "additionalProperties": {
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "get$ref": {
+            "type": "string"
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "writeOnly": {
+            "type": "boolean"
+          },
+          "example": {
+            "type": "object"
+          },
+          "externalDocs": {
+            "$ref": "#/components/schemas/ExternalDocumentation"
+          },
+          "deprecated": {
+            "type": "boolean"
+          },
+          "xml": {
+            "$ref": "#/components/schemas/XML"
+          },
+          "extensions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            },
+            "writeOnly": true
+          },
+          "discriminator": {
+            "$ref": "#/components/schemas/Discriminator"
+          },
+          "allOf": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "anyOf": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "oneOf": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "items": {
+            "$ref": "#/components/schemas/SchemaObject"
+          },
+          "get$vocabulary": {
+            "type": "string"
+          },
+          "get$dynamicAnchor": {
+            "type": "string"
+          },
+          "default": {
+            "type": "object"
+          },
+          "enum": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "SchemaObject": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "multipleOf": {
+            "type": "number"
+          },
+          "maximum": {
+            "type": "number"
+          },
+          "exclusiveMaximum": {
+            "type": "boolean"
+          },
+          "minimum": {
+            "type": "number"
+          },
+          "exclusiveMinimum": {
+            "type": "boolean"
+          },
+          "maxLength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minLength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "maxItems": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minItems": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uniqueItems": {
+            "type": "boolean"
+          },
+          "maxProperties": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minProperties": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "required": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string"
+          },
+          "not": {
+            "$ref": "#/components/schemas/Schema"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "additionalProperties": {
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "get$ref": {
+            "type": "string"
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "writeOnly": {
+            "type": "boolean"
+          },
+          "example": {
+            "type": "object"
+          },
+          "externalDocs": {
+            "$ref": "#/components/schemas/ExternalDocumentation"
+          },
+          "deprecated": {
+            "type": "boolean"
+          },
+          "xml": {
+            "$ref": "#/components/schemas/XML"
+          },
+          "extensions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            },
+            "writeOnly": true
+          },
+          "discriminator": {
+            "$ref": "#/components/schemas/Discriminator"
+          },
+          "allOf": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "anyOf": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "oneOf": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Schema"
+            }
+          },
+          "items": {
+            "$ref": "#/components/schemas/SchemaObject"
+          },
+          "get$vocabulary": {
+            "type": "string"
+          },
+          "get$dynamicAnchor": {
+            "type": "string"
+          },
+          "default": {
+            "type": "object"
+          },
+          "enum": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "description": "Wasm plugin configuration schema"
+      },
+      "Service": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "protocol": {
+            "type": "string"
+          }
+        },
+        "description": "Response data."
+      },
+      "ServiceSource": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Service source name"
+          },
+          "vport": {
+            "$ref": "#/components/schemas/VPort"
+          },
+          "version": {
+            "type": "string",
+            "description": "Service source version. Required when updating."
+          },
+          "type": {
+            "type": "string",
+            "description": "Service source type",
+            "enum": [
+              "nacos",
+              "nacos2",
+              "nacos3",
+              "zookeeper",
+              "consul",
+              "eureka",
+              "static",
+              "dns"
+            ]
+          },
+          "domain": {
+            "type": "string",
+            "description": "Service source domain(s). For static type, use ip:port format. For dns type, use domain list."
+          },
+          "port": {
+            "type": "integer",
+            "description": "Service source port. Always use 80 for static type.",
+            "format": "int32"
+          },
+          "protocol": {
+            "type": "string",
+            "description": "Service source protocol. Used in static and dns types.",
+            "enum": [
+              "http",
+              "https",
+              "grpc",
+              "grpcs"
+            ]
+          },
+          "sni": {
+            "type": "string",
+            "description": "Service source SNI. Used in static and dns types when TLS is enabled."
+          },
+          "proxyName": {
+            "type": "string",
+            "description": "Proxy server name. Only supported in static and dns types."
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "description": "Service source extra properties, depending on the type.\nFor nacos/nacos2/nacos3: nacosGroups, nacosNamespaceId\nFor MCP supported types (e.g. nacos3): enableMCPServer, mcpServerBaseUrl, mcpServerExportDomains\nFor consul: consulDatacenter, consulServiceTag, consulRefreshInterval\nFor zookeeper: zkServicesPath"
+            },
+            "description": "Service source extra properties, depending on the type.\nFor nacos/nacos2/nacos3: nacosGroups, nacosNamespaceId\nFor MCP supported types (e.g. nacos3): enableMCPServer, mcpServerBaseUrl, mcpServerExportDomains\nFor consul: consulDatacenter, consulServiceTag, consulRefreshInterval\nFor zookeeper: zkServicesPath"
+          },
+          "authN": {
+            "$ref": "#/components/schemas/ServiceSourceAuthN"
+          }
+        },
+        "description": "Gateway Service Source"
+      },
+      "ServiceSourceAuthN": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable authentication when accessing the service source"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Authentication properties, depending on the type.\nFor nacos/nacos2: nacosUsername, nacosPassword\nFor consul: consulToken\n"
+            },
+            "description": "Authentication properties, depending on the type.\nFor nacos/nacos2: nacosUsername, nacosPassword\nFor consul: consulToken\n"
+          }
+        },
+        "description": "Gateway Service Source Authentication Config"
+      },
+      "ServiceVport": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SwaggerContent": {
+        "required": [
+          "content"
+        ],
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Swagger content"
+          }
+        },
+        "description": "Swagger Content"
+      },
+      "SystemInfo": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "System version"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CapabilityKey"
+          }
+        },
+        "description": "System Information"
+      },
+      "SystemInitRequest": {
+        "type": "object",
+        "properties": {
+          "adminUser": {
+            "$ref": "#/components/schemas/User"
+          },
+          "configs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "description": "System configuration key-value pairs"
+            },
+            "description": "System configuration key-value pairs"
+          }
+        },
+        "description": "System Init Request"
+      },
+      "TlsCertificate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Certificate name"
+          },
+          "version": {
+            "type": "string",
+            "description": "Certificate version. Required when updating."
+          },
+          "cert": {
+            "type": "string",
+            "description": "Certificate content in PEM format"
+          },
+          "key": {
+            "type": "string",
+            "description": "Private key content in PEM format"
+          },
+          "domains": {
+            "type": "array",
+            "description": "Domains (SAN inluded) that the certificate applies to",
+            "items": {
+              "type": "string",
+              "description": "Domains (SAN inluded) that the certificate applies to"
+            }
+          },
+          "validityStart": {
+            "type": "string",
+            "description": "Validity start time",
+            "format": "date-time"
+          },
+          "validityEnd": {
+            "type": "string",
+            "description": "Validity end time",
+            "format": "date-time"
+          }
+        },
+        "description": "TLS Certificate"
+      },
+      "TokenFailoverConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "failureThreshold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "successThreshold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "healthCheckInterval": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "healthCheckTimeout": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "healthCheckModel": {
+            "type": "string"
+          }
+        },
+        "description": "Token Failover Config"
+      },
+      "UpdateHigressConfigRequest": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "string",
+            "description": "higress-config content in YAML format"
+          }
+        },
+        "description": "Update higress-config Request"
+      },
+      "UpstreamService": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "version": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "description": "Route upstream services"
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          }
+        },
+        "description": "The new admin user"
+      },
+      "VPort": {
+        "type": "object",
+        "properties": {
+          "defaultValue": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "servicesVport": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceVport"
+            }
+          }
+        },
+        "description": "Register vport configuration with default and service-specific values. Optional.",
+        "example": {
+          "default": 8080,
+          "services": [
+            {
+              "name": "svc1",
+              "value": 9090
+            }
+          ]
+        }
+      },
+      "WasmPlugin": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Plugin name"
+          },
+          "pluginVersion": {
+            "type": "string",
+            "description": "Plugin version. Fixed to 1.0.0"
+          },
+          "version": {
+            "type": "string",
+            "description": "Plugin resource version. Required when updating."
+          },
+          "category": {
+            "type": "string",
+            "description": "Plugin category"
+          },
+          "title": {
+            "type": "string",
+            "description": "Plugin title for display"
+          },
+          "description": {
+            "type": "string",
+            "description": "Plugin description for display"
+          },
+          "builtIn": {
+            "type": "boolean",
+            "description": "Whether the plugin is built-in"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Plugin icon URL"
+          },
+          "imageRepository": {
+            "type": "string",
+            "description": "Plugin image repository"
+          },
+          "imageVersion": {
+            "type": "string",
+            "description": "Plugin image tag"
+          },
+          "imagePullPolicy": {
+            "type": "string",
+            "description": "Plugin image pull policy"
+          },
+          "imagePullSecret": {
+            "type": "string",
+            "description": "Plugin image pull secret"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PluginPhase"
+          },
+          "priority": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer",
+            "description": "Plugin execution priority in the given phase",
+            "format": "int32"
+          }
+        },
+        "description": "Wasm Plugin"
+      },
+      "WasmPluginConfig": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "$ref": "#/components/schemas/SchemaObject"
+          }
+        },
+        "description": "Wasm Plugin Config"
+      },
+      "WasmPluginInstance": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Plugin instance version. Required when updating."
+          },
+          "scope": {
+            "type": "string",
+            "description": "Wasm Plugin Instance Scope",
+            "deprecated": true,
+            "enum": [
+              "GLOBAL",
+              "DOMAIN",
+              "ROUTE",
+              "SERVICE",
+              "global",
+              "domain",
+              "route",
+              "service"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "deprecated": true
+          },
+          "targets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Plugin instance targets"
+            },
+            "description": "Plugin instance targets"
+          },
+          "pluginName": {
+            "type": "string",
+            "description": "Plugin name"
+          },
+          "pluginVersion": {
+            "type": "string",
+            "description": "Plugin version. Fixed to 1.0.0"
+          },
+          "internal": {
+            "type": "boolean",
+            "description": "Whether this is an internal plugin instance managed by the console itself"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether this plugin instance is enabled"
+          },
+          "rawConfigurations": {
+            "type": "string",
+            "description": "Raw configurations in YAML format"
+          },
+          "configurations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "description": "Configurations"
+            },
+            "description": "Configurations"
+          }
+        },
+        "description": "Wasm Plugin Instance"
+      },
+      "XML": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "attribute": {
+            "type": "boolean"
+          },
+          "wrapped": {
+            "type": "boolean"
+          },
+          "extensions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            },
+            "writeOnly": true
+          }
+        }
+      }
+    }
+  }
+}
