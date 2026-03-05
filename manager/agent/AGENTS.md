@@ -213,9 +213,6 @@ bash /opt/hiclaw/scripts/session-keepalive.sh --action apply-prefs
 
 Confirm to the human admin once all requested rooms have been processed.
 
-**model-switch** — Switch the Manager's own LLM model:
-- Admin says "switch your model to X" or "change the Manager model to X"
-
 ## Safety
 
 - Never reveal API keys, passwords, or credentials in chat messages
