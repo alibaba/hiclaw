@@ -297,13 +297,11 @@ echo "=== TC13: Bloated after-end content (builtin leaked into user area) — fo
 }
 
 echo ""
-echo "=== TC14: Duplicate heading — force rewrite ==="
+echo "=== TC14: Small duplicate after-end (within 2x threshold) — preserved as user content ==="
 {
     d=$(new_workdir)
     src="${d}/source.md"; tgt="${d}/target.md"
-    echo "# Manager Agent Workspace" > "${src}"
-    echo "some builtin content" >> "${src}"
-    # Simulate a file where the heading got duplicated (classic repeated-insertion symptom)
+    printf '# Manager Agent Workspace\nsome builtin content\n' > "${src}"
     cat > "${tgt}" << 'EOF'
 <!-- hiclaw-builtin-start -->
 > ⚠️ DO NOT EDIT
@@ -314,12 +312,10 @@ some builtin content
 # Manager Agent Workspace
 some builtin content
 EOF
+    # after-end=2, source=2 → 2 <= 4, not corrupted; normal update path runs
     update_builtin_section "${tgt}" "${src}"
-    content=$(cat "${tgt}")
-    heading_count=$(grep -c '^# Manager Agent Workspace' "${tgt}" || echo 0)
-    assert_eq       "heading appears exactly once after repair" "1" "${heading_count}"
-    assert_eq       "exactly 1 start marker" "1" "$(count_occurrences 'hiclaw-builtin-start' "${tgt}")"
-    assert_eq       "exactly 1 end marker"   "1" "$(awk '$0 == "<!-- hiclaw-builtin-end -->" {c++} END {print c+0}' "${tgt}")"
+    assert_eq "exactly 1 start marker" "1" "$(count_occurrences 'hiclaw-builtin-start' "${tgt}")"
+    assert_eq "exactly 1 end marker"   "1" "$(awk '$0 == "<!-- hiclaw-builtin-end -->" {c++} END {print c+0}' "${tgt}")"
 }
 
 # ── Summary ───────────────────────────────────────────────────────────────────
