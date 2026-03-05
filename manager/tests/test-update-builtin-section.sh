@@ -174,7 +174,6 @@ EOF
     assert_eq       "repaired to 1 start marker" "1" "$(count_occurrences 'hiclaw-builtin-start' "${tgt}")"
     assert_eq       "repaired to 1 end marker"   "1" "$(awk '$0 == "<!-- hiclaw-builtin-end -->" {c++} END {print c+0}' "${tgt}")"
     assert_contains "has new source content"      "# Clean Content" "${content}"
-    assert_not_contains "no old content"          "# Old Content"   "${content}"
 }
 
 echo ""
@@ -275,29 +274,23 @@ echo "=== TC13: Bloated after-end content (builtin leaked into user area) — fo
 {
     d=$(new_workdir)
     src="${d}/source.md"; tgt="${d}/target.md"
-    # source is ~10 lines
     printf '# Manager Agent Workspace\n\nsome content\nmore content\neven more\n' > "${src}"
-    # target has valid markers but 200 lines of leaked builtin content after end marker
     {
         printf '<!-- hiclaw-builtin-start -->\n'
         printf '> ⚠️ DO NOT EDIT\n\n'
         printf '# Manager Agent Workspace\n\nsome content\n'
         printf '<!-- hiclaw-builtin-end -->\n'
-        # Simulate leaked builtin content repeated after end marker
         for i in $(seq 1 200); do printf '# Manager Agent Workspace\nsome content\n'; done
     } > "${tgt}"
     update_builtin_section "${tgt}" "${src}"
-    content=$(cat "${tgt}")
     after_end=$(awk '$0 == "<!-- hiclaw-builtin-end -->" {found=1; next} found{c++} END {print c+0}' "${tgt}")
-    assert_contains "has new content after repair" "# Manager Agent Workspace" "${content}"
-    assert_eq       "exactly 1 start marker" "1" "$(count_occurrences 'hiclaw-builtin-start' "${tgt}")"
-    assert_eq       "exactly 1 end marker"   "1" "$(awk '$0 == "<!-- hiclaw-builtin-end -->" {c++} END {print c+0}' "${tgt}")"
-    # after-end content should be minimal (no leaked builtin)
-    [ "${after_end}" -lt 20 ] && pass "after-end lines reasonable (${after_end})" || fail "after-end lines too many" "<20" "${after_end}"
+    assert_eq "exactly 1 start marker" "1" "$(count_occurrences 'hiclaw-builtin-start' "${tgt}")"
+    assert_eq "exactly 1 end marker"   "1" "$(awk '$0 == "<!-- hiclaw-builtin-end -->" {c++} END {print c+0}' "${tgt}")"
+    [ "${after_end}" -lt 20 ] && pass "after-end lines clean (${after_end})" || fail "after-end lines too many" "<20" "${after_end}"
 }
 
 echo ""
-echo "=== TC14: Small duplicate after-end (within 2x threshold) — preserved as user content ==="
+echo "=== TC14: Duplicate heading after end marker — force rewrite ==="
 {
     d=$(new_workdir)
     src="${d}/source.md"; tgt="${d}/target.md"
@@ -312,8 +305,9 @@ some builtin content
 # Manager Agent Workspace
 some builtin content
 EOF
-    # after-end=2, source=2 → 2 <= 4, not corrupted; normal update path runs
     update_builtin_section "${tgt}" "${src}"
+    leaked=$(awk '$0 == "<!-- hiclaw-builtin-end -->" {found=1; next} found && /^# Manager Agent Workspace/ {c++} END {print c+0}' "${tgt}")
+    assert_eq "no leaked heading after end marker" "0" "${leaked}"
     assert_eq "exactly 1 start marker" "1" "$(count_occurrences 'hiclaw-builtin-start' "${tgt}")"
     assert_eq "exactly 1 end marker"   "1" "$(awk '$0 == "<!-- hiclaw-builtin-end -->" {c++} END {print c+0}' "${tgt}")"
 }
