@@ -17,7 +17,9 @@
       "accessToken": "${WORKER_MATRIX_TOKEN}",
       "dm": {
         "policy": "allowlist",
-        "allowFrom": []
+        "allowFrom": [
+          "@${HICLAW_ADMIN_USER}:${HICLAW_MATRIX_DOMAIN}"
+        ]
       },
       "groupPolicy": "allowlist",
       "groupAllowFrom": [
