@@ -124,7 +124,7 @@ if [ -d "${WORKER_AGENT_SRC}" ] && mc alias ls hiclaw > /dev/null 2>&1; then
         mc mirror "${_skill_dir}" \
             "hiclaw/hiclaw-storage/shared/builtins/worker/skills/${_skill_name}/" --overwrite 2>/dev/null \
             && log "  Published: shared/builtins/worker/skills/${_skill_name}/" \
-            || true
+            || log "  WARNING: Failed to publish worker-skill ${_skill_name} to MinIO"
     done
 else
     log "  Skipping MinIO publish (worker-agent dir not found or mc not configured)"

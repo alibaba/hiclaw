@@ -19,3 +19,5 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - feat(manager): `upgrade-builtins.sh` deploys Worker `TOOLS.md` to MinIO and all registered worker workspaces
 - fix(manager): `worker-openclaw.json.tmpl` — add admin to `dm.allowFrom` so admin can DM workers directly
 - fix(manager): `builtin-merge.sh` — add `|| true` to `grep -v` in user_content extraction to prevent `set -e` exit when no user content exists
+- fix(manager): `builtin-merge.sh` — add explicit ERROR logging on all write/move failures so startup failures are visible in logs
+- fix(manager): `upgrade-builtins.sh` — replace silent `|| true` with WARNING log when worker-skill MinIO publish fails

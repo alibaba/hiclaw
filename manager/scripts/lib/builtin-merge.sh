@@ -27,13 +27,16 @@ update_builtin_section() {
         return 0
     fi
 
-    mkdir -p "$(dirname "${target}")"
+    mkdir -p "$(dirname "${target}")" || { log "  ERROR: failed to create directory for ${target}"; return 1; }
 
     if [ ! -f "${target}" ]; then
         log "  Creating: ${target}"
-        printf '%s\n' "${BUILTIN_HEADER}" > "${target}"
-        cat "${source}" >> "${target}"
-        printf '\n%s\n' "${BUILTIN_END}" >> "${target}"
+        {
+            printf '%s\n' "${BUILTIN_HEADER}"
+            cat "${source}"
+            printf '\n%s\n' "${BUILTIN_END}"
+        } > "${target}.tmp" || { log "  ERROR: failed to write ${target}.tmp"; return 1; }
+        mv "${target}.tmp" "${target}" || { log "  ERROR: failed to move ${target}.tmp -> ${target}"; return 1; }
         return 0
     fi
 
@@ -55,8 +58,8 @@ update_builtin_section() {
                 printf '%s\n' "${BUILTIN_HEADER}"
                 cat "${source}"
                 printf '\n%s\n' "${BUILTIN_END}"
-            } > "${target}.tmp"
-            mv "${target}.tmp" "${target}"
+            } > "${target}.tmp" || { log "  ERROR: failed to write ${target}.tmp during force rewrite"; return 1; }
+            mv "${target}.tmp" "${target}" || { log "  ERROR: failed to move ${target}.tmp -> ${target} during force rewrite"; return 1; }
             log "  Rewrote corrupted file: ${target}"
             return 0
         fi
@@ -70,14 +73,14 @@ update_builtin_section() {
             skip && /^[[:space:]]*$/ { next }
             skip && /^>/ { next }
             { skip=0; print }
-        ' "${target}")
-        new_builtin=$(cat "${source}")
+        ' "${target}") || { log "  ERROR: awk failed reading builtin section from ${target}"; return 1; }
+        new_builtin=$(cat "${source}") || { log "  ERROR: failed to read source ${source}"; return 1; }
         if [ "${current_builtin}" = "${new_builtin}" ]; then
             log "  Up to date: ${target}"
             return 0
         fi
 
-        # Extract user content after the end marker
+        # Extract user content after the end marker (|| true: empty user content is fine)
         local user_content
         user_content=$(awk '$0 == "<!-- hiclaw-builtin-end -->" {found=1; next} found{print}' "${target}" | grep -v 'hiclaw-builtin' || true)
         {
@@ -85,8 +88,8 @@ update_builtin_section() {
             cat "${source}"
             printf '\n%s\n' "${BUILTIN_END}"
             [ -n "${user_content}" ] && printf '\n%s\n' "${user_content}"
-        } > "${target}.tmp"
-        mv "${target}.tmp" "${target}"
+        } > "${target}.tmp" || { log "  ERROR: failed to write ${target}.tmp"; return 1; }
+        mv "${target}.tmp" "${target}" || { log "  ERROR: failed to move ${target}.tmp -> ${target}"; return 1; }
         log "  Updated builtin section: ${target}"
     else
         # Old install without markers: discard old content, write new builtin with markers
@@ -95,7 +98,7 @@ update_builtin_section() {
             printf '%s\n' "${BUILTIN_HEADER}"
             cat "${source}"
             printf '\n%s\n' "${BUILTIN_END}"
-        } > "${target}.tmp"
-        mv "${target}.tmp" "${target}"
+        } > "${target}.tmp" || { log "  ERROR: failed to write ${target}.tmp for legacy file"; return 1; }
+        mv "${target}.tmp" "${target}" || { log "  ERROR: failed to move ${target}.tmp -> ${target} for legacy file"; return 1; }
     fi
 }
