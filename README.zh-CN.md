@@ -209,6 +209,16 @@ docker exec -it hiclaw-manager cat /var/log/hiclaw/manager-agent.log
 
 目标：让 Agent Teams 像人类团队一样透明可控——没有黑盒。
 
+### 通用 MCP 服务支持
+
+目前 Worker 通过 Higress MCP 网关 + mcporter 访问 GitHub，只需使用 Higress 签发的 token，真实的 GitHub PAT 永远不会暴露给 Worker。这个安全的模式可以扩展到任意 MCP 服务：
+
+- **预置 MCP 连接器**：GitHub、Slack、Notion、Linear 等常用服务
+- **自定义 MCP 集成**：接入自己的 MCP 服务，由 Higress 统一管理认证
+- **细粒度权限控制**：Manager 可按 Worker 授予/撤销 MCP 服务访问权限
+
+目标：任何支持 MCP 协议的工具都能安全地暴露给 Worker，凭证零泄露。
+
 ---
 
 ## 文档

@@ -214,6 +214,16 @@ A built-in dashboard for observing and controlling your Agent Teams:
 
 Goal: Make Agent Teams as observable and controllable as human teams — no black boxes.
 
+### Universal MCP Service Support
+
+Currently, Workers access GitHub via Higress MCP Gateway + mcporter, using only a Higress-issued token — real GitHub PATs never leave the gateway. This secure pattern works for any MCP server:
+
+- **Pre-built MCP connectors**: GitHub, Slack, Notion, Linear, and more
+- **Custom MCP integration**: Bring your own MCP server, let Higress handle auth
+- **Per-Worker access control**: Manager grants/revokes MCP access per Worker
+
+Goal: Any tool that speaks MCP can be safely exposed to Workers without credential leakage.
+
 ---
 
 ## Documentation
