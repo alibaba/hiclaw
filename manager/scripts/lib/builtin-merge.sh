@@ -51,20 +51,10 @@ update_builtin_section() {
         fi
         if [ "${start_count}" -ne 1 ] || [ "${end_count}" -ne 1 ] || [ "${leaked_heading}" -gt 0 ]; then
             log "  Corrupted (start=${start_count}, end=${end_count}, leaked_heading=${leaked_heading}): ${target} — force rewriting"
-            local user_content=""
-            # Preserve user content after end marker, filtering out leaked builtin lines.
-            if [ "${end_count}" -ge 1 ]; then
-                user_content=$(awk '$0 == "<!-- hiclaw-builtin-end -->" {found=1; next} found{print}' "${target}" \
-                    | grep -v 'hiclaw-builtin' || true)
-                if [ -n "${user_content}" ]; then
-                    user_content=$(printf '%s\n' "${user_content}" | grep -vxFf "${source}" || true)
-                fi
-            fi
             {
                 printf '%s\n' "${BUILTIN_HEADER}"
                 cat "${source}"
                 printf '\n%s\n' "${BUILTIN_END}"
-                [ -n "${user_content}" ] && printf '\n%s\n' "${user_content}"
             } > "${target}.tmp"
             mv "${target}.tmp" "${target}"
             log "  Rewrote corrupted file: ${target}"

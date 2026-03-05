@@ -177,7 +177,7 @@ EOF
 }
 
 echo ""
-echo "=== TC8: Corrupted file — user content after last end marker is preserved ==="
+echo "=== TC8: Corrupted file (2 start markers) — force rewrite, no user content preserved ==="
 {
     d=$(new_workdir)
     src="${d}/source.md"; tgt="${d}/target.md"
@@ -198,8 +198,9 @@ user wrote this
 EOF
     update_builtin_section "${tgt}" "${src}"
     content=$(cat "${tgt}")
-    assert_contains "user content preserved after repair" "## Real User Content" "${content}"
+    assert_contains "has new builtin content" "# New Builtin" "${content}"
     assert_eq       "exactly 1 start marker after repair" "1" "$(count_occurrences 'hiclaw-builtin-start' "${tgt}")"
+    assert_eq       "exactly 1 end marker after repair"   "1" "$(awk '$0 == "<!-- hiclaw-builtin-end -->" {c++} END {print c+0}' "${tgt}")"
 }
 
 echo ""
