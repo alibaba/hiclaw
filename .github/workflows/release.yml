@@ -18,38 +18,83 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build release body
+        run: |
+          VERSION="${{ github.ref_name }}"
+          REGISTRY="${{ env.REGISTRY }}"
+          REPO="${{ env.REPO }}"
+          REPOSITORY="${{ github.repository }}"
+
+          # Extract entries below the first --- separator
+          if [ -s changelog/current.md ]; then
+            changelog=$(awk '/^---$/{found=1; next} found{print}' changelog/current.md)
+          else
+            changelog="_No changelog entries recorded._"
+          fi
+
+          cat > /tmp/release-body.md << EOF
+          ## What's Changed
+
+          ${changelog}
+
+          ## Docker Images
+
+          Multi-architecture images (amd64 + arm64):
+
+          \`\`\`bash
+          # Manager
+          docker pull ${REGISTRY}/${REPO}/hiclaw-manager:${VERSION}
+
+          # Worker
+          docker pull ${REGISTRY}/${REPO}/hiclaw-worker:${VERSION}
+          \`\`\`
+
+          ## Quick Start
+
+          ### macOS / Linux
+
+          \`\`\`bash
+          bash <(curl -fsSL https://raw.githubusercontent.com/${REPOSITORY}/main/install/hiclaw-install.sh)
+          \`\`\`
+
+          ### Windows (PowerShell 7+)
+
+          \`\`\`powershell
+          Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://higress.ai/hiclaw/install.ps1'))
+          \`\`\`
+
+          ## Documentation
+
+          For more details, see the [installation guide](https://github.com/${REPOSITORY}/blob/main/install/README.md).
+          EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          generate_release_notes: true
-          body: |
-            ## Docker Images
+          body_path: /tmp/release-body.md
 
-            Multi-architecture images (amd64 + arm64):
+      - name: Archive changelog and reset
+        run: |
+          VERSION="${{ github.ref_name }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            ```bash
-            # Manager
-            docker pull ${{ env.REGISTRY }}/${{ env.REPO }}/hiclaw-manager:${{ github.ref_name }}
+          # Rename current.md → vX.Y.Z.md
+          git mv changelog/current.md "changelog/${VERSION}.md"
 
-            # Worker
-            docker pull ${{ env.REGISTRY }}/${{ env.REPO }}/hiclaw-worker:${{ github.ref_name }}
-            ```
+          # Create fresh current.md
+          cat > changelog/current.md << 'EOF'
+          # Changelog (Unreleased)
 
-            ## Quick Start
+          Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here before the next release.
 
-            ### macOS / Linux
+          ---
 
-            ```bash
-            bash <(curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install/hiclaw-install.sh)
-            ```
+          EOF
 
-            ### Windows (PowerShell 7+)
-
-            ```powershell
-            Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://higress.ai/hiclaw/install.ps1'))
-            ```
-
-            ## Documentation
-
-            For more details, see the [installation guide](https://github.com/${{ github.repository }}/blob/main/install/README.md).
+          git add changelog/current.md
+          git commit -m "chore: archive changelog for ${VERSION}"
+          git push origin HEAD:main
