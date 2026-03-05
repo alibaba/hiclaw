@@ -13,3 +13,7 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - fix(manager): `setup-higress.sh` — multiple route/consumer/MCP init fixes ([d259177](https://github.com/higress-group/hiclaw/commit/d259177ffdac5cbe504d067ec8e45fd7c1c5b859))
 - fix(manager): `start-manager-agent.sh` — wait for Tuwunel Matrix API ready before proceeding, add detailed logging for token acquisition ([d259177](https://github.com/higress-group/hiclaw/commit/d259177ffdac5cbe504d067ec8e45fd7c1c5b859), [1a9e1d8](https://github.com/higress-group/hiclaw/commit/1a9e1d8956c1d580d4e6aaa2646203edd4f5999b))
 - fix(manager): support Podman by replacing hardcoded `docker` commands with runtime detection; fix `jq` availability inside container; fix provider switch menu text ([9d57ef8](https://github.com/higress-group/hiclaw/commit/9d57ef8656597cb2eb57424ffec2ece2438c93cd))
+- fix(manager): force rewrite corrupted AGENTS.md without preserving user content ([639d0c6](https://github.com/higress-group/hiclaw/commit/639d0c6))
+- feat(manager): add `TOOLS.md` for Manager — management skills quick-reference cheat sheet, extracted from AGENTS.md
+- feat(manager): add `TOOLS.md` for Worker — find-skills priority guidance for unknown problems
+- feat(manager): `upgrade-builtins.sh` deploys Worker `TOOLS.md` to MinIO and all registered worker workspaces

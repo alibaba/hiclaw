@@ -29,6 +29,7 @@ log "Step 1: Upgrading Manager workspace .md files..."
 update_builtin_section "${WORKSPACE}/SOUL.md" "${AGENT_SRC}/SOUL.md"
 update_builtin_section "${WORKSPACE}/HEARTBEAT.md" "${AGENT_SRC}/HEARTBEAT.md"
 update_builtin_section "${WORKSPACE}/AGENTS.md" "${AGENT_SRC}/AGENTS.md"
+update_builtin_section "${WORKSPACE}/TOOLS.md" "${AGENT_SRC}/TOOLS.md"
 
 for skill_dir in "${AGENT_SRC}/skills"/*/; do
     skill_name=$(basename "${skill_dir}")
@@ -97,6 +98,14 @@ if [ -d "${WORKER_AGENT_SRC}" ] && mc alias ls hiclaw > /dev/null 2>&1; then
         && log "  Published: shared/builtins/worker/AGENTS.md" \
         || log "  WARNING: Failed to publish AGENTS.md to MinIO (MinIO may not be ready yet)"
 
+    # Publish TOOLS.md
+    if [ -f "${WORKER_AGENT_SRC}/TOOLS.md" ]; then
+        mc cp "${WORKER_AGENT_SRC}/TOOLS.md" \
+            "hiclaw/hiclaw-storage/shared/builtins/worker/TOOLS.md" 2>/dev/null \
+            && log "  Published: shared/builtins/worker/TOOLS.md" \
+            || log "  WARNING: Failed to publish TOOLS.md to MinIO"
+    fi
+
     # Publish file-sync skill (builtin, lives in worker-agent/)
     if [ -f "${WORKER_AGENT_SRC}/skills/file-sync/SKILL.md" ]; then
         mc cp "${WORKER_AGENT_SRC}/skills/file-sync/SKILL.md" \
@@ -145,6 +154,14 @@ if [ -d "${WORKER_AGENT_SRC}" ] && mc alias ls hiclaw > /dev/null 2>&1; then
                 "hiclaw/hiclaw-storage/agents/${_worker_name}/AGENTS.md" 2>/dev/null \
                 && log "    Updated AGENTS.md" \
                 || log "    WARNING: Failed to sync AGENTS.md"
+
+            # Push TOOLS.md
+            if [ -f "${WORKER_AGENT_SRC}/TOOLS.md" ]; then
+                mc cp "${WORKER_AGENT_SRC}/TOOLS.md" \
+                    "hiclaw/hiclaw-storage/agents/${_worker_name}/TOOLS.md" 2>/dev/null \
+                    && log "    Updated TOOLS.md" \
+                    || log "    WARNING: Failed to sync TOOLS.md"
+            fi
 
             # Push all builtin skills from worker-agent/skills/ (these are default for all workers)
             if [ -d "${WORKER_AGENT_SRC}/skills" ]; then

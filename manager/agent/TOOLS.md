@@ -1,0 +1,90 @@
+# Management Skills — Quick Reference
+
+Each skill has a full `SKILL.md` in `skills/<name>/`. This file is your cheat sheet for when to reach for each one.
+
+## task-management
+
+Assign, track, and complete tasks for Workers.
+
+- Admin gives a task and no Worker is specified → Worker availability check (Step 0)
+- Assigning a finite or infinite task to a Worker → create task directory, write `meta.json` + `spec.md`, notify Worker
+- Worker @mentions you with completion → update `meta.json`, remove from `state.json`, log to memory
+
+## task-coordination
+
+Must wrap any shared task directory modification.
+
+- About to run git-delegation or coding-cli → use this first to check/create `.processing` marker
+- Git or CLI work completes → use this to remove the marker and sync to MinIO
+
+## git-delegation-management
+
+Workers can't run git; execute git ops on their behalf.
+
+- Worker sends: `task-20260220-100000 git-request: operations: [git clone ..., git checkout -b feature-x]`
+- Worker asks you to commit and push their changes, rebase a branch, or resolve a conflict
+
+## coding-cli-management
+
+Run AI coding CLI in a Worker's workspace on their behalf.
+
+- First coding task arrives and `~/coding-cli-config.json` doesn't exist → detect available CLIs, ask admin, write config
+- Worker sends: `task-20260220-100000 coding-request: ---PROMPT--- [prompt] ---END---`
+
+## worker-management
+
+Full lifecycle of Worker containers and skill assignments.
+
+- Admin says "create a new Worker named Alice for code review tasks"
+- Before assigning a task, Worker container is `stopped` → wake it up first; `not_found` → tell admin to recreate
+- Admin says "add the github-operations skill to Alice" or "reset the Bob worker"
+- Admin says "switch Alice's model to claude-sonnet-4-6" → use `lifecycle-worker.sh --action update-model`
+
+## project-management
+
+Multi-Worker collaborative projects.
+
+- Admin says "kick off the website redesign project with Alice and Bob"
+- Worker @mentions you with task completion in a project room → update `plan.md`, assign next task
+- A task reports `REVISION_NEEDED` → trigger revision workflow; or a task is `BLOCKED` → escalate
+
+## channel-management
+
+Multi-channel admin identity and primary notification routing.
+
+- Admin messages from any non-Matrix channel for the first time → run first-contact protocol, ask about primary channel
+- Admin says "switch my primary channel to Discord"
+- Working in a Matrix room and need an urgent admin decision → cross-channel escalation
+
+## higress-gateway-management
+
+Higress AI Gateway: consumers, routes, LLM providers.
+
+- Creating a new Worker → create its Higress consumer and grant it AI route access
+- Admin provides a DeepSeek API key and wants to add it as a new LLM provider
+- Need to rotate an expired API key for an existing provider
+
+## matrix-server-management
+
+Direct Matrix homeserver operations (Worker/project creation use dedicated scripts — this skill is for explicit standalone requests only).
+
+- Admin says "create a room for X", "invite Y to the project room"
+- Admin says "register a Matrix account for my colleague"
+
+## mcp-server-management
+
+MCP Server lifecycle and per-consumer access control.
+
+- Admin provides a GitHub token and asks to enable the GitHub MCP server
+- Need to grant a newly created Worker access to an existing MCP server
+- Admin asks to restrict which MCP tools a specific Worker can call
+
+## model-switch
+
+Switch the Manager's own LLM model.
+
+- Admin says "switch your model to X" or "change the Manager model to X"
+
+---
+
+Add local notes below — SSH aliases, API endpoints, environment-specific details that don't belong in SKILL.md.
