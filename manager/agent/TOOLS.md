@@ -2,6 +2,53 @@
 
 Each skill has a full `SKILL.md` in `skills/<name>/`. This file is your cheat sheet for when to reach for each one.
 
+---
+
+## 🚀 Quick: Create Worker
+
+**Copy-paste ready — use this directly:**
+
+```bash
+# Step 1: Create worker directory and SOUL.md
+mkdir -p ~/hiclaw-fs/agents/<NAME>
+cat > ~/hiclaw-fs/agents/<NAME>/SOUL.md << 'EOF'
+# <NAME> - Worker Agent
+
+## Identity
+- **Name:** <NAME>
+- **Role:** <DESCRIPTION>
+- **Language:** zh (or en)
+
+## Skills
+- <skill1>, <skill2>
+
+## Behavior
+- Be helpful and concise
+- Report progress regularly
+EOF
+
+# Step 2: Create worker with skills
+bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
+  --name <NAME> \
+  --skills <skill1>,<skill2>
+```
+
+### Skills Recommendation Table
+
+| Worker Type | Recommended Skills |
+|-------------|-------------------|
+| Frontend Dev | `coding-cli,file-sync` |
+| Backend Dev | `coding-cli,file-sync,git-delegation` |
+| Full-stack Dev | `coding-cli,file-sync,git-delegation` |
+| DevOps / SRE | `github-operations,git-delegation` |
+| Code Review | `github-operations,git-delegation` |
+| Data / ML | `coding-cli,file-sync` |
+| General Purpose | `file-sync` |
+
+> **Note:** `file-sync` is always included automatically. `find-skills` can be added with `--find-skills` to let Worker discover skills on-demand.
+
+---
+
 ## task-management
 
 Assign, track, and complete tasks for Workers.

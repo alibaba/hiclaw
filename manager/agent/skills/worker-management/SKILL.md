@@ -5,6 +5,39 @@ description: Manage the full lifecycle of Worker Agents (create, configure, moni
 
 # Worker Management
 
+## ⚡ TL;DR — Create Worker in 2 Steps
+
+```bash
+# Step 1: Create SOUL.md (REQUIRED before running create script)
+mkdir -p ~/hiclaw-fs/agents/<NAME>
+cat > ~/hiclaw-fs/agents/<NAME>/SOUL.md << 'EOF'
+# <NAME> - Worker Agent
+## Identity
+- Name: <NAME>
+- Role: <what this worker does>
+## Skills
+- file-sync, <additional skills>
+EOF
+
+# Step 2: Run create script
+bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
+  --name <NAME> \
+  --skills <skill1>,<skill2>
+```
+
+### Skills by Worker Type (quick lookup)
+
+| Worker Type | Skills |
+|-------------|--------|
+| Frontend | `coding-cli,file-sync` |
+| Backend | `coding-cli,file-sync,git-delegation` |
+| DevOps | `github-operations,git-delegation` |
+| General | `file-sync` |
+
+> `file-sync` is auto-included. Use `--find-skills` to enable on-demand skill discovery.
+
+---
+
 ## Overview
 
 This skill allows you to manage the full lifecycle of Worker Agents: creation, configuration, monitoring, and reset. Workers are lightweight containers that connect to the Manager via Matrix and use the centralized file system.
