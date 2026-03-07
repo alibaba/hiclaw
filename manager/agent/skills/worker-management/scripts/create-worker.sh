@@ -27,6 +27,7 @@ WORKER_SKILLS="file-sync"
 REMOTE_MODE=false
 ENABLE_FIND_SKILLS=false
 SKILLS_API_URL=""
+RUNTIME="openclaw"  # openclaw | copaw
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -37,13 +38,25 @@ while [ $# -gt 0 ]; do
         --find-skills) ENABLE_FIND_SKILLS=true; shift ;;
         --skills-api-url) SKILLS_API_URL="$2"; shift 2 ;;
         --remote)     REMOTE_MODE=true; shift ;;
+        --runtime)    RUNTIME="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 if [ -z "${WORKER_NAME}" ]; then
-    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote]"
+    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw]"
     exit 1
+fi
+
+# Validate runtime
+if [ "${RUNTIME}" != "openclaw" ] && [ "${RUNTIME}" != "copaw" ]; then
+    echo '{"error": "Invalid runtime. Must be openclaw or copaw"}'
+    exit 1
+fi
+
+# CoPaw only supports remote mode (pip install)
+if [ "${RUNTIME}" = "copaw" ]; then
+    REMOTE_MODE=true
 fi
 
 # If find-skills is enabled, add it to the skills list
@@ -539,21 +552,61 @@ source /opt/hiclaw/scripts/lib/container-api.sh
 _build_install_cmd() {
     local manager_ip
     manager_ip=$(container_get_manager_ip 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
-    local fs_endpoint="http://${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}:8080"
     local fs_access_key="${WORKER_NAME}"
     local fs_secret_key="${WORKER_MINIO_PASSWORD}"
 
-    local cmd="bash hiclaw-install.sh worker --name ${WORKER_NAME} --fs ${fs_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
+    if [ "${RUNTIME}" = "copaw" ]; then
+        # CoPaw: Simplified - only MinIO credentials needed
+        # All other config (Matrix, AI Gateway) comes from openclaw.json in MinIO
+        local fs_port="8080"
+        local fs_host="${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}"
 
-    # Add find-skills related options if enabled
-    if [ "${ENABLE_FIND_SKILLS}" = true ]; then
-        cmd="${cmd} --find-skills"
-        if [ -n "${SKILLS_API_URL}" ]; then
-            cmd="${cmd} --skills-api-url ${SKILLS_API_URL}"
+        # Check if running outside container (use exposed port 18080)
+        if [ -n "${HICLAW_EXTERNAL_PORT}" ]; then
+            fs_port="${HICLAW_EXTERNAL_PORT}"
+        elif [ ! -f /.dockerenv ] 2>/dev/null; then
+            # Outside container, use mapped port
+            fs_port="18080"
         fi
-    fi
 
-    echo "${cmd}"
+        local fs_endpoint="http://${fs_host}:${fs_port}"
+
+        local cmd="# Install CoPaw Worker\n"
+        cmd="${cmd}pip install copaw-worker\n\n"
+        cmd="${cmd}# Run the worker (config pulled from MinIO)\n"
+        cmd="${cmd}copaw-worker run \\"
+        cmd="${cmd}\n  --worker-name ${WORKER_NAME} \\"
+        cmd="${cmd}\n  --minio-endpoint ${fs_endpoint} \\"
+        cmd="${cmd}\n  --minio-access-key ${fs_access_key} \\"
+        cmd="${cmd}\n  --minio-secret-key ${fs_secret_key}"
+
+        # Add optional parameters
+        if [ -n "${MODEL_ID}" ]; then
+            cmd="${cmd} \\"
+            cmd="${cmd}\n  --model ${MODEL_ID}"
+        fi
+
+        if [ "${ENABLE_FIND_SKILLS}" = true ]; then
+            cmd="${cmd} \\"
+            cmd="${cmd}\n  --skills-api-url ${SKILLS_API_URL:-https://skills.sh}"
+        fi
+
+        echo "${cmd}"
+    else
+        local fs_endpoint="http://${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}:8080"
+        # OpenClaw: Docker install command
+        local cmd="bash hiclaw-install.sh worker --name ${WORKER_NAME} --fs ${fs_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
+
+        # Add find-skills related options if enabled
+        if [ "${ENABLE_FIND_SKILLS}" = true ]; then
+            cmd="${cmd} --find-skills"
+            if [ -n "${SKILLS_API_URL}" ]; then
+                cmd="${cmd} --skills-api-url ${SKILLS_API_URL}"
+            fi
+        fi
+
+        echo "${cmd}"
+    fi
 }
 
 # Build extra environment variables JSON for container creation
@@ -600,6 +653,7 @@ RESULT=$(jq -n \
     --arg user_id "${WORKER_USER_ID}" \
     --arg room_id "${ROOM_ID}" \
     --arg consumer "${CONSUMER_NAME}" \
+    --arg runtime "${RUNTIME}" \
     --arg mode "${DEPLOY_MODE}" \
     --arg container_id "${CONTAINER_ID}" \
     --arg status "${WORKER_STATUS}" \
@@ -610,6 +664,7 @@ RESULT=$(jq -n \
         matrix_user_id: $user_id,
         room_id: $room_id,
         consumer: $consumer,
+        runtime: $runtime,
         skills: $skills,
         mode: $mode,
         container_id: $container_id,
