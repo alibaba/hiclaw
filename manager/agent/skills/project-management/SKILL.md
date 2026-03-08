@@ -286,9 +286,9 @@ Send a message in the **project room** @mentioning the Worker:
 
 {2-3 句摘要：任务目的和关键交付物}
 
-完整规格：~/hiclaw-fs/shared/tasks/{task-id}/spec.md
+完整规格：hiclaw/hiclaw-storage/shared/tasks/{task-id}/spec.md
 
-请先运行 hiclaw-sync 同步文件，然后阅读任务规格。开始前先在任务目录创建 plan.md 记录执行计划，所有中间产物也请放在该目录下。完成后在此 @mention 我汇报结果。
+请先使用 file-sync 技能同步任务文件，然后阅读任务规格。开始前先在任务目录创建 plan.md 记录执行计划，所有中间产物也请放在该目录下。完成后在此 @mention 我汇报结果。
 ```
 
 ---
@@ -420,9 +420,9 @@ EOF
 
 **任务**: {REVISION_TASK_ID} — 根据反馈进行修改
 
-**反馈来源**: ~/hiclaw-fs/shared/tasks/${ORIGINAL_TASK_ID}/result.md
+**反馈来源**: hiclaw/hiclaw-storage/shared/tasks/${ORIGINAL_TASK_ID}/result.md
 
-请先运行 hiclaw-sync，阅读修改要求，完成后 @mention 我汇报。
+请先使用 file-sync 技能同步文件，阅读修改要求，完成后 @mention 我汇报。
 ```
 
 7. **Do NOT proceed to next phase** until revision is complete.
@@ -541,9 +541,9 @@ mc cp ~/hiclaw-fs/agents/manager/openclaw.json hiclaw/hiclaw-storage/agents/mana
 
 **你的角色**：{description of what this Worker will contribute}
 
-**项目计划**（最新版本）：~/hiclaw-fs/shared/projects/{project-id}/plan.md
+**项目计划**（最新版本）：hiclaw/hiclaw-storage/shared/projects/{project-id}/plan.md
 
-请先运行 hiclaw-sync 同步文件，阅读 plan.md 了解全貌。我稍后会分配你的第一个任务。
+请先使用 file-sync 技能同步文件，阅读 plan.md 了解全貌。我稍后会分配你的第一个任务。
 ```
 
 Then notify the human admin in DM that the new Worker has been onboarded.

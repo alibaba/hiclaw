@@ -240,7 +240,7 @@ The `update-model` action:
 1. Resolves the correct `contextWindow` and `maxTokens` for the given model (same mapping as Manager startup)
 2. Patches the Worker's `openclaw.json` in MinIO in-place (preserves all other config)
 3. Updates `workers-registry.json` with the new model name
-4. Sends a Matrix @mention to the Worker asking it to run `hiclaw-sync` to pick up the change
+4. Sends a Matrix @mention to the Worker asking it to use the `file-sync` skill to pick up the change
 
 If the Worker container is stopped, the config is still updated in MinIO — it will take effect on next start.
 
@@ -330,7 +330,7 @@ bash /opt/hiclaw/agent/skills/worker-management/scripts/push-worker-skills.sh --
 bash /opt/hiclaw/agent/skills/worker-management/scripts/push-worker-skills.sh --worker <name> --no-notify
 ```
 
-After pushing skills, the script notifies the affected Worker(s) via Matrix @mention to run `hiclaw-sync`. Workers' periodic 5-minute sync also serves as a fallback.
+After pushing skills, the script notifies the affected Worker(s) via Matrix @mention to use the `file-sync` skill. Workers' periodic 5-minute sync also serves as a fallback.
 
 ### How to Add a New Custom Skill
 
@@ -347,6 +347,6 @@ After pushing skills, the script notifies the affected Worker(s) via Matrix @men
 - Workers are **stateless containers** -- all state is in MinIO. Resetting a Worker just means recreating its config files
 - Worker Matrix accounts persist in Tuwunel (cannot be deleted via API). Reuse same username on reset
 - OpenClaw config hot-reload: file-watch (~300ms) or `config.patch` API
-- **File sync**: after writing any file that a Worker (or another Worker) needs to read, always notify the target Worker via Matrix to run `hiclaw-sync`. This applies to config updates, task briefs, shared data, and cross-Worker collaboration artifacts. Workers have a `file-sync` skill for this. Background periodic sync (every 5 minutes) serves as fallback only
+- **File sync**: after writing any file that a Worker (or another Worker) needs to read, always notify the target Worker via Matrix to use their `file-sync` skill. This applies to config updates, task briefs, shared data, and cross-Worker collaboration artifacts. The exact sync command varies by runtime — the Worker's `file-sync` SKILL.md defines how to execute it. Background periodic sync (every 5 minutes) serves as fallback only
 - **Skills are Manager-controlled**: Workers cannot modify their own skills (local→remote sync excludes `skills/**`). Only Manager can push skill changes via `push-worker-skills.sh`
 

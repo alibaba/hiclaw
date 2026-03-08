@@ -421,9 +421,8 @@ else
 fi
 
 if [ -d "${WORKER_AGENT_SRC}" ]; then
-    log "  Pushing AGENTS.md (with builtin markers) to worker MinIO..."
-    # Use OpenClaw AGENTS.md for both runtimes (contains builtin markers)
-    mc cp "/opt/hiclaw/agent/worker-agent/AGENTS.md" \
+    log "  Pushing AGENTS.md (runtime=${WORKER_RUNTIME}) to worker MinIO..."
+    mc cp "${WORKER_AGENT_SRC}/AGENTS.md" \
         "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/AGENTS.md" \
         || log "  WARNING: Failed to push AGENTS.md"
     
@@ -474,9 +473,9 @@ if [ -f "${REGISTRY_FILE_EARLY}" ]; then
                         "http://127.0.0.1:6167/_matrix/client/v3/rooms/${EW_ROOM_ID}/send/m.room.message/${TXN_ID}" \
                         -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
                         -H 'Content-Type: application/json' \
-                        -d "{\"msgtype\":\"m.text\",\"body\":\"@${ew}:${MATRIX_DOMAIN} Your config has been updated (new worker @${WORKER_NAME}:${MATRIX_DOMAIN} added to groupAllowFrom). Please run: hiclaw-sync\",\"m.mentions\":{\"user_ids\":[\"@${ew}:${MATRIX_DOMAIN}\"]}}" \
+                        -d "{\"msgtype\":\"m.text\",\"body\":\"@${ew}:${MATRIX_DOMAIN} Your config has been updated (new worker @${WORKER_NAME}:${MATRIX_DOMAIN} added to groupAllowFrom). Please use your file-sync skill to sync the latest config.\",\"m.mentions\":{\"user_ids\":[\"@${ew}:${MATRIX_DOMAIN}\"]}}" \
                         > /dev/null 2>&1 \
-                        && log "  Notified @${ew} to run hiclaw-sync" \
+                        && log "  Notified @${ew} to use file-sync skill" \
                         || log "  WARNING: Failed to notify @${ew}"
                 fi
             else

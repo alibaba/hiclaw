@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -22,16 +23,65 @@ def _is_in_container() -> bool:
     return Path("/.dockerenv").exists()
 
 
+def _secret_dir(working_dir: Path) -> Path:
+    """Return the secret dir path that copaw uses alongside working_dir."""
+    return Path(str(working_dir) + ".secret")
+
+
+def _patch_copaw_paths(working_dir: Path) -> None:
+    """Patch copaw's module-level path constants to point at working_dir.
+
+    copaw.constant captures WORKING_DIR / SECRET_DIR at import time from
+    env vars, so setting COPAW_WORKING_DIR after import has no effect.
+    We must update the live module objects directly.
+    """
+    secret_dir = _secret_dir(working_dir)
+    secret_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        import copaw.constant as _const
+        _const.WORKING_DIR = working_dir
+        _const.SECRET_DIR = secret_dir
+        _const.ACTIVE_SKILLS_DIR = working_dir / "active_skills"
+        _const.CUSTOMIZED_SKILLS_DIR = working_dir / "customized_skills"
+        _const.MEMORY_DIR = working_dir / "memory"
+        _const.CUSTOM_CHANNELS_DIR = working_dir / "custom_channels"
+        _const.MODELS_DIR = working_dir / "models"
+    except ImportError:
+        pass
+
+    try:
+        import copaw.providers.store as _store
+        _store._PROVIDERS_JSON = secret_dir / "providers.json"
+        _store._LEGACY_PROVIDERS_JSON_CANDIDATES = (
+            Path(__file__).resolve().parent / "providers.json",
+            working_dir / "providers.json",
+        )
+    except ImportError:
+        pass
+
+    try:
+        import copaw.envs.store as _envs
+        _envs._BOOTSTRAP_WORKING_DIR = working_dir
+        _envs._BOOTSTRAP_SECRET_DIR = secret_dir
+        _envs._ENVS_JSON = secret_dir / "envs.json"
+        _envs._LEGACY_ENVS_JSON_CANDIDATES = (working_dir / "envs.json",)
+    except (ImportError, AttributeError):
+        pass
+
+
 def bridge_openclaw_to_copaw(
     openclaw_cfg: dict[str, Any],
     working_dir: Path,
 ) -> None:
     """
     Read openclaw_cfg (parsed openclaw.json) and write:
-      - <working_dir>/config.json   (channels + agents)
-      - <working_dir>/providers.json (LLM credentials)
+      - <working_dir>/config.json          (channels + agents)
+      - <working_dir>/providers.json       (LLM credentials, for reference)
+      - <working_dir>.secret/providers.json (where copaw actually reads from)
 
-    Also sets COPAW_WORKING_DIR env var so CoPaw uses this directory.
+    Also sets COPAW_WORKING_DIR env var and patches copaw's module-level
+    path constants so the running process uses the correct directory.
     """
     working_dir.mkdir(parents=True, exist_ok=True)
     in_container = _is_in_container()
@@ -40,6 +90,15 @@ def bridge_openclaw_to_copaw(
     _write_providers_json(openclaw_cfg, working_dir, in_container)
 
     os.environ["COPAW_WORKING_DIR"] = str(working_dir)
+
+    # Patch module-level constants (import-time values won't reflect env change)
+    _patch_copaw_paths(working_dir)
+
+    # Copy providers.json into secret_dir — that's where copaw actually reads it
+    secret_dir = _secret_dir(working_dir)
+    providers_src = working_dir / "providers.json"
+    if providers_src.exists():
+        shutil.copy2(providers_src, secret_dir / "providers.json")
 
 
 # ---------------------------------------------------------------------------
