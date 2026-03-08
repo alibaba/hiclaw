@@ -60,6 +60,11 @@ matrix_joined_rooms() {
         -H "Authorization: Bearer ${token}"
 }
 
+# URL-encode a room ID for use in URL paths (! -> %21)
+_encode_room_id() {
+    echo "${1//!/%21}"
+}
+
 # ============================================================
 # Messaging
 # ============================================================
@@ -72,12 +77,14 @@ matrix_send_message() {
     local room_id="$2"
     local body="$3"
     local txn_id="$(date +%s%N)"
+    local room_enc
+    room_enc="$(_encode_room_id "${room_id}")"
 
     # Escape newlines and special chars for JSON
     local escaped_body
     escaped_body=$(echo "$body" | jq -Rs '.' | sed 's/^"//;s/"$//')
 
-    exec_in_manager curl -sf -X PUT "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_id}/send/m.room.message/${txn_id}" \
+    exec_in_manager curl -sf -X PUT "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_enc}/send/m.room.message/${txn_id}" \
         -H "Authorization: Bearer ${token}" \
         -H 'Content-Type: application/json' \
         -d '{
@@ -93,8 +100,10 @@ matrix_read_messages() {
     local token="$1"
     local room_id="$2"
     local limit="${3:-20}"
+    local room_enc
+    room_enc="$(_encode_room_id "${room_id}")"
 
-    exec_in_manager curl -sf "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_id}/messages?dir=b&limit=${limit}" \
+    exec_in_manager curl -sf "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_enc}/messages?dir=b&limit=${limit}" \
         -H "Authorization: Bearer ${token}"
 }
 
@@ -174,8 +183,9 @@ matrix_find_dm_room() {
     rooms=$(matrix_joined_rooms "${token}" | jq -r '.joined_rooms[]')
 
     for room_id in ${rooms}; do
-        local members
-        members=$(exec_in_manager curl -sf "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_id}/members" \
+        local room_enc members
+        room_enc="$(_encode_room_id "${room_id}")"
+        members=$(exec_in_manager curl -sf "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_enc}/members" \
             -H "Authorization: Bearer ${token}" 2>/dev/null | jq -r '.chunk[].state_key' 2>/dev/null)
 
         if echo "${members}" | grep -q "${other_user}"; then
