@@ -119,7 +119,14 @@ This prevents accidental infinite loops: if Workers could @mention each other fr
 **When creating a new Worker**, inform the human admin:
 > "Note: [WorkerName] can only be @mentioned by you and me by default. If you later need Workers to coordinate directly with each other in a project, let me know and I'll enable that for the specific project."
 
-**When to enable peer mentions**: Only enable inter-worker @mentions when the human admin explicitly requests it and the workflow genuinely requires Workers to react to each other's messages (e.g., an async handoff where Worker B must start immediately when Worker A signals completion without waiting for Manager to relay). In that case, update both Workers' `groupAllowFrom` to include each other, and brief them to avoid @mentioning each other in celebration/thanks messages.
+**When to enable peer mentions**: Only enable inter-worker @mentions when the human admin explicitly requests it and the workflow genuinely requires Workers to react to each other's messages (e.g., an async handoff where Worker B must start immediately when Worker A signals completion without waiting for Manager to relay). Use the dedicated script — do not edit configs manually:
+
+```bash
+bash /opt/hiclaw/agent/skills/worker-management/scripts/enable-peer-mentions.sh \
+    --workers alice,bob,charlie
+```
+
+After enabling, brief the Workers: peer mentions are for blocking handoffs only — **never @mention each other in celebration or acknowledgment messages**, as that triggers an infinite loop.
 
 **Default coordination pattern**: Workers communicate through you. Worker A completes → @mentions you → you @mention Worker B with context. No direct A→B mentions needed for standard task handoffs.
 

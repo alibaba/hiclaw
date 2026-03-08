@@ -264,6 +264,24 @@ jq '.idle_timeout_minutes = 60' ~/worker-lifecycle.json > /tmp/lc.json && mv /tm
 | Worker needs reset or config update | `create-worker.sh` (removes old container first) | Full rebuild; Matrix account is reused |
 | copaw runtime worker | `copaw-worker run --name <name> ...` (on target machine) | Not container-managed; lifecycle scripts skip these workers |
 
+## Enable Peer Mentions Between Workers
+
+By default, Workers can only be @mentioned by Manager and the human admin — not by each other. This prevents infinite mutual-mention loops in project rooms.
+
+When the human admin explicitly requests that certain Workers should be able to trigger each other directly (e.g., for async handoffs without Manager relay), use:
+
+```bash
+bash /opt/hiclaw/agent/skills/worker-management/scripts/enable-peer-mentions.sh \
+    --workers alice,bob,charlie
+```
+
+This script:
+1. Adds each Worker in the group to every other Worker's `groupAllowFrom`
+2. Pushes the updated `openclaw.json` to MinIO for each affected Worker
+3. Sends a Matrix @mention to each updated Worker asking them to run `hiclaw-sync`
+
+**Important**: Brief the Workers after enabling peer mentions — remind them **not to @mention each other in celebration or acknowledgment messages**, only when they have blocking information that cannot go through Manager. Uncontrolled inter-worker @mentions cause response loops.
+
 ## Reset a Worker
 
 1. Revoke the Worker's Higress Consumer (or update credentials)
