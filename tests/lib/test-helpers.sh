@@ -12,11 +12,11 @@
 
 export TEST_MANAGER_HOST="${TEST_MANAGER_HOST:-127.0.0.1}"
 export TEST_MATRIX_PORT="${TEST_MATRIX_PORT:-6167}"
-export TEST_GATEWAY_PORT="${TEST_GATEWAY_PORT:-8080}"
-export TEST_CONSOLE_PORT="${TEST_CONSOLE_PORT:-8001}"
+export TEST_GATEWAY_PORT="${TEST_GATEWAY_PORT:-18080}"
+export TEST_CONSOLE_PORT="${TEST_CONSOLE_PORT:-18001}"
 export TEST_MINIO_PORT="${TEST_MINIO_PORT:-9000}"
 export TEST_MINIO_CONSOLE_PORT="${TEST_MINIO_CONSOLE_PORT:-9001}"
-export TEST_ELEMENT_PORT="${TEST_ELEMENT_PORT:-8088}"
+export TEST_ELEMENT_PORT="${TEST_ELEMENT_PORT:-18088}"
 
 export TEST_MATRIX_URL="http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}"
 export TEST_MATRIX_DIRECT_URL="${TEST_MATRIX_DIRECT_URL:-http://${TEST_MANAGER_HOST}:${TEST_MATRIX_PORT}}"
@@ -42,7 +42,7 @@ TEST_FAILURES=()
 # ============================================================
 
 log_info() {
-    echo -e "\033[36m[TEST INFO]\033[0m $1"
+    echo -e "\033[36m[TEST INFO]\033[0m $1" >&2
 }
 
 log_pass() {
@@ -202,12 +202,12 @@ wait_for_manager_agent_ready() {
         local manager_full_id="@${manager_user}:${matrix_domain}"
         local manager_joined=false
 
+        local room_enc="${room_id//!/%21}"
         while [ "${elapsed}" -lt "${timeout}" ]; do
             local members
-            members=$(curl -sf -X GET \
+            members=$(docker exec "${manager_container}" curl -sf -X GET \
                 -H "Authorization: Bearer ${access_token}" \
-                -H "Host: ${matrix_domain}" \
-                "http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}/_matrix/client/v3/rooms/${room_id}/members" 2>/dev/null | \
+                "http://127.0.0.1:6167/_matrix/client/v3/rooms/${room_enc}/members" 2>/dev/null | \
                 jq -r '.chunk[].state_key' 2>/dev/null) || true
 
             if echo "${members}" | grep -q "${manager_full_id}"; then
@@ -255,7 +255,8 @@ detect_manager_config() {
     if [ -n "${detected_gateway_port}" ] && [ -z "${TEST_GATEWAY_PORT_SET:-}" ]; then
         export TEST_GATEWAY_PORT="${detected_gateway_port}"
         export TEST_MATRIX_URL="http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}"
-        export TEST_MINIO_URL="http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}"
+        # Note: TEST_MINIO_URL is NOT updated here. MinIO runs on the fixed internal port 9000
+        # inside the container; mc commands use exec_in_manager so no host port is needed.
     fi
     
     if [ -n "${detected_console_port}" ] && [ -z "${TEST_CONSOLE_PORT_SET:-}" ]; then

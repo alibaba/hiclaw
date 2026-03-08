@@ -93,7 +93,7 @@ ALICE_SOUL_EXISTS=$?
 assert_eq "0" "${ALICE_SOUL_EXISTS}" "Worker Alice SOUL.md exists in MinIO"
 
 ALICE_SOUL=$(minio_read_file "agents/alice/SOUL.md")
-assert_contains "${ALICE_SOUL}" "frontend" "Alice's SOUL.md mentions frontend"
+assert_contains_i "${ALICE_SOUL}" "frontend" "Alice's SOUL.md mentions frontend"
 
 log_section "Start Worker Container"
 

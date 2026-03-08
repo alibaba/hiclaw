@@ -330,13 +330,15 @@ uninstall: ## Stop and remove Manager + all Worker containers
 		docker rm -f "$$c" 2>/dev/null || true; \
 	done
 	-docker volume rm hiclaw-data 2>/dev/null && echo "  Removed volume: hiclaw-data" || true
-	@if [ -f ./hiclaw-manager.env ]; then \
-		DATA_DIR=$$(grep '^HICLAW_DATA_DIR=' ./hiclaw-manager.env 2>/dev/null | cut -d= -f2-); \
+	@ENV_FILE="$${HICLAW_ENV_FILE:-$${HOME}/hiclaw-manager.env}"; \
+	[ -f "$$ENV_FILE" ] || ENV_FILE="./hiclaw-manager.env"; \
+	if [ -f "$$ENV_FILE" ]; then \
+		DATA_DIR=$$(grep '^HICLAW_DATA_DIR=' "$$ENV_FILE" 2>/dev/null | cut -d= -f2-); \
 		if [ -n "$$DATA_DIR" ] && [ -d "$$DATA_DIR" ]; then \
 			echo "  External data directory preserved: $$DATA_DIR"; \
 			echo "  To delete: rm -rf $$DATA_DIR"; \
 		fi; \
-		WORKSPACE_DIR=$$(grep '^HICLAW_WORKSPACE_DIR=' ./hiclaw-manager.env 2>/dev/null | cut -d= -f2-); \
+		WORKSPACE_DIR=$$(grep '^HICLAW_WORKSPACE_DIR=' "$$ENV_FILE" 2>/dev/null | cut -d= -f2-); \
 		if [ -n "$$WORKSPACE_DIR" ] && [ -d "$$WORKSPACE_DIR" ]; then \
 			PARENT=$$(dirname "$$WORKSPACE_DIR"); \
 			BASE=$$(basename "$$WORKSPACE_DIR"); \

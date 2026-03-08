@@ -28,7 +28,7 @@ export TEST_ADMIN_PASSWORD="${TEST_ADMIN_PASSWORD:-testpassword123}"
 export TEST_MINIO_USER="${TEST_MINIO_USER:-${TEST_ADMIN_USER}}"
 export TEST_MINIO_PASSWORD="${TEST_MINIO_PASSWORD:-${TEST_ADMIN_PASSWORD}}"
 export TEST_REGISTRATION_TOKEN="${TEST_REGISTRATION_TOKEN:-test-reg-token-$(openssl rand -hex 8)}"
-export TEST_MATRIX_DOMAIN="${TEST_MATRIX_DOMAIN:-matrix-local.hiclaw.io:8080}"
+export TEST_MATRIX_DOMAIN="${TEST_MATRIX_DOMAIN:-matrix-local.hiclaw.io:18080}"
 export TEST_MANAGER_HOST="${TEST_MANAGER_HOST:-127.0.0.1}"
 export HICLAW_LLM_API_KEY="${HICLAW_LLM_API_KEY:-}"
 
@@ -42,29 +42,34 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# When using an existing installation, load credentials from env file
-if [ "${USE_EXISTING}" = true ]; then
-    ENV_FILE="${HICLAW_ENV_FILE:-${PROJECT_ROOT}/hiclaw-manager.env}"
-    if [ -f "${ENV_FILE}" ]; then
+# Load credentials from hiclaw-manager.env into TEST_* variables
+load_env_file() {
+    # Install script saves to ${HOME}/hiclaw-manager.env; fall back to project root for compat.
+    local env_file="${HICLAW_ENV_FILE:-${HOME}/hiclaw-manager.env}"
+    [ -f "${env_file}" ] || env_file="${PROJECT_ROOT}/hiclaw-manager.env"
+    if [ -f "${env_file}" ]; then
         while IFS='=' read -r key value; do
             [[ "${key}" =~ ^#.*$ || -z "${key}" ]] && continue
             key=$(echo "${key}" | xargs)
             case "${key}" in
-                HICLAW_ADMIN_USER)       export TEST_ADMIN_USER="${value}" ;;
-                HICLAW_ADMIN_PASSWORD)   export TEST_ADMIN_PASSWORD="${value}" ;;
-                HICLAW_MINIO_USER)       export TEST_MINIO_USER="${value}" ;;
-                HICLAW_MINIO_PASSWORD)   export TEST_MINIO_PASSWORD="${value}" ;;
-                HICLAW_REGISTRATION_TOKEN) export TEST_REGISTRATION_TOKEN="${value}" ;;
-                HICLAW_MATRIX_DOMAIN)    export TEST_MATRIX_DOMAIN="${value}" ;;
-                HICLAW_LLM_API_KEY)      [ -z "${HICLAW_LLM_API_KEY}" ] && export HICLAW_LLM_API_KEY="${value}" ;;
+                HICLAW_ADMIN_USER)          export TEST_ADMIN_USER="${value}" ;;
+                HICLAW_ADMIN_PASSWORD)      export TEST_ADMIN_PASSWORD="${value}" ;;
+                HICLAW_MINIO_USER)          export TEST_MINIO_USER="${value}" ;;
+                HICLAW_MINIO_PASSWORD)      export TEST_MINIO_PASSWORD="${value}" ;;
+                HICLAW_REGISTRATION_TOKEN)  export TEST_REGISTRATION_TOKEN="${value}" ;;
+                HICLAW_MATRIX_DOMAIN)       export TEST_MATRIX_DOMAIN="${value}" ;;
+                HICLAW_LLM_API_KEY)         [ -z "${HICLAW_LLM_API_KEY}" ] && export HICLAW_LLM_API_KEY="${value}" ;;
                 HICLAW_MANAGER_GATEWAY_KEY) export TEST_MANAGER_GATEWAY_KEY="${value}" ;;
-                HICLAW_PORT_GATEWAY)     export TEST_GATEWAY_PORT="${value}" ;;
-                HICLAW_PORT_CONSOLE)     export TEST_CONSOLE_PORT="${value}" ;;
+                HICLAW_PORT_GATEWAY)        export TEST_GATEWAY_PORT="${value}" ;;
+                HICLAW_PORT_CONSOLE)        export TEST_CONSOLE_PORT="${value}" ;;
             esac
-        done < "${ENV_FILE}"
+        done < "${env_file}"
     fi
-    # Use the default container name
     export TEST_MANAGER_CONTAINER="hiclaw-manager"
+}
+
+if [ "${USE_EXISTING}" = true ]; then
+    load_env_file
 fi
 
 # ============================================================
@@ -136,89 +141,33 @@ if [ "${USE_EXISTING}" = true ]; then
         log "YOLO mode enabled (${TEST_MANAGER_CONTAINER})" || \
         log "WARNING: Could not enable YOLO mode (container may differ)"
 else
-    log "Starting Manager container..."
+    log "Installing Manager via install script..."
 
-    # Clean up any existing container
-    docker stop hiclaw-manager 2>/dev/null || true
-    docker rm hiclaw-manager 2>/dev/null || true
-
-    MANAGER_GATEWAY_KEY="$(openssl rand -hex 32)"
-
-    # Detect container runtime socket for direct Worker creation
-    CONTAINER_SOCK=""
-    SOCKET_MOUNT_ARGS=""
-    if [ -S "/run/podman/podman.sock" ]; then
-        CONTAINER_SOCK="/run/podman/podman.sock"
-    elif [ -S "/var/run/docker.sock" ]; then
-        CONTAINER_SOCK="/var/run/docker.sock"
-    fi
-
-    if [ -n "${CONTAINER_SOCK}" ]; then
-        log "Container runtime socket found: ${CONTAINER_SOCK} (direct Worker creation enabled)"
-        SOCKET_MOUNT_ARGS="-v ${CONTAINER_SOCK}:/var/run/docker.sock --security-opt label=disable"
-    else
-        log "No container runtime socket found (Worker creation will output commands)"
-    fi
-
-    export TEST_MANAGER_CONTAINER="hiclaw-manager"
-    docker run -d \
-        --name hiclaw-manager \
-        ${SOCKET_MOUNT_ARGS} \
-        -e "HICLAW_YOLO=1" \
-        -e "HICLAW_ADMIN_USER=${TEST_ADMIN_USER}" \
-        -e "HICLAW_ADMIN_PASSWORD=${TEST_ADMIN_PASSWORD}" \
-        -e "HICLAW_MANAGER_PASSWORD=$(openssl rand -hex 32)" \
-        -e "HICLAW_REGISTRATION_TOKEN=${TEST_REGISTRATION_TOKEN}" \
-        -e "HICLAW_MATRIX_DOMAIN=${TEST_MATRIX_DOMAIN}" \
-        -e "HICLAW_LLM_PROVIDER=${HICLAW_LLM_PROVIDER:-qwen}" \
-        -e "HICLAW_DEFAULT_MODEL=${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}" \
-        -e "HICLAW_LLM_API_KEY=${HICLAW_LLM_API_KEY}" \
-        -e "HICLAW_MINIO_USER=${TEST_MINIO_USER}" \
-        -e "HICLAW_MINIO_PASSWORD=${TEST_MINIO_PASSWORD}" \
-        -e "HICLAW_MANAGER_GATEWAY_KEY=${MANAGER_GATEWAY_KEY}" \
-        -e "HICLAW_WORKER_IMAGE=hiclaw/worker-agent:${HICLAW_VERSION}" \
-        -e "HICLAW_GITHUB_TOKEN=${HICLAW_GITHUB_TOKEN:-}" \
-        -p 8080:8080 \
-        -p 8001:8001 \
-        -p 8088:8088 \
-        "hiclaw/manager-agent:${HICLAW_VERSION}"
+    # Clean up any existing installation, then install fresh using hiclaw-install.sh.
+    # This ensures ports, domains, and all initialization (Higress routes, Matrix users)
+    # match exactly what users get in production.
+    make -C "${PROJECT_ROOT}" uninstall 2>/dev/null || true
+    HICLAW_NON_INTERACTIVE=1 HICLAW_YOLO=1 HICLAW_MOUNT_SOCKET=1 \
+        HICLAW_INSTALL_MANAGER_IMAGE="hiclaw/manager-agent:${HICLAW_VERSION}" \
+        HICLAW_INSTALL_WORKER_IMAGE="hiclaw/worker-agent:${HICLAW_VERSION}" \
+        make -C "${PROJECT_ROOT}" install SKIP_BUILD=1
 
     # ============================================================
-    # Step 3: Wait for Manager to be healthy
+    # Step 3: Wait for Manager to be healthy (via make wait-ready)
     # ============================================================
 
-    log "Waiting for Manager to become healthy..."
-    TIMEOUT=300
-    ELAPSED=0
+    make -C "${PROJECT_ROOT}" wait-ready
 
-    while [ "${ELAPSED}" -lt "${TIMEOUT}" ]; do
-        # Matrix and MinIO are not exposed to host; check via docker exec
-        MATRIX_OK=$(docker exec "${TEST_MANAGER_CONTAINER}" curl -s -o /dev/null -w '%{http_code}' \
-            "http://127.0.0.1:6167/_matrix/client/versions" 2>/dev/null) || true
-        MINIO_OK=$(docker exec "${TEST_MANAGER_CONTAINER}" curl -s -o /dev/null -w '%{http_code}' \
-            "http://127.0.0.1:9000/minio/health/live" 2>/dev/null) || true
-        CONSOLE_OK=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8001/" 2>/dev/null) || true
+    # Load all configuration from the env file generated by the install script
+    load_env_file
+    log "  Admin user:     ${TEST_ADMIN_USER}"
+    log "  Matrix domain:  ${TEST_MATRIX_DOMAIN}"
+    log "  Gateway port:   ${TEST_GATEWAY_PORT}"
+    log "  Console port:   ${TEST_CONSOLE_PORT}"
 
-        if [ "${MATRIX_OK}" = "200" ] && [ "${MINIO_OK}" = "200" ] && [ "${CONSOLE_OK}" = "200" ]; then
-            log "Manager is healthy (took ${ELAPSED}s)"
-            break
-        fi
-
-        sleep 10
-        ELAPSED=$((ELAPSED + 10))
-        log "Still waiting... (${ELAPSED}s) Matrix=${MATRIX_OK} MinIO=${MINIO_OK} Console=${CONSOLE_OK}"
-    done
-
-    if [ "${ELAPSED}" -ge "${TIMEOUT}" ]; then
-        error "Manager did not become healthy within ${TIMEOUT}s"
-        docker logs "${TEST_MANAGER_CONTAINER}" --tail 100
-        exit 1
-    fi
-
-    # Additional wait for Manager Agent to complete initialization
-    # Manager needs ~80s after services are up: register users, setup Higress, wait for auth plugin
-    log "Waiting additional 120s for Manager Agent initialization..."
-    sleep 120
+    # Enable YOLO mode for test run
+    docker exec "${TEST_MANAGER_CONTAINER}" touch /root/manager-workspace/yolo-mode 2>/dev/null && \
+        log "YOLO mode enabled (${TEST_MANAGER_CONTAINER})" || true
 fi
 
 # ============================================================
