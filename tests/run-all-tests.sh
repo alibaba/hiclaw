@@ -59,8 +59,7 @@ load_env_file() {
                 HICLAW_REGISTRATION_TOKEN)  export TEST_REGISTRATION_TOKEN="${value}" ;;
                 HICLAW_MATRIX_DOMAIN)       export TEST_MATRIX_DOMAIN="${value}" ;;
                 HICLAW_LLM_API_KEY)         [ -z "${HICLAW_LLM_API_KEY}" ] && export HICLAW_LLM_API_KEY="${value}" ;;
-                HICLAW_MANAGER_GATEWAY_KEY) export TEST_MANAGER_GATEWAY_KEY="${value}" ;;
-                HICLAW_PORT_GATEWAY)        export TEST_GATEWAY_PORT="${value}" ;;
+HICLAW_PORT_GATEWAY)        export TEST_GATEWAY_PORT="${value}" ;;
                 HICLAW_PORT_CONSOLE)        export TEST_CONSOLE_PORT="${value}" ;;
             esac
         done < "${env_file}"

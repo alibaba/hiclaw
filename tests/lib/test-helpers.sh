@@ -21,17 +21,11 @@ export TEST_MATRIX_PORT="${TEST_MATRIX_PORT:-6167}"
 export TEST_GATEWAY_PORT="${TEST_GATEWAY_PORT:-18080}"
 export TEST_CONSOLE_PORT="${TEST_CONSOLE_PORT:-18001}"
 export TEST_MINIO_PORT="${TEST_MINIO_PORT:-9000}"
-export TEST_MINIO_CONSOLE_PORT="${TEST_MINIO_CONSOLE_PORT:-9001}"
 export TEST_ELEMENT_PORT="${TEST_ELEMENT_PORT:-18088}"
 
-export TEST_MATRIX_URL="http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}"
 export TEST_MATRIX_DIRECT_URL="${TEST_MATRIX_DIRECT_URL:-http://${TEST_MANAGER_HOST}:${TEST_MATRIX_PORT}}"
 export TEST_CONSOLE_URL="http://${TEST_MANAGER_HOST}:${TEST_CONSOLE_PORT}"
 export TEST_MINIO_URL="http://${TEST_MANAGER_HOST}:${TEST_MINIO_PORT}"
-
-# Extra headers for gateway routing (set when Matrix is accessed through gateway)
-# Example: TEST_MATRIX_EXTRA_HEADERS="Host: matrix-local.hiclaw.io:9080"
-export TEST_MATRIX_EXTRA_HEADERS="${TEST_MATRIX_EXTRA_HEADERS:-}"
 
 # Matrix domain (used for user IDs like @manager:domain)
 # If not set, will be auto-detected from Manager container
@@ -290,7 +284,6 @@ detect_manager_config() {
     [ -z "${TEST_MINIO_USER}" ]          && export TEST_MINIO_USER="$(            _cenv HICLAW_MINIO_USER)"
     [ -z "${TEST_MINIO_PASSWORD}" ]      && export TEST_MINIO_PASSWORD="$(        _cenv HICLAW_MINIO_PASSWORD)"
     [ -z "${TEST_REGISTRATION_TOKEN}" ]  && export TEST_REGISTRATION_TOKEN="$(    _cenv HICLAW_REGISTRATION_TOKEN)"
-    [ -z "${TEST_MANAGER_GATEWAY_KEY}" ] && export TEST_MANAGER_GATEWAY_KEY="$(   _cenv HICLAW_MANAGER_GATEWAY_KEY)"
     [ -z "${HICLAW_LLM_API_KEY}" ]       && export HICLAW_LLM_API_KEY="$(         _cenv HICLAW_LLM_API_KEY)"
 }
 
