@@ -123,7 +123,7 @@ Ensure workers alice, bob, and charlie exist with the git-delegation skill. Run 
 - Commit 'verify: proposal review checklist' and push to ${GIT_REPO_URL}
 - Report PHASE4_DONE
 
-When all 4 phases are done, reply to me in THIS conversation (not the project room) with a summary containing the text PHASE4_DONE."
+When all 4 phases are done, post a final summary in the project room."
 
 # Snapshot before first LLM interaction
 METRICS_BASELINE=$(snapshot_baseline "alice" "bob" "charlie")
@@ -141,16 +141,29 @@ fi
 
 log_section "Wait for Workflow Completion (up to 30 minutes)"
 
-log_info "Waiting for Manager to report all 4 phases complete (timeout: 1800s)..."
-COMPLETION_MSG=$(matrix_wait_for_message_containing \
-    "${ADMIN_TOKEN}" "${DM_ROOM}" "@manager" \
-    "PHASE4_DONE\|all.*phase.*done\|all 4 phase\|全部完成\|所有阶段" 1800) || true
+log_info "Polling git branches for phase completion (timeout: 1800s, interval: 30s)..."
+WORKFLOW_DONE=false
+DEADLINE=$(( $(date +%s) + 1800 ))
+while [ "$(date +%s)" -lt "${DEADLINE}" ]; do
+    P1=$(docker exec "${TEST_MANAGER_CONTAINER}" \
+        git -C "${REPO_PATH}.git" show "${FEATURE_BRANCH}:doc/proposal.md" 2>/dev/null | wc -c)
+    P2=$(docker exec "${TEST_MANAGER_CONTAINER}" \
+        git -C "${REPO_PATH}.git" show "${REVIEW_BRANCH}:reviews/proposal-review.md" 2>/dev/null | wc -c)
+    P3=$(docker exec "${TEST_MANAGER_CONTAINER}" \
+        git -C "${REPO_PATH}.git" show "${FEATURE_BRANCH}:doc/proposal.md" 2>/dev/null | grep -ci "summary" || true)
+    P4=$(docker exec "${TEST_MANAGER_CONTAINER}" \
+        git -C "${REPO_PATH}.git" show "${TEST_BRANCH}:verify/checklist.md" 2>/dev/null | wc -c)
+    log_info "Phase progress — P1:${P1}B P2:${P2}B P3_summary:${P3} P4:${P4}B"
+    if [ "${P1}" -gt 0 ] && [ "${P2}" -gt 0 ] && [ "${P3}" -gt 0 ] && [ "${P4}" -gt 0 ]; then
+        WORKFLOW_DONE=true
+        log_pass "All 4 phases detected in git — workflow complete"
+        break
+    fi
+    sleep 30
+done
 
-if [ -n "${COMPLETION_MSG}" ]; then
-    log_pass "Manager reported workflow completion"
-    log_info "Completion message: $(echo "${COMPLETION_MSG}" | head -c 300)"
-else
-    log_info "Completion signal not detected (timed out or keyword mismatch); proceeding with git verification"
+if [ "${WORKFLOW_DONE}" != "true" ]; then
+    log_info "Git polling timed out; proceeding with verification (some phases may have partial results)"
 fi
 
 MESSAGES=$(matrix_read_messages "${ADMIN_TOKEN}" "${DM_ROOM}" 100)
