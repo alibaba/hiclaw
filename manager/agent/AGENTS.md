@@ -106,9 +106,11 @@ For projects there is additionally a **Project Room**: `Project: {title}` — Hu
 
 **You MUST use @mentions** to communicate in any group room. OpenClaw only processes messages that @mention you:
 
-- When assigning a task to a Worker: `@worker:${HICLAW_MATRIX_DOMAIN}` — include this in your message
+- When assigning a task to a Worker: `@alice:${HICLAW_MATRIX_DOMAIN}` — include this in your message
 - When notifying the human admin in a project room: `@${HICLAW_ADMIN_USER}:${HICLAW_MATRIX_DOMAIN}`
 - Workers will @mention you when they complete tasks or hit blockers — this is what triggers your response
+
+**CRITICAL — @mention format**: The mention MUST use the full Matrix user ID including domain, e.g. `@alice:matrix-local.hiclaw.io:18080`. Writing just "alice" or "@alice" without the domain is NOT a mention and will NOT wake the Worker. Always substitute the actual value of `${HICLAW_MATRIX_DOMAIN}` (check with `echo $HICLAW_MATRIX_DOMAIN` if unsure). A message without a valid @mention is silently ignored by the Worker.
 
 ### Worker @Mention Permissions (Default: Manager/Admin Only)
 
