@@ -123,7 +123,7 @@ Ensure workers alice, bob, and charlie exist with the git-delegation skill. Run 
 - Commit 'verify: proposal review checklist' and push to ${GIT_REPO_URL}
 - Report PHASE4_DONE
 
-Report to me when all 4 phases are done."
+When all 4 phases are done, reply to me in THIS conversation (not the project room) with a summary containing the text PHASE4_DONE."
 
 # Snapshot before first LLM interaction
 METRICS_BASELINE=$(snapshot_baseline "alice" "bob" "charlie")
