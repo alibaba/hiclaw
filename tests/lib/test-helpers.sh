@@ -10,6 +10,12 @@
 # Configuration
 # ============================================================
 
+# Auto-detect Manager container name if not set
+if [ -z "${TEST_MANAGER_CONTAINER}" ]; then
+    export TEST_MANAGER_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager' | head -1)"
+    export TEST_MANAGER_CONTAINER="${TEST_MANAGER_CONTAINER:-hiclaw-manager}"
+fi
+
 export TEST_MANAGER_HOST="${TEST_MANAGER_HOST:-127.0.0.1}"
 export TEST_MATRIX_PORT="${TEST_MATRIX_PORT:-6167}"
 export TEST_GATEWAY_PORT="${TEST_GATEWAY_PORT:-18080}"
@@ -285,6 +291,7 @@ detect_manager_config() {
     [ -z "${TEST_MINIO_PASSWORD}" ]      && export TEST_MINIO_PASSWORD="$(        _cenv HICLAW_MINIO_PASSWORD)"
     [ -z "${TEST_REGISTRATION_TOKEN}" ]  && export TEST_REGISTRATION_TOKEN="$(    _cenv HICLAW_REGISTRATION_TOKEN)"
     [ -z "${TEST_MANAGER_GATEWAY_KEY}" ] && export TEST_MANAGER_GATEWAY_KEY="$(   _cenv HICLAW_MANAGER_GATEWAY_KEY)"
+    [ -z "${HICLAW_LLM_API_KEY}" ]       && export HICLAW_LLM_API_KEY="$(         _cenv HICLAW_LLM_API_KEY)"
 }
 
 # ============================================================
