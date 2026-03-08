@@ -16,19 +16,22 @@ if [ -z "${TEST_MANAGER_CONTAINER}" ]; then
     export TEST_MANAGER_CONTAINER="${TEST_MANAGER_CONTAINER:-hiclaw-manager}"
 fi
 
-export TEST_MANAGER_HOST="${TEST_MANAGER_HOST:-127.0.0.1}"
-export TEST_MATRIX_PORT="${TEST_MATRIX_PORT:-6167}"
+# Host where the Manager container's exposed ports are reachable
+export TEST_MANAGER_HOST="127.0.0.1"
+
+# External host ports — auto-detected from container env in detect_manager_config()
 export TEST_GATEWAY_PORT="${TEST_GATEWAY_PORT:-18080}"
 export TEST_CONSOLE_PORT="${TEST_CONSOLE_PORT:-18001}"
-export TEST_MINIO_PORT="${TEST_MINIO_PORT:-9000}"
 export TEST_ELEMENT_PORT="${TEST_ELEMENT_PORT:-18088}"
 
-export TEST_MATRIX_DIRECT_URL="${TEST_MATRIX_DIRECT_URL:-http://${TEST_MANAGER_HOST}:${TEST_MATRIX_PORT}}"
-export TEST_CONSOLE_URL="http://${TEST_MANAGER_HOST}:${TEST_CONSOLE_PORT}"
-export TEST_MINIO_URL="http://${TEST_MANAGER_HOST}:${TEST_MINIO_PORT}"
+# Internal container URLs — always fixed; all callers use exec_in_manager
+export TEST_MATRIX_DIRECT_URL="http://127.0.0.1:6167"
+export TEST_MINIO_URL="http://127.0.0.1:9000"
 
-# Matrix domain (used for user IDs like @manager:domain)
-# If not set, will be auto-detected from Manager container
+# Derived external URLs — rebuilt by detect_manager_config() after port detection
+export TEST_CONSOLE_URL="http://${TEST_MANAGER_HOST}:${TEST_CONSOLE_PORT}"
+
+# Matrix domain — auto-detected from container env in detect_manager_config()
 export TEST_MATRIX_DOMAIN="${TEST_MATRIX_DOMAIN:-}"
 
 # Test state
@@ -251,30 +254,22 @@ detect_manager_config() {
 
     _cenv() { echo "${container_env}" | grep "^${1}=" | cut -d= -f2-; }
 
-    local detected_domain detected_gateway_port detected_console_port
-    detected_domain=$(      _cenv HICLAW_MATRIX_DOMAIN)
+    local detected_domain detected_gateway_port detected_console_port detected_element_port
+    detected_domain=$(        _cenv HICLAW_MATRIX_DOMAIN)
     detected_gateway_port=$(  _cenv HICLAW_PORT_GATEWAY)
     detected_console_port=$(  _cenv HICLAW_PORT_CONSOLE)
+    detected_element_port=$(  _cenv HICLAW_PORT_ELEMENT_WEB)
 
-    # Override defaults with detected values (only if not explicitly set by user)
-    if [ -n "${detected_gateway_port}" ] && [ -z "${TEST_GATEWAY_PORT_SET:-}" ]; then
-        export TEST_GATEWAY_PORT="${detected_gateway_port}"
-        export TEST_MATRIX_URL="http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}"
-        # Note: TEST_MINIO_URL is NOT updated here. MinIO runs on the fixed internal port 9000
-        # inside the container; mc commands use exec_in_manager so no host port is needed.
-    fi
+    [ -n "${detected_gateway_port}" ] && export TEST_GATEWAY_PORT="${detected_gateway_port}"
+    [ -n "${detected_console_port}" ] && export TEST_CONSOLE_PORT="${detected_console_port}"
+    [ -n "${detected_element_port}" ] && export TEST_ELEMENT_PORT="${detected_element_port}"
 
-    if [ -n "${detected_console_port}" ] && [ -z "${TEST_CONSOLE_PORT_SET:-}" ]; then
-        export TEST_CONSOLE_PORT="${detected_console_port}"
-        export TEST_CONSOLE_URL="http://${TEST_MANAGER_HOST}:${TEST_CONSOLE_PORT}"
-    fi
+    # Rebuild derived URLs after port detection
+    export TEST_CONSOLE_URL="http://${TEST_MANAGER_HOST}:${TEST_CONSOLE_PORT}"
 
-    if [ -n "${detected_domain}" ] && [ -z "${TEST_MATRIX_DOMAIN}" ]; then
+    if [ -n "${detected_domain}" ]; then
         export TEST_MATRIX_DOMAIN="${detected_domain}"
-    fi
-
-    # If TEST_MATRIX_DOMAIN is still not set, derive from gateway port
-    if [ -z "${TEST_MATRIX_DOMAIN}" ]; then
+    elif [ -z "${TEST_MATRIX_DOMAIN}" ]; then
         export TEST_MATRIX_DOMAIN="matrix-local.hiclaw.io:${TEST_GATEWAY_PORT}"
     fi
 
@@ -361,7 +356,7 @@ start_worker_container() {
         -e "HICLAW_WORKER_NAME=${worker_name}" \
         -e "HICLAW_MATRIX_SERVER=http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}" \
         -e "HICLAW_AI_GATEWAY=http://${TEST_MANAGER_HOST}:${TEST_GATEWAY_PORT}" \
-        -e "HICLAW_FS_ENDPOINT=http://${TEST_MANAGER_HOST}:${TEST_MINIO_PORT}" \
+        -e "HICLAW_FS_ENDPOINT=http://${TEST_MANAGER_HOST}:9000" \
         -e "HICLAW_FS_ACCESS_KEY=${TEST_MINIO_USER}" \
         -e "HICLAW_FS_SECRET_KEY=${TEST_MINIO_PASSWORD}" \
         "hiclaw/worker-agent:${HICLAW_VERSION:-latest}" 2>/dev/null
