@@ -7,6 +7,7 @@ source "${SCRIPT_DIR}/lib/test-helpers.sh"
 source "${SCRIPT_DIR}/lib/matrix-client.sh"
 source "${SCRIPT_DIR}/lib/higress-client.sh"
 source "${SCRIPT_DIR}/lib/minio-client.sh"
+source "${SCRIPT_DIR}/lib/agent-metrics.sh"
 
 test_setup "06-multi-worker"
 
@@ -34,6 +35,7 @@ wait_for_manager_agent_ready 300 "${DM_ROOM}" "${ADMIN_TOKEN}" || {
     exit 1
 }
 
+METRICS_BASELINE=$(snapshot_baseline "alice" "bob")
 matrix_send_message "${ADMIN_TOKEN}" "${DM_ROOM}" \
     "Create a new Worker named bob for backend development. He should have access to GitHub MCP."
 
@@ -69,6 +71,12 @@ log_section "Verify Shared Coordination"
 sleep 60
 TASKS=$(minio_list_dir "shared/tasks/" 2>/dev/null || echo "")
 log_info "Shared tasks directory: ${TASKS}"
+
+log_section "Collect Metrics"
+wait_for_session_stable 5 60
+METRICS=$(collect_delta_metrics "06-multi-worker" "$METRICS_BASELINE" "alice" "bob")
+save_metrics_file "$METRICS" "06-multi-worker"
+print_metrics_report "$METRICS"
 
 test_teardown "06-multi-worker"
 test_summary

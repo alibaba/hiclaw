@@ -6,6 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/test-helpers.sh"
 source "${SCRIPT_DIR}/lib/matrix-client.sh"
+source "${SCRIPT_DIR}/lib/agent-metrics.sh"
 
 test_setup "04-human-intervene"
 
@@ -34,6 +35,7 @@ wait_for_manager_agent_ready 300 "${DM_ROOM}" "${ADMIN_TOKEN}" || {
 }
 
 # Send initial task
+METRICS_BASELINE=$(snapshot_baseline "alice")
 matrix_send_message "${ADMIN_TOKEN}" "${DM_ROOM}" \
     "Ask Alice to write a Python script that prints 'Hello, World!' and saves it as hello.py."
 
@@ -62,6 +64,12 @@ log_info "Checking if final result includes both requirements..."
 
 # The result should reference both the original and supplementary requirements
 assert_not_empty "${MESSAGES}" "Room has messages from task processing"
+
+log_section "Collect Metrics"
+wait_for_session_stable 5 60
+METRICS=$(collect_delta_metrics "04-human-intervene" "$METRICS_BASELINE" "alice")
+save_metrics_file "$METRICS" "04-human-intervene"
+print_metrics_report "$METRICS"
 
 test_teardown "04-human-intervene"
 test_summary

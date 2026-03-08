@@ -6,6 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/test-helpers.sh"
 source "${SCRIPT_DIR}/lib/matrix-client.sh"
+source "${SCRIPT_DIR}/lib/agent-metrics.sh"
 
 test_setup "05-heartbeat"
 
@@ -34,6 +35,7 @@ wait_for_manager_agent_ready 300 "${DM_ROOM}" "${ADMIN_TOKEN}" || {
 }
 
 # Assign a long-running task
+METRICS_BASELINE=$(snapshot_baseline "alice")
 matrix_send_message "${ADMIN_TOKEN}" "${DM_ROOM}" \
     "Ask Alice to research and write a comprehensive technical document about WebAssembly. This should be detailed and thorough."
 
@@ -63,6 +65,12 @@ if [ -n "${INQUIRY}" ]; then
 else
     log_info "Heartbeat inquiry not detected (may need longer wait or different room)"
 fi
+
+log_section "Collect Metrics"
+wait_for_session_stable 5 60
+METRICS=$(collect_delta_metrics "05-heartbeat" "$METRICS_BASELINE" "alice")
+save_metrics_file "$METRICS" "05-heartbeat"
+print_metrics_report "$METRICS"
 
 test_teardown "05-heartbeat"
 test_summary
