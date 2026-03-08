@@ -17,7 +17,8 @@ if [ -z "${TEST_MANAGER_CONTAINER}" ]; then
 fi
 
 # Host where the Manager container's exposed ports are reachable
-export TEST_MANAGER_HOST="127.0.0.1"
+export TEST_MANAGER_HOST="${TEST_MANAGER_HOST:-127.0.0.1}"
+export TEST_MATRIX_PORT="${TEST_MATRIX_PORT:-6167}"
 
 # External host ports — auto-detected from container env in detect_manager_config()
 export TEST_GATEWAY_PORT="${TEST_GATEWAY_PORT:-18080}"
