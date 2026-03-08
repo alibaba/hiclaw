@@ -53,7 +53,7 @@ jobs:
             echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "is_tag=true" >> $GITHUB_OUTPUT
           else
-            echo "version=${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "version=latest" >> $GITHUB_OUTPUT
             echo "is_tag=false" >> $GITHUB_OUTPUT
           fi
 
