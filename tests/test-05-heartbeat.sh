@@ -34,7 +34,8 @@ wait_for_manager_agent_ready 300 "${DM_ROOM}" "${ADMIN_TOKEN}" || {
     exit 1
 }
 
-# Assign a long-running task
+# Alice container should be running from test-02/03/04; wait to ensure it's up before snapshot
+wait_for_worker_container "alice" 60
 METRICS_BASELINE=$(snapshot_baseline "alice")
 matrix_send_message "${ADMIN_TOKEN}" "${DM_ROOM}" \
     "Ask Alice to research and write a comprehensive technical document about WebAssembly. This should be detailed and thorough."

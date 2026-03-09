@@ -35,6 +35,8 @@ wait_for_manager_agent_ready 300 "${DM_ROOM}" "${ADMIN_TOKEN}" || {
     exit 1
 }
 
+# Alice is running from previous tests; bob will be created below (offset=0 is correct for new workers)
+wait_for_worker_container "alice" 60
 METRICS_BASELINE=$(snapshot_baseline "alice" "bob")
 matrix_send_message "${ADMIN_TOKEN}" "${DM_ROOM}" \
     "Create a new Worker for backend development. The worker's name (username) must be exactly 'bob'. He should have access to GitHub MCP."

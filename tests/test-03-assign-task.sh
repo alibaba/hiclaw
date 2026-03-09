@@ -36,7 +36,8 @@ wait_for_manager_agent_ready 300 "${DM_ROOM}" "${ADMIN_TOKEN}" || {
     exit 1
 }
 
-# Send task assignment
+# Alice container should be running from test-02; wait to ensure it's up before snapshot
+wait_for_worker_container "alice" 60
 METRICS_BASELINE=$(snapshot_baseline "alice")
 matrix_send_message "${ADMIN_TOKEN}" "${DM_ROOM}" \
     "Please assign Alice a task: Create a simple README.md for a hello-world project. The README should include project name, description, and usage instructions."

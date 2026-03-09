@@ -34,7 +34,8 @@ wait_for_manager_agent_ready 300 "${DM_ROOM}" "${ADMIN_TOKEN}" || {
     exit 1
 }
 
-# Send initial task
+# Alice container should be running from test-02/03; wait to ensure it's up before snapshot
+wait_for_worker_container "alice" 60
 METRICS_BASELINE=$(snapshot_baseline "alice")
 matrix_send_message "${ADMIN_TOKEN}" "${DM_ROOM}" \
     "Ask Alice to write a Python script that prints 'Hello, World!' and saves it as hello.py."
