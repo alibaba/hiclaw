@@ -649,51 +649,8 @@ msg() {
         "config.current.provider.en") text="Current provider: %s" ;;
         "config.current.model.zh") text="当前模型: %s" ;;
         "config.current.model.en") text="Current model: %s" ;;
-        # --- Checkpoint messages ---
-        "checkpoint.saved.zh") text="安装进度已保存：%s" ;;
-        "checkpoint.saved.en") text="Installation progress saved: %s" ;;
-        "checkpoint.found.zh") text="发现上次安装进度" ;;
-        "checkpoint.found.en") text="Previous installation progress found" ;;
-        "checkpoint.loaded.zh") text="从检查点恢复安装..." ;;
-        "checkpoint.loaded.en") text="Resuming installation from checkpoint..." ;;
-        "checkpoint.cleared.zh") text="检查点已清除" ;;
-        "checkpoint.cleared.en") text="Checkpoint cleared" ;;
-        "checkpoint.no_checkpoint.zh") text="未找到检查点" ;;
-        "checkpoint.no_checkpoint.en") text="No checkpoint found" ;;
-        # --- Rollback messages ---
-        "rollback.start.zh") text="开始回滚安装..." ;;
-        "rollback.start.en") text="Starting installation rollback..." ;;
-        "rollback.complete.zh") text="回滚完成" ;;
-        "rollback.complete.en") text="Rollback complete" ;;
-        "rollback.no_backup.zh") text="未找到备份" ;;
-        "rollback.no_backup.en") text="No backup found" ;;
-        "rollback.confirm.zh") text="确认回滚？这将恢复到安装前的状态 [y/N]" ;;
-        "rollback.confirm.en") text="Confirm rollback? This will restore to pre-installation state [y/N]" ;;
-        # --- Cleanup messages ---
-        "cleanup.start.zh") text="开始清理..." ;;
-        "cleanup.start.en") text="Starting cleanup..." ;;
-        "cleanup.complete.zh") text="清理完成" ;;
-        "cleanup.complete.en") text="Cleanup complete" ;;
-        "cleanup.incomplete.zh") text="检测到不完整的安装" ;;
-        "cleanup.incomplete.en") text="Incomplete installation detected" ;;
-        "cleanup.confirm.zh") text="确认完全清理？这将删除所有 HiClaw 数据 [y/N]" ;;
-        "cleanup.confirm.en") text="Confirm complete cleanup? This will delete all HiClaw data [y/N]" ;;
-        # --- Backup messages ---
         "backup.created.zh") text="备份已创建：%s" ;;
         "backup.created.en") text="Backup created: %s" ;;
-        # --- Installation phases ---
-        "phase.init.zh") text="初始化" ;;
-        "phase.init.en") text="Initialization" ;;
-        "phase.config.zh") text="配置收集" ;;
-        "phase.config.en") text="Configuration" ;;
-        "phase.validate.zh") text="配置验证" ;;
-        "phase.validate.en") text="Validation" ;;
-        "phase.download.zh") text="镜像下载" ;;
-        "phase.download.en") text="Image download" ;;
-        "phase.startup.zh") text="服务启动" ;;
-        "phase.startup.en") text="Service startup" ;;
-        "phase.complete.zh") text="完成" ;;
-        "phase.complete.en") text="Complete" ;;
         # --- Fallback: try English for unknown lang ---
         *)
             case "${key}.en" in
@@ -1847,112 +1804,6 @@ install_worker() {
 # Checkpoint and Rollback Mechanism
 # ============================================================
 
-# Checkpoint directory and file
-CHECKPOINT_DIR="${HOME}/.hiclaw-checkpoint"
-CHECKPOINT_FILE="${CHECKPOINT_DIR}/install-progress.json"
-
-# Installation phase constants
-PHASE_INIT=1
-PHASE_CONFIG=2
-PHASE_VALIDATE=3
-PHASE_DOWNLOAD=4
-PHASE_STARTUP=5
-PHASE_COMPLETE=6
-
-# Get phase name
-get_phase_name() {
-    local phase="$1"
-    case "$phase" in
-        1) msg "phase.init" ;;
-        2) msg "phase.config" ;;
-        3) msg "phase.validate" ;;
-        4) msg "phase.download" ;;
-        5) msg "phase.startup" ;;
-        6) msg "phase.complete" ;;
-        *) echo "Unknown" ;;
-    esac
-}
-
-# Save installation progress checkpoint
-save_checkpoint() {
-    local phase="$1"
-    local message="${2:-}"
-    
-    mkdir -p "${CHECKPOINT_DIR}"
-    
-    local phase_name
-    phase_name=$(get_phase_name "$phase")
-    
-    cat > "${CHECKPOINT_FILE}" <<EOF
-{
-    "phase": ${phase},
-    "phase_name": "${phase_name}",
-    "timestamp": "$(date -Iseconds)",
-    "message": "${message}",
-    "config": {
-        "HICLAW_LLM_PROVIDER": "${HICLAW_LLM_PROVIDER:-}",
-        "HICLAW_LLM_API_KEY": "${HICLAW_LLM_API_KEY:-}",
-        "HICLAW_DEFAULT_MODEL": "${HICLAW_DEFAULT_MODEL:-}",
-        "HICLAW_ADMIN_USER": "${HICLAW_ADMIN_USER:-}",
-        "HICLAW_ADMIN_PASSWORD": "${HICLAW_ADMIN_PASSWORD:+***}",
-        "HICLAW_MATRIX_DOMAIN": "${HICLAW_MATRIX_DOMAIN:-}",
-        "HICLAW_DATA_DIR": "${HICLAW_DATA_DIR:-}",
-        "HICLAW_WORKSPACE_DIR": "${HICLAW_WORKSPACE_DIR:-}",
-        "HICLAW_LANGUAGE": "${HICLAW_LANGUAGE:-}"
-    }
-}
-EOF
-    
-    log "$(msg checkpoint.saved "${phase_name}")"
-}
-
-# Load installation progress checkpoint
-load_checkpoint() {
-    if [ -f "${CHECKPOINT_FILE}" ]; then
-        log "$(msg checkpoint.found)"
-        cat "${CHECKPOINT_FILE}"
-        return 0
-    fi
-    log "$(msg checkpoint.no_checkpoint)"
-    return 1
-}
-
-# Restore configuration from checkpoint
-restore_from_checkpoint() {
-    local checkpoint_file="${1:-${CHECKPOINT_FILE}}"
-    
-    if [ ! -f "${checkpoint_file}" ]; then
-        return 1
-    fi
-    
-    # Read configuration (requires jq)
-    if command -v jq &>/dev/null; then
-        HICLAW_LLM_PROVIDER=$(jq -r '.config.HICLAW_LLM_PROVIDER // empty' "${checkpoint_file}" 2>/dev/null)
-        HICLAW_LLM_API_KEY=$(jq -r '.config.HICLAW_LLM_API_KEY // empty' "${checkpoint_file}" 2>/dev/null)
-        HICLAW_DEFAULT_MODEL=$(jq -r '.config.HICLAW_DEFAULT_MODEL // empty' "${checkpoint_file}" 2>/dev/null)
-        HICLAW_ADMIN_USER=$(jq -r '.config.HICLAW_ADMIN_USER // empty' "${checkpoint_file}" 2>/dev/null)
-        HICLAW_MATRIX_DOMAIN=$(jq -r '.config.HICLAW_MATRIX_DOMAIN // empty' "${checkpoint_file}" 2>/dev/null)
-        HICLAW_DATA_DIR=$(jq -r '.config.HICLAW_DATA_DIR // empty' "${checkpoint_file}" 2>/dev/null)
-        HICLAW_WORKSPACE_DIR=$(jq -r '.config.HICLAW_WORKSPACE_DIR // empty' "${checkpoint_file}" 2>/dev/null)
-        HICLAW_LANGUAGE=$(jq -r '.config.HICLAW_LANGUAGE // empty' "${checkpoint_file}" 2>/dev/null)
-        
-        log "$(msg checkpoint.loaded)"
-        return 0
-    fi
-    
-    return 1
-}
-
-# Clear checkpoint
-clear_checkpoint() {
-    rm -rf "${CHECKPOINT_DIR}"
-    log "$(msg checkpoint.cleared)"
-}
-
-# ============================================================
-# Rollback and Cleanup Mechanism
-# ============================================================
-
 # Backup directory
 BACKUP_DIR="${HOME}/.hiclaw-backups"
 INSTALL_STATE_FILE="${HOME}/.hiclaw-install-state"
@@ -2119,23 +1970,6 @@ cmd_cleanup() {
     fi
     
     complete_cleanup
-}
-
-# Checkpoint command handler
-cmd_checkpoint() {
-    local action="${1:-show}"
-    
-    case "$action" in
-        show)
-            load_checkpoint
-            ;;
-        clear)
-            clear_checkpoint
-            ;;
-        *)
-            echo "Usage: hiclaw checkpoint [show|clear]"
-            ;;
-    esac
 }
 
 # ============================================================
