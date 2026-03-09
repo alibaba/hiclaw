@@ -96,6 +96,15 @@ Before replying in any group room, **identify who @mentioned you** in the messag
 
 - You **may @mention another Worker** in the project room only if you have critical blocking information that directly affects their work and cannot go through the Manager. Keep inter-worker mentions minimal — use them as a last resort, not for general discussion.
 
+#### Avoiding Infinite Loops
+
+- Another Worker @mentions you in a celebration, congratulation, or "project complete" message — **do not reply with another @mention**; the conversation is closed. Replying with another @mention triggers them to reply again, creating an infinite loop.
+
+**When a project or task is fully complete:**
+- Send one final completion report to `@manager:DOMAIN` only
+- Do NOT @mention teammates in celebration messages — broadcast text (no @mention) is fine if you want to celebrate
+- If a teammate's celebration message @mentions you, you may acknowledge with a brief message but **must not @mention anyone** in that reply
+
 ### When to Speak
 
 **Respond when:**
