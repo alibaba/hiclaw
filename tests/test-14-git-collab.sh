@@ -199,6 +199,9 @@ log_pass "Workflow complete — Manager's message: $(echo "${COMPLETION_MSG}" | 
 
 log_section "Collect Metrics"
 
+wait_for_worker_session_stable "alice" 5 120
+wait_for_worker_session_stable "bob" 5 120
+wait_for_worker_session_stable "charlie" 5 120
 wait_for_session_stable 5 60
 PREV_METRICS=$(cat "${TEST_OUTPUT_DIR}/metrics-14-git-collab.json" 2>/dev/null || true)
 METRICS=$(collect_delta_metrics "14-git-collab" "$METRICS_BASELINE" "alice" "bob" "charlie")

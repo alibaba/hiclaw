@@ -148,6 +148,53 @@ get_latest_session() {
 }
 
 # Wait for the latest session file to stop growing (agent has finished processing)
+# Wait for a worker container's session to stabilize (no new bytes written for stable_seconds).
+# Usage: wait_for_worker_session_stable <worker_name> [stable_seconds] [max_wait_seconds]
+wait_for_worker_session_stable() {
+    local worker="$1"
+    local stable_seconds="${2:-5}"
+    local max_wait="${3:-120}"
+    local container="hiclaw-worker-${worker}"
+    local session_dir="/root/hiclaw-fs/agents/${worker}/.openclaw/agents/main/sessions"
+
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
+        log_info "Worker '${worker}' container not running, skipping session wait" >&2
+        return 0
+    fi
+
+    log_info "Waiting for Worker '${worker}' session to stabilize (up to ${max_wait}s)..." >&2
+
+    local elapsed=0
+    local last_size=-1
+    local stable_for=0
+
+    while [ "$elapsed" -lt "$max_wait" ]; do
+        local session
+        session=$(get_latest_session "$container" "$session_dir")
+        local size=0
+        if [ -n "$session" ]; then
+            size=$(docker exec "$container" sh -c "wc -c < '${session}' 2>/dev/null || echo 0")
+        fi
+
+        if [ "$size" -eq "$last_size" ] && [ "$size" -gt 0 ]; then
+            stable_for=$((stable_for + 2))
+            if [ "$stable_for" -ge "$stable_seconds" ]; then
+                log_info "Worker '${worker}' session stable after ${elapsed}s (size=${size})" >&2
+                return 0
+            fi
+        else
+            stable_for=0
+            last_size="$size"
+        fi
+
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+
+    log_info "Worker '${worker}' session did not stabilize within ${max_wait}s, proceeding anyway" >&2
+    return 0
+}
+
 # Usage: wait_for_session_stable [stable_seconds] [max_wait_seconds]
 # Polls the manager's latest session file until its size is unchanged for stable_seconds.
 wait_for_session_stable() {

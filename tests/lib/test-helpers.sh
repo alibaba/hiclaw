@@ -233,6 +233,29 @@ wait_for_manager_agent_ready() {
     return 0
 }
 
+# Wait for a Worker container to be running (started by Manager on demand)
+# Usage: wait_for_worker_container <worker_name> [timeout_seconds]
+# Returns 0 when container is running, 1 on timeout
+wait_for_worker_container() {
+    local worker="$1"
+    local timeout="${2:-120}"
+    local container="hiclaw-worker-${worker}"
+    local elapsed=0
+
+    log_info "Waiting for Worker container '${container}' to be running (timeout: ${timeout}s)..."
+    while [ "${elapsed}" -lt "${timeout}" ]; do
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
+            log_info "Worker container '${container}' is running (took ${elapsed}s)"
+            return 0
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+
+    log_info "Worker container '${container}' did not start within ${timeout}s" >&2
+    return 1
+}
+
 # ============================================================
 # Config Detection
 # ============================================================

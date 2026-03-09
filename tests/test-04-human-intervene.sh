@@ -66,6 +66,7 @@ log_info "Checking if final result includes both requirements..."
 assert_not_empty "${MESSAGES}" "Room has messages from task processing"
 
 log_section "Collect Metrics"
+wait_for_worker_session_stable "alice" 5 120
 wait_for_session_stable 5 60
 PREV_METRICS=$(cat "${TEST_OUTPUT_DIR}/metrics-04-human-intervene.json" 2>/dev/null || true)
 METRICS=$(collect_delta_metrics "04-human-intervene" "$METRICS_BASELINE" "alice")

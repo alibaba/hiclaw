@@ -69,6 +69,7 @@ TASKS_LIST=$(minio_list_dir "shared/tasks/" 2>/dev/null)
 log_info "Tasks directory contents: ${TASKS_LIST}"
 
 log_section "Collect Metrics"
+wait_for_worker_session_stable "alice" 5 120
 wait_for_session_stable 5 60
 PREV_METRICS=$(cat "${TEST_OUTPUT_DIR}/metrics-03-assign-task.json" 2>/dev/null || true)
 METRICS=$(collect_delta_metrics "03-assign-task" "$METRICS_BASELINE" "alice")
