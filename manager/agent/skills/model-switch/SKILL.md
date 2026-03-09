@@ -46,6 +46,7 @@ No changes are made to `openclaw.json` in this case.
 
 | Model | contextWindow | maxTokens |
 |-------|--------------|-----------|
+| gpt-5.4 | 1,050,000 | 128,000 |
 | gpt-5.3-codex / gpt-5-mini / gpt-5-nano | 400,000 | 128,000 |
 | claude-opus-4-6 | 1,000,000 | 128,000 |
 | claude-sonnet-4-6 | 1,000,000 | 64,000 |
