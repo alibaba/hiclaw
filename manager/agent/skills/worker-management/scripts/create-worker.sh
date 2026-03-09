@@ -27,6 +27,7 @@ WORKER_SKILLS="file-sync"
 REMOTE_MODE=false
 ENABLE_FIND_SKILLS=false
 SKILLS_API_URL=""
+WORKER_RUNTIME="openclaw"   # openclaw (default) | copaw
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -37,13 +38,19 @@ while [ $# -gt 0 ]; do
         --find-skills) ENABLE_FIND_SKILLS=true; shift ;;
         --skills-api-url) SKILLS_API_URL="$2"; shift 2 ;;
         --remote)     REMOTE_MODE=true; shift ;;
+        --runtime)    WORKER_RUNTIME="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 if [ -z "${WORKER_NAME}" ]; then
-    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote]"
+    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw]"
     exit 1
+fi
+
+# copaw runtime is always remote (pip-installed process, not a container)
+if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+    REMOTE_MODE=true
 fi
 
 # If find-skills is enabled, add it to the skills list
@@ -404,17 +411,30 @@ mc stat "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/openclaw.json" > /dev/null 
 log "  MinIO sync verified"
 
 # Push Worker agent files from Manager image (AGENTS.md + file-sync skill)
-WORKER_AGENT_SRC="/opt/hiclaw/agent/worker-agent"
+# Use runtime-specific file-sync skill for copaw workers
+if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+    WORKER_AGENT_SRC="/opt/hiclaw/agent/copaw-worker-agent"
+    FILESYNC_SRC="${WORKER_AGENT_SRC}/skills/file-sync"
+else
+    WORKER_AGENT_SRC="/opt/hiclaw/agent/worker-agent"
+    FILESYNC_SRC="${WORKER_AGENT_SRC}/skills/file-sync"
+fi
+
 if [ -d "${WORKER_AGENT_SRC}" ]; then
-    log "  Pushing AGENTS.md (with builtin markers) to worker MinIO..."
+    log "  Pushing AGENTS.md (runtime=${WORKER_RUNTIME}) to worker MinIO..."
     mc cp "${WORKER_AGENT_SRC}/AGENTS.md" \
         "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/AGENTS.md" \
         || log "  WARNING: Failed to push AGENTS.md"
-    log "  Pushing file-sync skill to worker MinIO..."
-    mc mirror "${WORKER_AGENT_SRC}/skills/file-sync/" \
-        "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/skills/file-sync/" --overwrite \
-        || log "  WARNING: Failed to push file-sync skill"
-    log "  Worker agent files pushed"
+    
+    if [ -d "${FILESYNC_SRC}" ]; then
+        log "  Pushing file-sync skill (${WORKER_RUNTIME}) to worker MinIO..."
+        mc mirror "${FILESYNC_SRC}/" \
+            "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/skills/file-sync/" --overwrite \
+            || log "  WARNING: Failed to push file-sync skill"
+        log "  Worker agent files pushed"
+    else
+        log "  WARNING: file-sync skill not found at ${FILESYNC_SRC}"
+    fi
 else
     log "  WARNING: worker-agent directory not found at ${WORKER_AGENT_SRC}"
 fi
@@ -453,9 +473,9 @@ if [ -f "${REGISTRY_FILE_EARLY}" ]; then
                         "http://127.0.0.1:6167/_matrix/client/v3/rooms/${EW_ROOM_ID}/send/m.room.message/${TXN_ID}" \
                         -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
                         -H 'Content-Type: application/json' \
-                        -d "{\"msgtype\":\"m.text\",\"body\":\"@${ew}:${MATRIX_DOMAIN} Your config has been updated (new worker @${WORKER_NAME}:${MATRIX_DOMAIN} added to groupAllowFrom). Please run: hiclaw-sync\",\"m.mentions\":{\"user_ids\":[\"@${ew}:${MATRIX_DOMAIN}\"]}}" \
+                        -d "{\"msgtype\":\"m.text\",\"body\":\"@${ew}:${MATRIX_DOMAIN} Your config has been updated (new worker @${WORKER_NAME}:${MATRIX_DOMAIN} added to groupAllowFrom). Please use your file-sync skill to sync the latest config.\",\"m.mentions\":{\"user_ids\":[\"@${ew}:${MATRIX_DOMAIN}\"]}}" \
                         > /dev/null 2>&1 \
-                        && log "  Notified @${ew} to run hiclaw-sync" \
+                        && log "  Notified @${ew} to use file-sync skill" \
                         || log "  WARNING: Failed to notify @${ew}"
                 fi
             else
@@ -508,10 +528,12 @@ jq --arg w "${WORKER_NAME}" \
    --arg uid "${WORKER_MATRIX_USER_ID}" \
    --arg rid "${ROOM_ID}" \
    --arg ts "${NOW_TS}" \
+   --arg runtime "${WORKER_RUNTIME}" \
    --argjson skills "${SKILLS_JSON}" \
    '.workers[$w] = {
      "matrix_user_id": $uid,
      "room_id": $rid,
+     "runtime": $runtime,
      "skills": $skills,
      "created_at": (if .workers[$w].created_at? then .workers[$w].created_at else $ts end),
      "skills_updated_at": $ts
@@ -537,13 +559,29 @@ WORKER_STATUS="pending_install"
 source /opt/hiclaw/scripts/lib/container-api.sh
 
 _build_install_cmd() {
-    local manager_ip
-    manager_ip=$(container_get_manager_ip 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
-    local fs_endpoint="http://${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}:8080"
+    # copaw workers run on the host, so use the externally-exposed gateway port.
+    # openclaw workers run inside a container, so use the internal port 8080.
+    local fs_domain="${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}"
+    local fs_internal_endpoint="http://${fs_domain}:8080"
+    local fs_external_port="${HICLAW_PORT_GATEWAY:-18080}"
+    local fs_external_endpoint="http://${fs_domain}:${fs_external_port}"
     local fs_access_key="${WORKER_NAME}"
     local fs_secret_key="${WORKER_MINIO_PASSWORD}"
 
-    local cmd="bash hiclaw-install.sh worker --name ${WORKER_NAME} --fs ${fs_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
+    if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+        # copaw-worker is a pip package running on the host; use external port.
+        # --console-port is omitted by default (saves ~500MB RAM).
+        # Add --console-port 8088 to the command if you need the web console.
+        local cmd="pip install copaw-worker && copaw-worker"
+        cmd="${cmd} --name ${WORKER_NAME}"
+        cmd="${cmd} --fs ${fs_external_endpoint}"
+        cmd="${cmd} --fs-key ${fs_access_key}"
+        cmd="${cmd} --fs-secret ${fs_secret_key}"
+        echo "${cmd}"
+        return
+    fi
+
+    local cmd="bash hiclaw-install.sh worker --name ${WORKER_NAME} --fs ${fs_internal_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
 
     # Add find-skills related options if enabled
     if [ "${ENABLE_FIND_SKILLS}" = true ]; then
@@ -601,6 +639,7 @@ RESULT=$(jq -n \
     --arg room_id "${ROOM_ID}" \
     --arg consumer "${CONSUMER_NAME}" \
     --arg mode "${DEPLOY_MODE}" \
+    --arg runtime "${WORKER_RUNTIME}" \
     --arg container_id "${CONTAINER_ID}" \
     --arg status "${WORKER_STATUS}" \
     --arg install_cmd "${INSTALL_CMD:-}" \
@@ -610,6 +649,7 @@ RESULT=$(jq -n \
         matrix_user_id: $user_id,
         room_id: $room_id,
         consumer: $consumer,
+        runtime: $runtime,
         skills: $skills,
         mode: $mode,
         container_id: $container_id,

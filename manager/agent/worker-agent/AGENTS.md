@@ -113,7 +113,7 @@ task-{task-id} progress: <what you just finished, what's next>
 
 ### File Sync
 
-When the Manager or another Worker tells you files have been updated (configs, task briefs, shared data), run:
+When the Manager or another Worker tells you files have been updated (configs, task briefs, shared data), use your `file-sync` skill:
 
 ```bash
 hiclaw-sync
@@ -127,7 +127,7 @@ This pulls the latest files from centralized storage. OpenClaw auto-detects conf
 
 When you receive a task from the Manager:
 
-1. Sync files first: `hiclaw-sync`
+1. Sync files first: use your `file-sync` skill to pull the task directory from MinIO
 2. Read the task spec at the path provided (usually `~/hiclaw-fs/shared/tasks/{task-id}/spec.md`)
 3. **Create `plan.md` in the task directory** before starting work (see Task Directory Rules below)
 4. Execute the task using your skills and tools, keeping all intermediate artifacts in the task directory
