@@ -102,6 +102,43 @@ def bridge_openclaw_to_copaw(
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _resolve_context_window(cfg: dict[str, Any]) -> int | None:
+    """Return the contextWindow of the active (or first) model, or None.
+
+    Looks up agents.defaults.model.primary ("provider_id/model_id") first;
+    falls back to the first model of the first provider.
+    """
+    providers_raw = cfg.get("models", {}).get("providers", {})
+    if not providers_raw:
+        return None
+
+    primary = (
+        cfg.get("agents", {})
+        .get("defaults", {})
+        .get("model", {})
+        .get("primary", "")
+    )
+
+    if primary and "/" in primary:
+        pid, mid = primary.split("/", 1)
+        provider = providers_raw.get(pid, {})
+        for m in provider.get("models", []):
+            if m.get("id") == mid and "contextWindow" in m:
+                return int(m["contextWindow"])
+
+    # Fallback: first provider, first model
+    for provider_cfg in providers_raw.values():
+        for m in provider_cfg.get("models", []):
+            if "contextWindow" in m:
+                return int(m["contextWindow"])
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # config.json
 # ---------------------------------------------------------------------------
 
@@ -151,6 +188,16 @@ def _write_config_json(
     existing.setdefault("channels", {})["matrix"] = matrix_channel_cfg
     # Disable console channel (we use Matrix)
     existing["channels"].setdefault("console", {})["enabled"] = False
+
+    # Bridge model context window → agents.running.max_input_length so that
+    # CoPaw's memory compaction threshold tracks the actual model capability.
+    # We read contextWindow from the first model of the primary (or first)
+    # provider to avoid hard-coding a default that mismatches the real model.
+    context_window = _resolve_context_window(cfg)
+    if context_window is not None:
+        existing.setdefault("agents", {}).setdefault("running", {})[
+            "max_input_length"
+        ] = context_window
 
     with open(config_path, "w") as f:
         json.dump(existing, f, indent=2, ensure_ascii=False)
