@@ -29,7 +29,7 @@ _log() {
 _api() {
     local method="$1"
     local path="$2"
-    local data="$3"
+    local data="${3-}"
     if [ -n "${data}" ]; then
         curl -s --unix-socket "${CONTAINER_SOCKET}" \
             -X "${method}" \
@@ -46,7 +46,7 @@ _api() {
 _api_code() {
     local method="$1"
     local path="$2"
-    local data="$3"
+    local data="${3-}"
     if [ -n "${data}" ]; then
         curl -s -o /dev/null -w '%{http_code}' --unix-socket "${CONTAINER_SOCKET}" \
             -X "${method}" \
