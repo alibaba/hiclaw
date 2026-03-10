@@ -83,6 +83,9 @@ class MatrixChannelConfig:
         self.bot_prefix: str = raw.get("bot_prefix", "")
         self.filter_tool_messages: bool = raw.get("filter_tool_messages", False)
         self.filter_thinking: bool = raw.get("filter_thinking", False)
+        # Whether the active model supports image inputs. Set by bridge.py.
+        # Defaults to False so images are never sent to a non-vision model.
+        self.vision_enabled: bool = raw.get("vision_enabled", False)
 
 
 def _normalize_user_id(uid: str) -> str:
@@ -305,28 +308,6 @@ class MatrixChannel(BaseChannel):
         return False
 
     # ------------------------------------------------------------------
-    # Model capability helpers
-    # ------------------------------------------------------------------
-
-    def _vision_enabled(self) -> bool:
-        """Return True if the active model supports image inputs.
-
-        Reads model_caps.json written by bridge.py at startup.  Defaults to
-        False when the file is absent or unreadable (text-only safe default).
-        """
-        try:
-            from copaw.constant import WORKING_DIR
-            caps_path = WORKING_DIR / "model_caps.json"
-        except Exception:
-            caps_path = Path.home() / ".copaw" / "model_caps.json"
-        try:
-            import json as _json
-            with open(caps_path) as f:
-                return bool(_json.load(f).get("vision", False))
-        except Exception:
-            return False
-
-    # ------------------------------------------------------------------
     # Media directory
     # ------------------------------------------------------------------
 
@@ -497,7 +478,7 @@ class MatrixChannel(BaseChannel):
             if local_path:
                 file_uri = Path(local_path).as_uri()
                 if isinstance(event, RoomMessageImage):
-                    if self._vision_enabled():
+                    if self._cfg.vision_enabled:
                         content_parts.append({
                             "type": "image",
                             "image_url": file_uri,
@@ -636,7 +617,7 @@ class MatrixChannel(BaseChannel):
         if t == "text" and p.get("text"):
             return TextContent(type=ContentType.TEXT, text=p["text"])
         if t == "image" and p.get("image_url"):
-            if not self._vision_enabled():
+            if not self._cfg.vision_enabled:
                 # Downgrade silently; _on_room_media_event should have already
                 # converted this, but guard here for any code path that builds
                 # content_parts directly.

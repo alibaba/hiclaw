@@ -83,13 +83,16 @@ def bridge_openclaw_to_copaw(
 
     Also sets COPAW_WORKING_DIR env var and patches copaw's module-level
     path constants so the running process uses the correct directory.
+
+    Note: model capability flags (e.g. vision_enabled) are written into
+    the relevant channel's config block inside config.json so that each
+    channel can read them from its own config without extra files.
     """
     working_dir.mkdir(parents=True, exist_ok=True)
     in_container = _is_in_container()
 
     _write_config_json(openclaw_cfg, working_dir, in_container)
     _write_providers_json(openclaw_cfg, working_dir, in_container)
-    _write_model_caps_json(openclaw_cfg, working_dir)
 
     os.environ["COPAW_WORKING_DIR"] = str(working_dir)
 
@@ -163,24 +166,6 @@ def _resolve_vision_enabled(cfg: dict[str, Any]) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# model_caps.json  (read by MatrixChannel and other channels at runtime)
-# ---------------------------------------------------------------------------
-
-def _write_model_caps_json(cfg: dict[str, Any], working_dir: Path) -> None:
-    """Write model capability flags so channels can adapt their behaviour.
-
-    Currently written fields:
-      - vision (bool): True when the active model accepts image inputs.
-    """
-    caps = {
-        "vision": _resolve_vision_enabled(cfg),
-    }
-    caps_path = working_dir / "model_caps.json"
-    with open(caps_path, "w") as f:
-        json.dump(caps, f, indent=2, ensure_ascii=False)
-
-
-# ---------------------------------------------------------------------------
 # config.json
 # ---------------------------------------------------------------------------
 
@@ -218,6 +203,7 @@ def _write_config_json(
         "groups": groups,
         "filter_tool_messages": True,
         "filter_thinking": True,
+        "vision_enabled": _resolve_vision_enabled(cfg),
     }
 
     config_path = working_dir / "config.json"
