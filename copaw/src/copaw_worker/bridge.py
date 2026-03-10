@@ -79,14 +79,10 @@ def bridge_openclaw_to_copaw(
       - <working_dir>/config.json          (channels + agents)
       - <working_dir>/providers.json       (LLM credentials, for reference)
       - <working_dir>.secret/providers.json (where copaw actually reads from)
-      - <working_dir>/model_caps.json      (model capability flags for channels)
 
     Also sets COPAW_WORKING_DIR env var and patches copaw's module-level
     path constants so the running process uses the correct directory.
 
-    Note: model capability flags (e.g. vision_enabled) are written into
-    the relevant channel's config block inside config.json so that each
-    channel can read them from its own config without extra files.
     """
     working_dir.mkdir(parents=True, exist_ok=True)
     in_container = _is_in_container()
