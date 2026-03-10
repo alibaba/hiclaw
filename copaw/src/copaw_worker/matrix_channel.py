@@ -487,7 +487,7 @@ class MatrixChannel(BaseChannel):
                         # Model does not support image input — downgrade to text
                         content_parts.append({
                             "type": "text",
-                            "text": f"[用户发送了一张图片（当前模型不支持图片输入）：{body or filename}]",
+                            "text": f"[User sent an image (current model does not support image input): {body or filename}]",
                         })
                 elif isinstance(event, RoomMessageAudio):
                     content_parts.append({
@@ -623,7 +623,7 @@ class MatrixChannel(BaseChannel):
                 # content_parts directly.
                 return TextContent(
                     type=ContentType.TEXT,
-                    text="[图片内容已省略，当前模型不支持图片输入]",
+                    text="[Image omitted: current model does not support image input]",
                 )
             return ImageContent(type=ContentType.IMAGE, image_url=p["image_url"])
         if t == "file":
