@@ -31,6 +31,81 @@ HiClaw 1.0.4 integrates CoPaw into the multi-agent collaboration system by imple
 
 ---
 
+## Manager-Worker Architecture: Dramatically Reducing Agent Integration Complexity
+
+The successful integration of CoPaw Worker fully demonstrates the advantages of HiClaw's Manager-Worker architecture in **reducing the cost of integrating new Agent runtimes**.
+
+### Pain Points of the Traditional Approach
+
+If you want a new Agent runtime (like CoPaw) to reach users, the traditional approach requires:
+
+1. **Support for the full Channel ecosystem**: OpenClaw supports over a dozen messaging channels — Discord, Telegram, Slack, Feishu, DingTalk, WeChat, iMessage... Each channel has different APIs, authentication methods, and message formats
+2. **Implement various Channel adapters**: Need to develop, test, and maintain each one individually
+3. **Users need to configure each one**: Webhooks, tokens, certificates for every channel...
+4. **Fragmented client ecosystem**: Different channels have different clients, inconsistent user experience
+
+This is a massive engineering effort. Many excellent Agent runtimes can't reach users simply because this barrier is too high.
+
+### HiClaw's Solution: Matrix as the Unified Communication Layer
+
+HiClaw's Manager-Worker architecture unifies the communication layer on the Matrix protocol:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        HiClaw Manager                            │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐  │
+│   │              Tuwunel Matrix Server                       │  │
+│   │              (Built-in, ready to use)                    │  │
+│   └─────────────────────────────────────────────────────────┘  │
+│                              │                                  │
+│              ┌───────────────┼───────────────┐                 │
+│              ↓               ↓               ↓                 │
+│         Discord          Telegram         Slack               │
+│         (via bridge)      (via bridge)    (via bridge)        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                               ↑ Matrix Protocol
+                               │
+┌──────────────────────────────┴─────────────────────────────────┐
+│                        Worker                                   │
+│                                                                 │
+│   Only need to implement Matrix Channel — one protocol,        │
+│   all channels covered                                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**For a new Agent runtime, integrating with HiClaw requires just one thing: implement Matrix Channel.**
+
+### Actual Work to Integrate CoPaw into HiClaw
+
+The core code for integrating CoPaw in HiClaw 1.0.4 is just two files:
+
+1. **`matrix_channel.py`** (~450 lines): Implements Matrix protocol communication
+2. **`bridge.py`** (~230 lines): Bridges openclaw.json to CoPaw configuration
+
+That's it! CoPaw doesn't need to worry about Discord, Telegram, Slack... It just communicates with Matrix and gets:
+
+- ✅ Reuse all Channel ecosystems supported by Manager
+- ✅ Reuse ready-to-use Matrix clients (Element Web built-in, Element/FluffyChat for mobile)
+- ✅ Seamless collaboration with other Workers (regardless of runtime)
+- ✅ Unified management, monitoring, and scheduling by Manager
+
+**For users, integrating a new Agent runtime has zero learning cost** — the interaction is exactly the same, still conversing through Matrix clients, with Manager automatically handling underlying differences.
+
+### What Does This Mean?
+
+If you're developing a new Agent runtime, or want to connect an existing Agent to the HiClaw ecosystem:
+
+- **Don't need to**: Individually adapt Discord, Telegram, Slack...
+- **Only need to**: Implement Matrix protocol (a mature open standard)
+- **And you get**: Dozens of messaging channels + ready-to-use clients + multi-agent collaboration
+
+This is the core value of the Manager-Worker architecture: **integrate once, use everywhere**.
+
+---
+
 ## Two Deployment Modes, Solving Two Pain Points
 
 ### Mode 1: Docker Container Mode — More Memory-Efficient Workers
@@ -159,11 +234,23 @@ In key workflows (creating Workers, assigning tasks, multi-Worker collaboration,
 
 ---
 
-## How to Use CoPaw Workers?
+## Getting Started
 
-### Select Runtime During Installation
+### Fresh Installation
 
-The new installation script asks which Worker runtime you want as default:
+**macOS / Linux:**
+
+```bash
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+```
+
+**Windows (PowerShell 7+):**
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://higress.ai/hiclaw/install.ps1'))
+```
+
+During installation, you'll be asked which Worker runtime to use as default:
 
 ```
 Select default worker runtime:
@@ -173,46 +260,9 @@ Select default worker runtime:
 Enter your choice [1-2]:
 ```
 
-After selection, `create-worker.sh` will use your chosen runtime by default.
+### Upgrading from Previous Versions
 
-### Create a CoPaw Worker
-
-Just tell the Manager:
-
-```
-You: Help me create a Worker named browser-bot using CoPaw runtime
-
-Manager: Sure, creating...
-         Worker browser-bot created, runtime: copaw
-         Memory usage: ~100MB
-```
-
-Or if you want local mode:
-
-```
-You: Help me create a local Worker named local-bot that can operate my browser
-
-Manager: Sure, here's the installation command to run on your local machine:
-         
-         pip install copaw-worker
-         copaw-worker --config ... --console-port 8088
-         
-         After running, the Worker will automatically connect to HiClaw.
-```
-
----
-
-## Acknowledgments
-
-Thanks to the [CoPaw team](https://github.com/agentscope-ai/CoPaw) for their work! CoPaw is a well-designed lightweight Agent runtime with an especially excellent console experience. HiClaw's integration with CoPaw through Matrix Channel and configuration bridge layer was smooth, with minimal code required.
-
-If you're interested in CoPaw itself, check out the [CoPaw GitHub repository](https://github.com/agentscope-ai/CoPaw).
-
----
-
-## Upgrade Guide
-
-If you're already using HiClaw 1.0.3 or earlier, upgrading to 1.0.4 is simple:
+If you're already using HiClaw 1.0.3 or earlier:
 
 ```bash
 cd ~/hiclaw-install/higress  # or your installation directory
@@ -224,13 +274,21 @@ After upgrading, the Manager will automatically support CoPaw Workers. Existing 
 
 ---
 
+## Acknowledgments
+
+Thanks to the [CoPaw team](https://github.com/agentscope-ai/CoPaw) for their work! CoPaw is a well-designed lightweight Agent runtime with an especially excellent console experience. HiClaw's integration with CoPaw through Matrix Channel and configuration bridge layer was smooth, with minimal code required.
+
+If you're interested in CoPaw itself, check out the [CoPaw GitHub repository](https://github.com/agentscope-ai/CoPaw).
+
+---
+
 ## Closing Thoughts
 
 The core goal of HiClaw 1.0.4 is to make Workers lighter and more flexible:
 
 - **Lighter**: CoPaw Workers use 80% less memory
 - **More flexible**: Local mode unlocks new scenarios like browser automation
-- **More controllable**: Better control over model switching and token consumption
+- **Easier integration**: Manager-Worker architecture lets new Agent runtimes just implement Matrix protocol
 
 We especially recommend trying CoPaw Workers if you:
 
