@@ -86,13 +86,6 @@ Workers can't run git; execute git ops on their behalf.
 - Worker sends: `task-20260220-100000 git-request: operations: [git clone ..., git checkout -b feature-x]`
 - Worker asks you to commit and push their changes, rebase a branch, or resolve a conflict
 
-## coding-cli-management
-
-Run AI coding CLI in a Worker's workspace on their behalf.
-
-- First coding task arrives and `~/coding-cli-config.json` doesn't exist → detect available CLIs, ask admin, write config
-- Worker sends: `task-20260220-100000 coding-request: ---PROMPT--- [prompt] ---END---`
-
 ## worker-management
 
 Full lifecycle of Worker containers and skill assignments.

@@ -137,10 +137,9 @@ bash /opt/hiclaw/agent/skills/task-coordination/scripts/remove-processing-marker
 
 This coordination mechanism is used by:
 
-1. **coding-cli-management**: Manager creates marker before running CLI, removes after
-2. **git-delegation-management**: Manager creates marker before git ops, removes after
-3. **coding-cli** (Worker skill): Worker checks marker before modifying workspace
-4. **git-delegation** (Worker skill): Worker checks marker before modifying workspace
+1. **git-delegation-management**: Manager creates marker before git ops, removes after
+2. **coding-cli** (Worker skill): Worker checks marker before modifying workspace
+3. **git-delegation** (Worker skill): Worker checks marker before modifying workspace
 
 ---
 

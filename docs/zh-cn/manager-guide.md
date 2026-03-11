@@ -241,7 +241,7 @@ docker run --rm -v hiclaw-data:/data -v $(pwd):/backup ubuntu \
 ```bash
 # 在第一个编码任务时自动运行；或手动触发：
 docker exec hiclaw-manager \
-  bash /opt/hiclaw/agent/skills/coding-cli-management/scripts/detect-available-cli.sh
+  bash /opt/hiclaw/agent/skills-alpha/coding-cli-management/scripts/detect-available-cli.sh
 ```
 
 ### 内置 CLI 工具

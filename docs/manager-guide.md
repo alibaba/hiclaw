@@ -273,7 +273,7 @@ When the Manager assigns a coding task, it checks `~/coding-cli-config.json`:
 ```bash
 # Runs automatically on first coding task; or trigger manually:
 docker exec hiclaw-manager \
-  bash /opt/hiclaw/agent/skills/coding-cli-management/scripts/detect-available-cli.sh
+  bash /opt/hiclaw/agent/skills-alpha/coding-cli-management/scripts/detect-available-cli.sh
 ```
 
 ### Bundled CLI Tools
