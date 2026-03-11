@@ -208,7 +208,7 @@ OpenClaw limits the "typing" indicator to a maximum of **2 minutes**. If the age
 
 ### 3. Check session status
 
-The OpenClaw session might be stuck. Enter the Manager or Worker container and use the OpenClaw TUI to investigate:
+The OpenClaw session might be corrupted. Enter the Manager or Worker container and use the OpenClaw TUI to investigate:
 
 ```bash
 # Manager
@@ -223,7 +223,7 @@ In the TUI:
 2. Switch to the session for the relevant chat
 3. Try sending a message and observe if there are any errors
 
-If the session is stuck, try `/reset` to reset it and see if that restores normal behavior.
+If the session is corrupted, try `/reset` to reset it and see if that restores normal behavior.
 
 ---
 
@@ -233,7 +233,7 @@ If Manager stops responding or you see error codes like 404 or 503, check these 
 
 ### 1. Check session status
 
-The OpenClaw session might be stuck. Enter the Manager container and use the OpenClaw TUI to investigate:
+The OpenClaw session might be corrupted. Enter the Manager container and use the OpenClaw TUI to investigate:
 
 ```bash
 docker exec -it hiclaw-manager openclaw tui
@@ -244,7 +244,7 @@ In the TUI:
 2. Switch to the session for the relevant chat
 3. Try sending a message and observe if there are any errors
 
-If the session is stuck, try `/reset` to reset it and see if that restores normal behavior.
+If the session is corrupted, try `/reset` to reset it and see if that restores normal behavior.
 
 ### 2. Check Higress AI Gateway log
 
