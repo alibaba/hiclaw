@@ -23,7 +23,7 @@ ARG HIGRESS_REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com
 FROM ${HIGRESS_REGISTRY}/higress/mc:20260216 AS mc
 
 # ============ Final Image ============
-FROM python:3.11-slim
+FROM ${HIGRESS_REGISTRY}/higress/python:3.11-slim
 
 ARG APT_MIRROR=mirrors.aliyun.com
 ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/

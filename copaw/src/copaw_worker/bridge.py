@@ -188,7 +188,14 @@ def _write_config_json(
     # Per-room/group config (pass through as-is for MatrixChannel to use)
     groups = matrix_raw.get("groups", {})
 
-    matrix_channel_cfg = {
+    # History limit: openclaw uses camelCase "historyLimit", bridge to snake_case.
+    history_limit = matrix_raw.get("historyLimit")
+    if history_limit is None:
+        history_limit = (
+            cfg.get("messages", {}).get("groupChat", {}).get("historyLimit")
+        )
+
+    matrix_channel_cfg: dict[str, Any] = {
         "enabled": matrix_raw.get("enabled", True),
         "homeserver": homeserver,
         "access_token": access_token,
@@ -201,6 +208,8 @@ def _write_config_json(
         "filter_thinking": True,
         "vision_enabled": _resolve_vision_enabled(cfg),
     }
+    if history_limit is not None:
+        matrix_channel_cfg["history_limit"] = int(history_limit)
 
     config_path = working_dir / "config.json"
     # Merge with existing config to avoid clobbering other settings

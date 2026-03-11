@@ -12,6 +12,7 @@ import logging
 import mimetypes
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional
 
@@ -55,6 +56,25 @@ except ImportError:  # pragma: no cover
 
 CHANNEL_KEY = "matrix"
 
+# Markers that separate accumulated history from the triggering message,
+# matching the convention used by OpenClaw so agents can parse uniformly.
+HISTORY_CONTEXT_MARKER = "[Chat messages since your last reply - for context]"
+CURRENT_MESSAGE_MARKER = "[Current message - respond to this]"
+DEFAULT_HISTORY_LIMIT = 50
+
+
+@dataclass
+class HistoryEntry:
+    """A buffered room message that didn't mention the bot."""
+
+    sender: str
+    body: str
+    timestamp: Optional[int] = None
+    message_id: Optional[str] = None
+    # Optional structured media parts (e.g. downloaded images for vision models)
+    # to be included alongside the text history when the mention arrives.
+    media_parts: Optional[List[Dict[str, Any]]] = None
+
 
 class MatrixChannelConfig:
     """Parsed config for MatrixChannel (read from config.json channels.matrix)."""
@@ -86,6 +106,8 @@ class MatrixChannelConfig:
         # Whether the active model supports image inputs. Set by bridge.py.
         # Defaults to False so images are never sent to a non-vision model.
         self.vision_enabled: bool = raw.get("vision_enabled", False)
+        # Max non-mentioned messages to buffer per room (0 = disabled).
+        self.history_limit: int = max(0, raw.get("history_limit", DEFAULT_HISTORY_LIMIT))
 
 
 def _normalize_user_id(uid: str) -> str:
@@ -122,6 +144,7 @@ class MatrixChannel(BaseChannel):
         self._user_id: Optional[str] = None
         self._sync_task: Optional[asyncio.Task] = None
         self._typing_tasks: Dict[str, asyncio.Task] = {}  # room_id -> renewal task
+        self._room_histories: Dict[str, List[HistoryEntry]] = {}  # per-room history buffer
 
     # ------------------------------------------------------------------
     # Factory
@@ -308,6 +331,135 @@ class MatrixChannel(BaseChannel):
         return False
 
     # ------------------------------------------------------------------
+    # History accumulation (requireMention + context buffering)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_display_name(room: Any, user_id: str) -> str:
+        """Best-effort human-readable name for a Matrix user in *room*."""
+        try:
+            name = room.user_name(user_id)
+            if name:
+                return name
+        except Exception:
+            pass
+        # Fallback: localpart of MXID (e.g. "@alice:hs" → "alice")
+        return user_id.split(":")[0].lstrip("@") or user_id
+
+    def _record_history(self, room_id: str, entry: HistoryEntry) -> None:
+        """Append *entry* to the per-room history buffer, respecting the limit."""
+        limit = self._cfg.history_limit
+        if limit <= 0:
+            return
+        history = self._room_histories.setdefault(room_id, [])
+        history.append(entry)
+        while len(history) > limit:
+            history.pop(0)
+
+    def _build_history_prefix(self, room_id: str) -> str:
+        """Format buffered history entries as a multi-line text block."""
+        entries = self._room_histories.get(room_id, [])
+        if not entries:
+            return ""
+        lines: list[str] = []
+        for e in entries:
+            line = f"{e.sender}: {e.body}"
+            if e.message_id:
+                line += f" [id:{e.message_id}]"
+            lines.append(line)
+        return "\n".join(lines)
+
+    def _apply_history_to_parts(
+        self, room_id: str, content_parts: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Prepend accumulated history context to *content_parts*.
+
+        If the first part is text, the history block is merged into it;
+        otherwise a new text part is prepended.  Any media parts stored
+        in history entries (e.g. downloaded images) are inserted between
+        the history text block and the current message parts so that
+        vision models can see them.
+
+        Returns a (possibly new) list — the original is not mutated.
+        """
+        if self._cfg.history_limit <= 0:
+            return content_parts
+        history_text = self._build_history_prefix(room_id)
+        if not history_text:
+            return content_parts
+
+        # Collect media content parts carried by history entries
+        history_media: list[dict[str, Any]] = []
+        for entry in self._room_histories.get(room_id, []):
+            if entry.media_parts:
+                history_media.extend(entry.media_parts)
+
+        # Merge into the leading text part when possible
+        if content_parts and content_parts[0].get("type") == "text":
+            current_text = content_parts[0]["text"]
+            combined = (
+                f"{HISTORY_CONTEXT_MARKER}\n{history_text}\n\n"
+                f"{CURRENT_MESSAGE_MARKER}\n{current_text}"
+            )
+            return [{"type": "text", "text": combined}] + history_media + content_parts[1:]
+        # No leading text part (e.g. pure media) — prepend a dedicated block
+        prefix_part = {
+            "type": "text",
+            "text": (
+                f"{HISTORY_CONTEXT_MARKER}\n{history_text}\n\n"
+                f"{CURRENT_MESSAGE_MARKER}"
+            ),
+        }
+        return [prefix_part] + history_media + content_parts
+
+    def _clear_history(self, room_id: str) -> None:
+        """Drop the buffered history for *room_id*."""
+        self._room_histories.pop(room_id, None)
+
+    async def _record_media_history(
+        self, room: Any, event: Any, sender_id: str, room_id: str
+    ) -> None:
+        """Record a non-mentioned media message as a history entry.
+
+        Produces a typed text description (e.g. ``[sent an image: photo.jpg]``)
+        and, for images when vision is enabled, downloads the actual file so it
+        can be included as an image content part later.
+        """
+        body = event.body or ""
+        media_parts: list[dict[str, Any]] = []
+
+        if isinstance(event, RoomMessageImage):
+            body_desc = f"[sent an image: {body}]" if body else "[sent an image]"
+            if self._cfg.vision_enabled:
+                mxc_url: str = getattr(event, "url", "") or ""
+                if mxc_url:
+                    eid = event.event_id[:8].lstrip("$")
+                    filename = body or f"matrix_media_{eid}"
+                    filename = f"{eid}_{filename}"
+                    local_path = await self._download_mxc(mxc_url, filename)
+                    if local_path:
+                        media_parts.append({
+                            "type": "image",
+                            "image_url": Path(local_path).as_uri(),
+                        })
+        elif isinstance(event, RoomMessageFile):
+            body_desc = f"[sent a file: {body}]" if body else "[sent a file]"
+        elif isinstance(event, RoomMessageAudio):
+            body_desc = f"[sent audio: {body}]" if body else "[sent audio]"
+        elif isinstance(event, RoomMessageVideo):
+            body_desc = f"[sent a video: {body}]" if body else "[sent a video]"
+        else:
+            body_desc = body or "[media]"
+
+        self._record_history(room_id, HistoryEntry(
+            sender=self._get_display_name(room, sender_id),
+            body=body_desc,
+            timestamp=getattr(event, "server_timestamp", None),
+            message_id=event.event_id,
+            media_parts=media_parts or None,
+        ))
+
+    # ------------------------------------------------------------------
     # Media directory
     # ------------------------------------------------------------------
 
@@ -409,20 +561,28 @@ class MatrixChannel(BaseChannel):
         # Mention check for group rooms
         if not is_dm:
             if self._require_mention(room_id) and not self._was_mentioned(event, text):
-                return  # silently ignore non-mention group messages
+                self._record_history(room_id, HistoryEntry(
+                    sender=self._get_display_name(room, sender_id),
+                    body=text,
+                    timestamp=getattr(event, "server_timestamp", None),
+                    message_id=event.event_id,
+                ))
+                return
 
         # Mark as read + start typing immediately so the sender sees feedback
         await self._send_read_receipt(room_id, event.event_id)
         await self._send_typing(room_id, True)
 
-        # Build native payload and enqueue
+        # Build content parts, prepending accumulated history for group rooms
+        content_parts: list[dict[str, Any]] = [{"type": "text", "text": text}]
+        if not is_dm:
+            content_parts = self._apply_history_to_parts(room_id, content_parts)
+
         worker_name = (self._user_id or "").split(":")[0].lstrip("@")
         payload = {
             "channel_id": CHANNEL_KEY,
             "sender_id": sender_id,
-            "content_parts": [
-                {"type": "text", "text": text}
-            ],
+            "content_parts": content_parts,
             "meta": {
                 "room_id": room_id,
                 "is_dm": is_dm,
@@ -433,6 +593,8 @@ class MatrixChannel(BaseChannel):
 
         if self._enqueue:
             self._enqueue(payload)
+            if not is_dm:
+                self._clear_history(room_id)
 
     # ------------------------------------------------------------------
     # Incoming message handling — media (image / file / audio / video)
@@ -455,6 +617,7 @@ class MatrixChannel(BaseChannel):
         # m.mentions if the client sends it.
         if not is_dm:
             if self._require_mention(room_id) and not self._was_mentioned(event, ""):
+                await self._record_media_history(room, event, sender_id, room_id)
                 return
 
         await self._send_read_receipt(room_id, event.event_id)
@@ -470,10 +633,12 @@ class MatrixChannel(BaseChannel):
             content_parts.append({"type": "text", "text": body})
 
         if mxc_url:
-            # Use the body as filename, fall back to a safe default
-            filename = body or f"matrix_media_{event.event_id[:8]}"
-            # Ensure unique filenames to avoid collisions between rooms
-            filename = f"{event.event_id[:8]}_{filename}"
+            # Use the body as filename, fall back to a safe default.
+            # Strip leading '$' from Matrix event IDs to avoid URI encoding
+            # issues ($→%24 breaks agentscope's image extension check).
+            eid = event.event_id[:8].lstrip("$")
+            filename = body or f"matrix_media_{eid}"
+            filename = f"{eid}_{filename}"
             local_path = await self._download_mxc(mxc_url, filename)
             if local_path:
                 file_uri = Path(local_path).as_uri()
@@ -514,6 +679,10 @@ class MatrixChannel(BaseChannel):
         if not content_parts:
             return
 
+        # Prepend accumulated history for group rooms
+        if not is_dm:
+            content_parts = self._apply_history_to_parts(room_id, content_parts)
+
         worker_name = (self._user_id or "").split(":")[0].lstrip("@")
         payload = {
             "channel_id": CHANNEL_KEY,
@@ -529,6 +698,8 @@ class MatrixChannel(BaseChannel):
 
         if self._enqueue:
             self._enqueue(payload)
+            if not is_dm:
+                self._clear_history(room_id)
 
     # ------------------------------------------------------------------
     # Read receipt & typing indicator
