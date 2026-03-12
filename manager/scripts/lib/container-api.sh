@@ -61,12 +61,16 @@ _api_code() {
 }
 
 # Check if container runtime socket is available
+# This function is designed to work correctly in both strict mode (set -euo pipefail)
+# and non-strict mode. It uses a subshell for the API check to prevent exit on errors.
 container_api_available() {
     if [ ! -S "${CONTAINER_SOCKET}" ]; then
         return 1
     fi
+    # Use a subshell to prevent strict mode (set -e) from exiting on curl failures
+    # The || true ensures the command substitution doesn't fail in strict mode
     local version
-    version=$(_api GET /version 2>/dev/null)
+    version=$(_api GET /version 2>/dev/null) || true
     if echo "${version}" | grep -q '"ApiVersion"' 2>/dev/null; then
         return 0
     fi
