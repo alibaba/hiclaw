@@ -19,7 +19,8 @@ cloud_sae_available() {
 
 sae_create_worker() {
     local worker_name="$1"
-    local extra_envs_json="${2:-{}}"
+    local extra_envs_json="$2"
+    extra_envs_json="${extra_envs_json:-"{}"}"
     _log "Creating SAE application for worker: ${worker_name}"
     local envs_file
     envs_file=$(mktemp /tmp/sae-envs-XXXXXX.json)

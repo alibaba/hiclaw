@@ -584,6 +584,8 @@ unset _provider_file
 _detect_worker_backend() {
     if container_api_available 2>/dev/null; then
         echo "docker"
+    elif [ "${HICLAW_RUNTIME:-}" = "cloud-aliyun" ]; then
+        echo "cloud-aliyun"
     elif type cloud_sae_available &>/dev/null && cloud_sae_available; then
         echo "cloud-aliyun"
     else

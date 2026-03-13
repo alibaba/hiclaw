@@ -18,6 +18,18 @@ set -e
 source /opt/hiclaw/scripts/lib/hiclaw-env.sh
 source /opt/hiclaw/scripts/lib/container-api.sh
 
+# Override log() to also write to container's main stdout (/proc/1/fd/1)
+# so that logs are visible in `docker logs` / SAE log viewer even when
+# this script is executed by OpenClaw's exec tool (which captures stdout).
+log() {
+    local msg="[hiclaw $(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "${msg}"
+    # Write to PID 1's stdout if available (container main process)
+    if [ -w /proc/1/fd/1 ]; then
+        echo "${msg}" > /proc/1/fd/1
+    fi
+}
+
 # ============================================================
 # Parse arguments
 # ============================================================
@@ -298,15 +310,39 @@ WORKER_KEY="${WORKER_GATEWAY_KEY}"
 if [ "${HICLAW_RUNTIME}" = "cloud-aliyun" ]; then
     # Cloud mode: use AI Gateway API via cloud-worker-api.py
     log "Step 3: Creating AI Gateway consumer (cloud mode)..."
-    CLOUD_CONSUMER_RESP=$(cloud_create_consumer "${CONSUMER_NAME}" 2>&1) || true
-    WORKER_KEY=$(echo "${CLOUD_CONSUMER_RESP}" | jq -r '.credential // empty' 2>/dev/null)
-    if [ -z "${WORKER_KEY}" ]; then
-        WORKER_KEY="${WORKER_GATEWAY_KEY}"
-        log "  WARNING: Could not extract credential from cloud response, using pre-generated key"
+    CLOUD_CONSUMER_RESP=$(cloud_create_consumer "${CONSUMER_NAME}" 2>/dev/null) || true
+    log "  Consumer API response: ${CLOUD_CONSUMER_RESP:0:300}"
+    CONSUMER_STATUS=$(echo "${CLOUD_CONSUMER_RESP}" | jq -r '.status // "error"' 2>/dev/null)
+    if [ "${CONSUMER_STATUS}" = "created" ] || [ "${CONSUMER_STATUS}" = "exists" ]; then
+        GW_API_KEY=$(echo "${CLOUD_CONSUMER_RESP}" | jq -r '.api_key // empty' 2>/dev/null)
+        if [ -n "${GW_API_KEY}" ]; then
+            WORKER_KEY="${GW_API_KEY}"
+            WORKER_GATEWAY_KEY="${GW_API_KEY}"
+            log "  Consumer ready: ${CONSUMER_NAME} (key prefix: ${WORKER_KEY:0:8}...)"
+        else
+            log "  Consumer ready: ${CONSUMER_NAME} (using pre-generated key)"
+        fi
+    else
+        log "  WARNING: Consumer creation returned: ${CLOUD_CONSUMER_RESP}"
+        _fail "AI Gateway consumer creation failed for ${CONSUMER_NAME}. Cannot proceed without a valid consumer."
     fi
-    log "  Cloud consumer created: ${CONSUMER_NAME}"
 
-    log "Steps 4-5: AI Gateway route/MCP authorization handled by cloud provider"
+    # Bind consumer to model API if env vars are set
+    CONSUMER_ID=$(echo "${CLOUD_CONSUMER_RESP}" | jq -r '.consumer_id // empty' 2>/dev/null)
+    if [ -n "${CONSUMER_ID}" ] && [ -n "${HICLAW_GW_MODEL_API_ID:-}" ] && [ -n "${HICLAW_GW_ENV_ID:-}" ]; then
+        log "Step 4: Binding consumer to model API (cloud mode)..."
+        log "  consumer_id=${CONSUMER_ID}, api_id=${HICLAW_GW_MODEL_API_ID}, env_id=${HICLAW_GW_ENV_ID}"
+        BIND_RESULT=$(cloud_bind_consumer "${CONSUMER_ID}" "${HICLAW_GW_MODEL_API_ID}" "${HICLAW_GW_ENV_ID}" 2>/dev/null) || true
+        log "  Bind response: ${BIND_RESULT:0:200}"
+    else
+        skip_reason=""
+        [ -z "${CONSUMER_ID}" ] && skip_reason="CONSUMER_ID empty"
+        [ -z "${HICLAW_GW_MODEL_API_ID:-}" ] && skip_reason="${skip_reason:+${skip_reason}, }HICLAW_GW_MODEL_API_ID not set"
+        [ -z "${HICLAW_GW_ENV_ID:-}" ] && skip_reason="${skip_reason:+${skip_reason}, }HICLAW_GW_ENV_ID not set"
+        log "Step 4: Skipping API binding (${skip_reason})"
+    fi
+
+    log "Step 5: MCP server authorization (cloud mode — managed via AI Gateway console)"
     TARGET_MCP_LIST="${MCP_SERVERS}"
 else
     # Local mode: use Higress Console REST API
@@ -635,15 +671,38 @@ if [ "${REMOTE_MODE}" = true ]; then
     INSTALL_CMD=$(_build_install_cmd)
 elif [ "${HICLAW_RUNTIME}" = "cloud-aliyun" ]; then
     log "Step 9: Creating Worker via cloud backend (SAE)..."
-    EXTRA_ENV_JSON=$(_build_extra_env)
-    CREATE_OUTPUT=$(worker_backend_create "${WORKER_NAME}" "" "" "${EXTRA_ENV_JSON}" 2>&1) || true
-    if echo "${CREATE_OUTPUT}" | jq -e '.error' > /dev/null 2>&1; then
-        log "  WARNING: Cloud worker creation returned error: ${CREATE_OUTPUT}"
-        WORKER_STATUS="error"
-    else
+
+    # Build complete SAE environment variables (Worker needs these to connect)
+    SAE_ENVS=$(jq -cn \
+        --arg worker_key "${WORKER_KEY}" \
+        --arg matrix_url "${HICLAW_MATRIX_URL:-}" \
+        --arg matrix_domain "${MATRIX_DOMAIN}" \
+        --arg matrix_token "${WORKER_MATRIX_TOKEN}" \
+        --arg ai_gw_url "${HICLAW_AI_GATEWAY_URL:-}" \
+        --arg oss_bucket "${HICLAW_OSS_BUCKET:-hiclaw-cloud-storage}" \
+        --arg region "${HICLAW_REGION:-cn-hangzhou}" \
+        '{
+            "HICLAW_WORKER_GATEWAY_KEY": $worker_key,
+            "HICLAW_MATRIX_URL": $matrix_url,
+            "HICLAW_MATRIX_DOMAIN": $matrix_domain,
+            "HICLAW_WORKER_MATRIX_TOKEN": $matrix_token,
+            "HICLAW_AI_GATEWAY_URL": $ai_gw_url,
+            "HICLAW_OSS_BUCKET": $oss_bucket,
+            "HICLAW_REGION": $region
+        }')
+    log "  SAE_ENVS: ${SAE_ENVS:0:200}..."
+
+    CREATE_OUTPUT=$(sae_create_worker "${WORKER_NAME}" "${SAE_ENVS}" 2>/dev/null) || true
+    log "  SAE create response: ${CREATE_OUTPUT:0:300}"
+    SAE_STATUS=$(echo "${CREATE_OUTPUT}" | jq -r '.status // "error"' 2>/dev/null)
+
+    if [ "${SAE_STATUS}" = "created" ] || [ "${SAE_STATUS}" = "exists" ]; then
         DEPLOY_MODE="cloud"
         WORKER_STATUS="starting"
-        log "  SAE application created for ${WORKER_NAME}"
+        log "  SAE application ready for ${WORKER_NAME}"
+    else
+        log "  WARNING: SAE application creation returned: ${CREATE_OUTPUT}"
+        WORKER_STATUS="error"
     fi
 elif container_api_available; then
     log "Step 9: Starting Worker container locally (runtime=${WORKER_RUNTIME})..."

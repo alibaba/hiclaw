@@ -333,11 +333,11 @@ def _find_existing_consumer(apig, consumer_name, retries=1, retry_delay=0):
         page = 1
         while True:
             req = apig_models.ListConsumersRequest(
-                gateway_type="AI",
-                name_like=consumer_name,
-                page_number=page,
-                page_size=100,
-            )
+                    gateway_type="AI",
+                    name_like=consumer_name,
+                    page_number=page,
+                    page_size=100,
+                )
             resp = apig.list_consumers(req)
             if not resp.body.data or not resp.body.data.items:
                 break
