@@ -1,0 +1,71 @@
+# ============================================================
+# HiClaw Cloud Manager Agent - Lightweight FC Container
+# ============================================================
+# Based on openclaw-base (same as Worker), but carries Manager
+# agent definitions and a cloud-adapted entrypoint.
+#
+# Does NOT include Higress, Tuwunel, MinIO, or Element Web.
+# All infrastructure is external (SAE + AI Gateway + OSS).
+#
+# Build from project root:
+#   docker build -f cloud-manager/Dockerfile -t hiclaw/cloud-manager:latest .
+# ============================================================
+
+ARG HIGRESS_REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com
+ARG OPENCLAW_BASE_IMAGE=hiclaw/openclaw-base:latest
+
+# ============ Stage 1: MinIO Client (mc) ============
+FROM ${HIGRESS_REGISTRY}/higress/mc:20260216 AS mc
+
+# ============ Final Image ============
+FROM ${OPENCLAW_BASE_IMAGE}
+
+# mc (MinIO Client) — used for OSS file sync via S3 protocol
+COPY --from=mc /usr/bin/mc /usr/local/bin/mc
+
+# Install Python packages for cloud Worker management (SAE API via OIDC/AK)
+# python3 is already in openclaw-base; install pip and SDK
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install --no-cache-dir \
+        --index-url "${PIP_INDEX_URL}" \
+        --trusted-host "$(echo ${PIP_INDEX_URL} | sed 's|https\?://||;s|/.*||')" \
+        alibabacloud-sae20190506 \
+        alibabacloud-apig20240327 \
+        alibabacloud-credentials \
+        alibabacloud-tea-openapi
+
+# Ensure openclaw binary is on PATH
+ENV PATH="/opt/openclaw/packages/clawdbot/node_modules/.bin:${PATH}"
+
+# ---- Copy Manager agent definitions (from manager/) ----
+COPY manager/agent/ /opt/hiclaw/agent/
+COPY manager/configs/ /opt/hiclaw/configs/
+
+# ---- Copy shared libraries ----
+COPY manager/scripts/lib/ /opt/hiclaw/scripts/lib/
+
+# ---- Copy cloud entrypoint and configs ----
+COPY cloud-manager/cloud-scripts/ /opt/hiclaw/cloud-scripts/
+COPY cloud-manager/cloud-configs/ /opt/hiclaw/cloud-configs/
+
+RUN chmod +x /opt/hiclaw/cloud-scripts/*.sh && \
+    chmod +x /opt/hiclaw/scripts/lib/*.sh 2>/dev/null || true
+
+ARG BUILTIN_VERSION=latest
+RUN echo "${BUILTIN_VERSION}" > /opt/hiclaw/agent/.builtin-version
+
+# Make skill scripts executable
+RUN find /opt/hiclaw/agent/skills/*/scripts -name '*.sh' -exec chmod +x {} + 2>/dev/null || true && \
+    find /opt/hiclaw/agent/worker-skills/*/scripts -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
+
+# Workspace directory
+RUN mkdir -p /root/manager-workspace /root/hiclaw-fs /root/.openclaw
+
+WORKDIR /root/manager-workspace
+
+# FC custom container listens on this port (OpenClaw gateway)
+EXPOSE 9000
+
+ENTRYPOINT ["/opt/hiclaw/cloud-scripts/cloud-manager-entrypoint.sh"]
