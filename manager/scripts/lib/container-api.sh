@@ -563,3 +563,107 @@ container_list_workers() {
     _api GET "/containers/json?all=true&filters=%7B%22name%22%3A%5B%22${WORKER_CONTAINER_PREFIX}%22%5D%7D" 2>/dev/null | \
         jq -r '.[] | "\(.Names[0] | ltrimstr("/") | ltrimstr("'"${WORKER_CONTAINER_PREFIX}"'"))\t\(.State)\t\(.Status)"' 2>/dev/null
 }
+
+
+# ============================================================
+# Cloud Provider Extensions
+# ============================================================
+# Load cloud providers (additive — does not modify upstream functions above).
+# Each provider file defines its own *_available() check and lifecycle functions.
+for _provider_file in /opt/hiclaw/scripts/lib/cloud/*.sh; do
+    [ -f "${_provider_file}" ] && source "${_provider_file}"
+done
+unset _provider_file
+
+# ============================================================
+# Unified Worker Backend API
+# ============================================================
+# Auto-detects Docker vs cloud vs none and dispatches to the right backend.
+# All skill scripts should use these instead of calling Docker/SAE directly.
+
+_detect_worker_backend() {
+    if container_api_available 2>/dev/null; then
+        echo "docker"
+    elif type cloud_sae_available &>/dev/null && cloud_sae_available; then
+        echo "cloud-aliyun"
+    else
+        echo "none"
+    fi
+}
+
+worker_backend_create() {
+    local worker_name="$1"
+    local fs_access_key="${2:-}"
+    local fs_secret_key="${3:-}"
+    local extra_env_json="${4:-[]}"
+    local backend
+    backend=$(_detect_worker_backend)
+
+    case "${backend}" in
+        docker)
+            container_create_worker "${worker_name}" "${fs_access_key}" "${fs_secret_key}" "${extra_env_json}"
+            ;;
+        cloud-aliyun)
+            local envs_obj="{}"
+            if [ "${extra_env_json}" != "[]" ] && [ -n "${extra_env_json}" ]; then
+                envs_obj=$(echo "${extra_env_json}" | jq -r '.[]' 2>/dev/null | while IFS='=' read -r k v; do
+                    echo "${k}=${v}"
+                done | jq -R 'split("=") | {(.[0]): .[1:] | join("=")}' | jq -s 'add // {}' | jq -s --argjson base "${envs_obj}" '$base + .[0]')
+            fi
+            sae_create_worker "${worker_name}" "${envs_obj}"
+            ;;
+        none)
+            _log "No worker backend available (no Docker socket, no cloud config)"
+            echo '{"error": "no_backend"}'
+            return 1
+            ;;
+    esac
+}
+
+worker_backend_status() {
+    local worker_name="$1"
+    local backend
+    backend=$(_detect_worker_backend)
+
+    case "${backend}" in
+        docker)       container_status_worker "${worker_name}" ;;
+        cloud-aliyun) sae_status_worker "${worker_name}" ;;
+        none)         echo "unknown" ;;
+    esac
+}
+
+worker_backend_stop() {
+    local worker_name="$1"
+    local backend
+    backend=$(_detect_worker_backend)
+
+    case "${backend}" in
+        docker)       container_stop_worker "${worker_name}" ;;
+        cloud-aliyun) sae_stop_worker "${worker_name}" ;;
+        none)         return 1 ;;
+    esac
+}
+
+worker_backend_start() {
+    local worker_name="$1"
+    local backend
+    backend=$(_detect_worker_backend)
+
+    case "${backend}" in
+        docker)       container_start_worker "${worker_name}" ;;
+        cloud-aliyun) sae_start_worker "${worker_name}" ;;
+        none)         return 1 ;;
+    esac
+}
+
+worker_backend_delete() {
+    local worker_name="$1"
+    local backend
+    backend=$(_detect_worker_backend)
+
+    case "${backend}" in
+        docker)       container_remove_worker "${worker_name}" ;;
+        cloud-aliyun) sae_delete_worker "${worker_name}" ;;
+        none)         return 1 ;;
+    esac
+}
