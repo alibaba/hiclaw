@@ -2,6 +2,8 @@
 
 Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here before the next release.
 
+- fix(manager): allow container API helpers to run under bash strict mode and add regression coverage for body-less helper calls
+
 ---
 
 - fix(manager,worker): replace all `~/hiclaw-fs/` tilde-paths with correct absolute paths (`/root/hiclaw-fs/` for shared data, `~/` for worker's own agent dir) in AGENTS.md, TOOLS.md, all SKILL.md files, and scripts — Manager container sets `HOME=/root/manager-workspace`, so `~/hiclaw-fs/` was expanding to the wrong location
