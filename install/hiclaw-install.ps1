@@ -108,6 +108,16 @@ function Write-Warning {
     Write-Host "$($script:ESC)[33m[HiClaw WARNING]$($script:ESC)[0m $Message"
 }
 
+# Pause before exit on error so user can read the message when running via double-click
+function Exit-Script {
+    param([int]$ExitCode = 0)
+    if ($ExitCode -ne 0 -and -not $script:HICLAW_NON_INTERACTIVE) {
+        Write-Host ""
+        Read-Host "Press Enter to exit"
+    }
+    exit $ExitCode
+}
+
 function Test-DockerRunning {
     try {
         $null = docker info 2>&1
@@ -309,6 +319,7 @@ $script:Messages = @{
 
     # --- Domain Configuration ---
     "domain.title" = @{ zh = "--- 域名配置（按回车使用默认值）---"; en = "--- Domain Configuration (press Enter for defaults) ---" }
+    "domain.hint" = @{ zh = "提示: 自定义域名前必须事先做好 DNS 解析。单机 ECS 部署时无需修改 aigw、fs 等域名；Element Web 和 Matrix Server 也可通过 IP 直接访问。"; en = "Hint: Configure DNS resolution before customizing domains. For single ECS deployment, no need to change aigw, fs, etc.; Element Web and Matrix Server can also be accessed directly via IP." }
     "domain.matrix_prompt" = @{ zh = "Matrix 域名"; en = "Matrix Domain" }
     "domain.element_prompt" = @{ zh = "Element Web 域名"; en = "Element Web Domain" }
     "domain.gateway_prompt" = @{ zh = "AI 网关域名"; en = "AI Gateway Domain" }
@@ -842,7 +853,7 @@ function Test-LlmConnectivity {
             $confirm = Read-Host (Get-Msg "llm.openai.test.confirm")
             if ($confirm -ne "y" -and $confirm -ne "Y") {
                 Write-Log (Get-Msg "llm.openai.test.aborted")
-                exit 1
+                Exit-Script 1
             }
         }
     }
@@ -1213,12 +1224,12 @@ function Install-Manager {
         $dockerCmd = "podman"
     } else {
         Write-Host "$($script:ESC)[31m[HiClaw ERROR]$($script:ESC)[0m $(Get-Msg 'error.docker_not_found')" -ForegroundColor Red
-        exit 1
+        Exit-Script 1
     }
 
     if (-not (Test-DockerRunning)) {
         Write-Host "$($script:ESC)[31m[HiClaw ERROR]$($script:ESC)[0m $(Get-Msg 'error.docker_not_running')" -ForegroundColor Red
-        exit 1
+        Exit-Script 1
     }
 
     # Initialize config hashtable
@@ -1590,6 +1601,7 @@ function Install-Manager {
 
     # Domain Configuration
     Write-Log (Get-Msg "domain.title")
+    Write-Log (Get-Msg "domain.hint")
     $config.MATRIX_DOMAIN = Read-Prompt -VarName "HICLAW_MATRIX_DOMAIN" -PromptText (Get-Msg "domain.matrix_prompt") -Default "matrix-local.hiclaw.io:$($config.PORT_GATEWAY)"
     $config.MATRIX_CLIENT_DOMAIN = Read-Prompt -VarName "HICLAW_MATRIX_CLIENT_DOMAIN" -PromptText (Get-Msg "domain.element_prompt") -Default "matrix-client-local.hiclaw.io"
     $config.AI_GATEWAY_DOMAIN = Read-Prompt -VarName "HICLAW_AI_GATEWAY_DOMAIN" -PromptText (Get-Msg "domain.gateway_prompt") -Default "aigw-local.hiclaw.io"
@@ -2041,16 +2053,24 @@ function Uninstall-HiClaw {
 # Main Entry Point
 # ============================================================
 
-switch ($Command) {
-    "manager" {
-        Install-Manager
+try {
+    switch ($Command) {
+        "manager" {
+            Install-Manager
+        }
+        "worker" {
+            Install-Worker -Name $Name -Fs $Fs -FsKey $FsKey -FsSecret $FsSecret -Reset:$Reset -FindSkills:$FindSkills -SkillsApiUrl $SkillsApiUrl
+        }
+        "uninstall" {
+            Uninstall-HiClaw
+        }
     }
-    "worker" {
-        Install-Worker -Name $Name -Fs $Fs -FsKey $FsKey -FsSecret $FsSecret -Reset:$Reset -FindSkills:$FindSkills -SkillsApiUrl $SkillsApiUrl
+} catch {
+    if (-not $script:HICLAW_NON_INTERACTIVE) {
+        Write-Host ""
+        Read-Host "Press Enter to exit"
     }
-    "uninstall" {
-        Uninstall-HiClaw
-    }
+    exit 1
 }
 
 # Stop transcript logging

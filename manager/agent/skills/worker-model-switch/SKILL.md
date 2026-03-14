@@ -11,7 +11,7 @@ Switch a Worker's LLM model. The script tests connectivity first, then patches t
 
 ```bash
 bash /opt/hiclaw/agent/skills/worker-model-switch/scripts/update-worker-model.sh \
-  --worker <WORKER_NAME> --model <MODEL_ID> [--context-window <SIZE>]
+  --worker <WORKER_NAME> --model <MODEL_ID> [--context-window <SIZE>] [--no-reasoning]
 ```
 
 Examples:
@@ -21,6 +21,9 @@ bash /opt/hiclaw/agent/skills/worker-model-switch/scripts/update-worker-model.sh
 
 bash /opt/hiclaw/agent/skills/worker-model-switch/scripts/update-worker-model.sh \
   --worker alice --model my-custom-model --context-window 300000
+
+bash /opt/hiclaw/agent/skills/worker-model-switch/scripts/update-worker-model.sh \
+  --worker alice --model deepseek-chat --no-reasoning
 ```
 
 ## What the script does
@@ -29,10 +32,21 @@ bash /opt/hiclaw/agent/skills/worker-model-switch/scripts/update-worker-model.sh
 2. Resolves `contextWindow` and `maxTokens` for the model (uses `--context-window` override if provided)
 3. Tests the model via `POST /v1/chat/completions` on the AI Gateway — exits with error if unreachable
 4. Pulls the Worker's `openclaw.json` from MinIO
-5. Patches model id, name, contextWindow, maxTokens (preserves all other config)
+5. Patches model id, name, reasoning, contextWindow, maxTokens (preserves all other config)
 6. Pushes the updated `openclaw.json` back to MinIO
 7. Updates `workers-registry.json` with the new model name
 8. Sends a Matrix @mention to the Worker asking it to use `file-sync` to pick up the change
+
+## Reasoning control
+
+By default, reasoning (extended thinking) is enabled for all models. To disable it, pass `--no-reasoning`:
+
+```bash
+bash /opt/hiclaw/agent/skills/worker-model-switch/scripts/update-worker-model.sh \
+  --worker alice --model deepseek-chat --no-reasoning
+```
+
+This sets `"reasoning": false` in `openclaw.json`. Omitting the flag keeps reasoning enabled (`"reasoning": true`).
 
 If the Worker container is stopped, the config is still updated in MinIO — it will take effect on next start.
 
@@ -74,3 +88,4 @@ When the human admin requests switching a Worker to a model **not listed in the 
      --worker <WORKER_NAME> --model <MODEL_ID> --context-window <SIZE>
    ```
 3. If the admin does not know the context window, use the default (150,000) by omitting `--context-window`.
+4. If the admin wants to disable reasoning, add `--no-reasoning` to the command.

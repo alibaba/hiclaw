@@ -92,21 +92,29 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 # ============================================================
 # Step 3: Start file sync
 # ============================================================
-
-# Local -> Remote: change-triggered sync (avoids mc mirror --watch TOCTOU crash bug)
-# Note: mc mirror --watch has a bug where it crashes when source files are deleted
-# during atomic operations (e.g., npm install, skills add). This approach:
-# - Uses find to detect recent file changes (lightweight, local filesystem only)
-# - Only runs mc mirror when changes are detected (avoids unnecessary network IO)
-# - mc mirror itself only transfers changed files (incremental)
+#
+# ── File Sync Design Principle ──────────────────────────────────────────────
+#
+#   The party that writes a file is responsible for:
+#     1. Pushing it to MinIO immediately (Local -> Remote)
+#     2. Notifying the other side via Matrix @mention so they can pull on demand
+#
+#   Local -> Remote: change-triggered push of Worker-managed content
+#     - Uses find to detect files modified in last 10s; only runs mc mirror when needed
+#     - Avoids mc mirror --watch TOCTOU bug (crashes on atomic ops like npm install)
+#     - Excludes Manager-managed files (openclaw.json, mcporter-servers.json) and caches
+#
+#   Remote -> Local: on-demand pull via file-sync skill (triggered by Manager @mention)
+#     + 5-minute fallback pull of Manager-managed paths as safety net
+#
+# ────────────────────────────────────────────────────────────────────────────
 (
     while true; do
         # Check for files modified in the last 10 seconds
         CHANGED=$(find "${WORKSPACE}/" -type f -newermt "10 seconds ago" 2>/dev/null | head -1)
         if [ -n "${CHANGED}" ]; then
             if ! mc mirror "${WORKSPACE}/" "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" --overwrite \
-                --exclude "openclaw.json" --exclude "AGENTS.md" --exclude "SOUL.md" \
-                --exclude "mcporter-servers.json" --exclude ".agents/**" \
+                --exclude "openclaw.json" --exclude "mcporter-servers.json" --exclude ".agents/**" \
                 --exclude ".cache/**" --exclude ".npm/**" \
                 --exclude ".local/**" --exclude ".mc/**" 2>&1; then
                 log "WARNING: Local->Remote sync failed"
@@ -117,23 +125,30 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 ) &
 log "Local->Remote change-triggered sync started (PID: $!)"
 
-# Remote -> Local: periodic pull (configs from Manager + shared data)
-# On-demand pull via file-sync skill when Manager notifies
+# Remote -> Local: fallback pull of Manager-managed files (safety net, every 5m)
+# Normal operation relies on on-demand pulls via file-sync skill when Manager @mentions.
 (
     while true; do
         sleep 300
-        mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite --newer-than "5m" 2>/dev/null || true
+        mc cp "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/openclaw.json" "${WORKSPACE}/openclaw.json" 2>/dev/null || true
+        mc cp "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/mcporter-servers.json" "${WORKSPACE}/mcporter-servers.json" 2>/dev/null || true
+        mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/skills/" "${WORKSPACE}/skills/" --overwrite 2>/dev/null || true
         mc mirror "hiclaw/hiclaw-storage/shared/" "${HICLAW_ROOT}/shared/" --overwrite --newer-than "5m" 2>/dev/null || true
     done
 ) &
-log "Remote->Local periodic sync started (every 5m, PID: $!)"
+log "Remote->Local fallback sync started (Manager-managed files only, every 5m, PID: $!)"
 
 # ============================================================
 # Step 4: Configure mcporter (MCP tool CLI)
+# Always set MCPORTER_CONFIG so mcporter commands work after file-sync
+# pulls the config. The file may not exist at startup but will appear
+# when Manager configures MCP servers and Worker runs file-sync.
 # ============================================================
-if [ -f "${WORKSPACE}/mcporter-servers.json" ]; then
-    log "Configuring mcporter with MCP Server endpoints..."
-    export MCPORTER_CONFIG="${WORKSPACE}/mcporter-servers.json"
+export MCPORTER_CONFIG="${WORKSPACE}/mcporter-servers.json"
+if [ -f "${MCPORTER_CONFIG}" ]; then
+    log "mcporter configured: ${MCPORTER_CONFIG}"
+else
+    log "mcporter config not yet available (will be pulled via file-sync when MCP servers are configured)"
 fi
 
 # ============================================================

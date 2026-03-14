@@ -441,4 +441,10 @@ fi
 
 log "HOME=${HOME} (manager-workspace, host-mounted)"
 cd "${HOME}"
+
+# Clean orphaned session write locks (e.g. from SIGKILL or crash before exit handlers)
+# Prevents "session file locked (timeout 10000ms)" when PID was reused
+find "${HOME}/.openclaw/agents" -name "*.jsonl.lock" -delete 2>/dev/null || true
+log "Cleaned up any orphaned session write locks"
+
 exec openclaw gateway run --verbose --force

@@ -378,6 +378,8 @@ msg() {
         # --- Domain Configuration ---
         "domain.title.zh") text="--- 域名配置（按回车使用默认值）---" ;;
         "domain.title.en") text="--- Domain Configuration (press Enter for defaults) ---" ;;
+        "domain.hint.zh") text="提示: 自定义域名前必须事先做好 DNS 解析。单机 ECS 部署时无需修改 aigw、fs 等域名；Element Web 和 Matrix Server 也可通过 IP 直接访问。" ;;
+        "domain.hint.en") text="Hint: Configure DNS resolution before customizing domains. For single ECS deployment, no need to change aigw, fs, etc.; Element Web and Matrix Server can also be accessed directly via IP." ;;
         "domain.matrix_prompt.zh") text="Matrix 域名" ;;
         "domain.matrix_prompt.en") text="Matrix Domain" ;;
         "domain.element_prompt.zh") text="Element Web 域名" ;;
@@ -1503,6 +1505,7 @@ install_manager() {
 
     # Domain Configuration
     log "$(msg domain.title)"
+    log "$(msg domain.hint)"
     prompt HICLAW_MATRIX_DOMAIN "$(msg domain.matrix_prompt)" "matrix-local.hiclaw.io:${HICLAW_PORT_GATEWAY}"
     prompt HICLAW_MATRIX_CLIENT_DOMAIN "$(msg domain.element_prompt)" "matrix-client-local.hiclaw.io"
     prompt HICLAW_AI_GATEWAY_DOMAIN "$(msg domain.gateway_prompt)" "aigw-local.hiclaw.io"

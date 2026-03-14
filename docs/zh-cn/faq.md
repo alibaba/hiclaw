@@ -14,6 +14,7 @@
 - [Manager/Worker 不回复消息怎么办](#managerworker-不回复消息怎么办)
 - [在房间里和 Manager 聊天没有响应或返回错误状态码](#在房间里和-manager-聊天没有响应或返回错误状态码)
 - [HTTP 401: invalid access token or token expired](#http-401-invalid-access-token-or-token-expired)
+- [OpenClaw 会话管理（通过 IM 指令）](#openclaw-会话管理通过-im-指令)
 
 ---
 
@@ -224,7 +225,7 @@ docker exec -it <worker-name> openclaw tui
 2. 切换到对应聊天记录的 session
 3. 尝试对话，观察是否有报错
 
-如果 session 确实损坏了，可以尝试用 `/reset` 重置 session，看是否恢复正常。
+如果 session 确实损坏了，可以尝试在 Element 等 Matrix 客户端中对应的会话里直接输入 `/new` 重置会话，看是否恢复正常。
 
 ---
 
@@ -245,7 +246,7 @@ docker exec -it hiclaw-manager openclaw tui
 2. 切换到对应聊天记录的 session
 3. 尝试对话，观察是否有报错
 
-如果 session 确实损坏了，可以尝试用 `/reset` 重置 session，看是否恢复正常。
+如果 session 确实损坏了，可以尝试在 Element 等 Matrix 客户端中对应的会话里直接输入 `/new` 重置会话，看是否恢复正常。
 
 ### 2. 检查 Higress AI 网关日志
 
@@ -304,3 +305,50 @@ docker restart hiclaw-manager
 - **通过附件发送**：在 Element Web 或其他 Matrix 客户端中，把配置文件作为附件上传发送给 Manager，Manager 会接收并读取。
 
 然后让 Manager 帮你在它的配置里添加相同的渠道。
+
+---
+
+## OpenClaw 会话管理（通过 IM 指令）
+
+HiClaw 基于 OpenClaw，通过 Matrix 渠道（Element Web）与 Agent 通信。OpenClaw 支持**斜杠命令**，你可以直接在聊天中以独立消息的形式发送这些指令，由 Gateway 在模型处理前解析执行。
+
+**注意：** 大多数命令必须以**独立消息**发送，且以 `/` 开头。不要在同一则消息中混入其他文字。
+
+### 会话重置与压缩
+
+| 指令 | 说明 |
+|------|------|
+| `/reset` 或 `/new` | 重置当前会话，开启全新对话。Agent 会回复简短问候以确认。 |
+| `/new <model>` | 重置会话并可选择切换模型。支持模型别名、`provider/model` 或提供商名称。 |
+| `/compact [instructions]` | 手动压缩对话上下文。在长任务前或切换话题时使用，以释放上下文窗口。 |
+
+### 模型选择
+
+| 指令 | 说明 |
+|------|------|
+| `/model` 或 `/models` | 显示紧凑的模型选择器（编号列表）。 |
+| `/model list` | 与 `/model` 相同。 |
+| `/model <数字>` | 按选择器中的编号选择模型。 |
+| `/model <provider/model>` | 切换到指定模型，例如 `/model openai/gpt-5.2` 或 `/model anthropic/claude-opus-4-5`。 |
+| `/model status` | 显示详细的模型/认证/端点状态。 |
+
+### 其他常用指令
+
+| 指令 | 说明 |
+|------|------|
+| `/status` | 显示当前状态（包含提供商用量/配额，如已启用）。 |
+| `/help` | 显示帮助。 |
+| `/commands` | 列出可用命令。 |
+| `/stop` | 中止当前 Agent 运行。 |
+
+### 会话指令（可选）
+
+以下指令用于控制会话行为。作为独立消息发送时会持久生效；也可内联在消息中，但不会持久化：
+
+- `/think <off|minimal|low|medium|high|xhigh>` — 控制思考/推理级别。
+- `/verbose on|full|off` — 切换详细输出（用于调试）。
+- `/reasoning on|off|stream` — 切换是否单独发送推理消息。
+- `/elevated on|off|ask|full` — 控制 exec 审批行为。
+- `/queue` — 查看或配置队列设置（防抖、上限等）。
+
+**参考：** [OpenClaw 斜杠命令](https://docs.openclaw.ai/tools/slash-commands)

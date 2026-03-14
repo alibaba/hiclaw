@@ -14,6 +14,7 @@
 - [Manager/Worker not responding to messages](#managerworker-not-responding-to-messages)
 - [Manager not responding or returning error status codes](#manager-not-responding-or-returning-error-status-codes)
 - [HTTP 401: invalid access token or token expired](#http-401-invalid-access-token-or-token-expired)
+- [OpenClaw session management via IM](#openclaw-session-management-via-im)
 
 ---
 
@@ -223,7 +224,7 @@ In the TUI:
 2. Switch to the session for the relevant chat
 3. Try sending a message and observe if there are any errors
 
-If the session is corrupted, try `/reset` to reset it and see if that restores normal behavior.
+If the session is corrupted, try sending `/new` as a standalone message in the corresponding chat in Element (or other Matrix client) to reset the session and see if that restores normal behavior.
 
 ---
 
@@ -244,7 +245,7 @@ In the TUI:
 2. Switch to the session for the relevant chat
 3. Try sending a message and observe if there are any errors
 
-If the session is corrupted, try `/reset` to reset it and see if that restores normal behavior.
+If the session is corrupted, try sending `/new` as a standalone message in the corresponding chat in Element (or other Matrix client) to reset the session and see if that restores normal behavior.
 
 ### 2. Check Higress AI Gateway log
 
@@ -303,3 +304,50 @@ If you already use OpenClaw with other channels (e.g., in your personal setup), 
 - **Send the file as attachment**: In Element Web or any Matrix client, upload your config file as an attachment and send it to Manager. Manager will receive and read it.
 
 Then ask Manager to help configure the same channels in its own config.
+
+---
+
+## OpenClaw session management via IM
+
+HiClaw uses OpenClaw with the Matrix channel (Element Web). OpenClaw supports **slash commands** that you can send directly in the chat as standalone messages. These commands are processed by the Gateway before the model sees them.
+
+**Important:** Most commands must be sent as a **standalone** message that starts with `/`. Do not mix them with other text in the same message.
+
+### Session reset and compaction
+
+| Command | Description |
+|---------|-------------|
+| `/reset` or `/new` | Reset the current session and start a fresh conversation. The agent replies with a short hello to confirm. |
+| `/new <model>` | Reset and optionally switch to a different model. Accepts model alias, `provider/model`, or provider name. |
+| `/compact [instructions]` | Manually compact the conversation context. Use before long tasks or when switching topics to free up context window. |
+
+### Model selection
+
+| Command | Description |
+|---------|-------------|
+| `/model` or `/models` | Show a compact model picker (numbered list). |
+| `/model list` | Same as `/model`. |
+| `/model <number>` | Select a model by its number from the picker. |
+| `/model <provider/model>` | Switch to a specific model, e.g. `/model openai/gpt-5.2` or `/model anthropic/claude-opus-4-5`. |
+| `/model status` | Show detailed model/auth/endpoint status. |
+
+### Other useful commands
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Show current status (including provider usage/quota when available). |
+| `/help` | Show help. |
+| `/commands` | List available commands. |
+| `/stop` | Abort the current agent run. |
+
+### Session directives (optional)
+
+These directives control session behavior. Send as standalone messages to persist; they can also appear inline in a message but won't persist:
+
+- `/think <off|minimal|low|medium|high|xhigh>` — Control thinking/reasoning level.
+- `/verbose on|full|off` — Toggle verbose output (for debugging).
+- `/reasoning on|off|stream` — Toggle separate reasoning messages.
+- `/elevated on|off|ask|full` — Control exec approval behavior.
+- `/queue` — View or configure queue settings (debounce, cap, etc.).
+
+**Reference:** [OpenClaw Slash Commands](https://docs.openclaw.ai/tools/slash-commands)

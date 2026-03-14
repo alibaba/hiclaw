@@ -100,6 +100,7 @@ Full lifecycle of Worker containers and skill assignments.
 1. A 3-person room (Human + Manager + Worker) has been created — please check your Matrix invitations and accept it
 2. In any group room with 3+ people, you must **@mention** the person you want to respond — they only wake up when explicitly mentioned
 3. You can also click the Worker's avatar to open a **direct message** with them — no @mention needed, and the conversation is private (Manager cannot see it)
+4. In Element and other clients, type `@` then the first letter(s) of the worker's nickname to trigger the nickname autocomplete suggestions
 
 ## project-management
 
@@ -153,6 +154,35 @@ Switch a **Worker's** LLM model. Do NOT use this for the Manager.
 > **Model switch cheat sheet:** Manager model → `model-switch` skill. Worker model → `worker-model-switch` skill. Never mix them up.
 >
 > **⚠️ MANDATORY:** When switching any model (Manager or Worker), you MUST use the corresponding skill script above. Do NOT use `session_status` tool, do NOT call Higress API directly, do NOT manually edit `openclaw.json` or any config file. The scripts handle gateway testing, config patching, registry updates, and Worker notification — skipping them will cause inconsistent state.
+
+---
+
+## 📥 Pulling Files from MinIO (File Sync)
+
+Workers push their output (task results, artifacts, etc.) to MinIO. Your local `/root/hiclaw-fs/` is NOT automatically synced in real time — you must pull explicitly.
+
+**When a Worker reports task completion**, always pull the task directory before reading:
+
+```bash
+mc mirror hiclaw/hiclaw-storage/shared/tasks/{task-id}/ /root/hiclaw-fs/shared/tasks/{task-id}/ --overwrite
+cat /root/hiclaw-fs/shared/tasks/{task-id}/result.md
+```
+
+**When a Worker says they've uploaded a file but you can't find it locally**, ask the Worker to confirm the exact MinIO path, then pull it:
+
+```bash
+# Single file
+mc cp hiclaw/hiclaw-storage/<path-worker-gave-you> /root/hiclaw-fs/<same-path>
+
+# Directory
+mc mirror hiclaw/hiclaw-storage/<dir>/ /root/hiclaw-fs/<dir>/ --overwrite
+```
+
+**File sync rules you must follow:**
+
+1. When you write files to `/root/hiclaw-fs/`, always push to MinIO immediately via `mc cp` or `mc mirror`, then notify the target Worker via Matrix @mention to use their file-sync skill
+2. When a Worker tells you they've pushed files to MinIO, always pull from MinIO before reading — never assume your local copy is up to date
+3. If a local file is missing or stale after a Worker notification, pull it from MinIO directly — do not wait for background sync
 
 ---
 

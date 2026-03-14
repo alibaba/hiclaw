@@ -5,11 +5,12 @@
 # and notifies the Worker via Matrix to reload config.
 #
 # Usage:
-#   update-worker-model.sh --worker <name> --model <model-id> [--context-window <size>]
+#   update-worker-model.sh --worker <name> --model <model-id> [--context-window <size>] [--no-reasoning]
 #
 # Example:
 #   update-worker-model.sh --worker alice --model claude-sonnet-4-6
 #   update-worker-model.sh --worker alice --model my-custom-model --context-window 300000
+#   update-worker-model.sh --worker alice --model deepseek-chat --no-reasoning
 
 set -euo pipefail
 
@@ -86,7 +87,7 @@ update_worker_model() {
 
     local CTX MAX INPUT
     _resolve_model_params "${new_model}"
-    _log "Updating worker $worker model to ${new_model} (ctx=${CTX}, max=${MAX}, input=${INPUT})"
+    _log "Updating worker $worker model to ${new_model} (ctx=${CTX}, max=${MAX}, reasoning=${REASONING}, input=${INPUT})"
 
     # ── Pre-flight: verify the model is reachable via AI Gateway ─────────────
     local gateway_url="http://${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}:8080/v1/chat/completions"
@@ -127,14 +128,16 @@ update_worker_model() {
         return 1
     fi
 
-    # Patch model id, name, contextWindow, maxTokens, input
+    # Patch model id, name, contextWindow, maxTokens, input, reasoning
     jq --arg model "${new_model}" \
        --argjson ctx "${CTX}" \
        --argjson max "${MAX}" \
+       --argjson reasoning "${REASONING}" \
        --argjson input "${INPUT}" \
        '(.models.providers["hiclaw-gateway"].models[0]) |= (. + {
            "id": $model,
            "name": $model,
+           "reasoning": $reasoning,
            "contextWindow": $ctx,
            "maxTokens": $max,
            "input": $input
@@ -177,7 +180,7 @@ update_worker_model() {
             "http://127.0.0.1:6167/_matrix/client/v3/rooms/${room_id}/send/m.room.message/${txn_id}" \
             -H "Authorization: Bearer ${manager_token}" \
             -H 'Content-Type: application/json' \
-            -d "{\"msgtype\":\"m.text\",\"body\":\"@${worker}:${matrix_domain} Your model has been updated to \`${new_model}\`. Please use your file-sync skill to sync the latest config.\",\"m.mentions\":{\"user_ids\":[\"@${worker}:${matrix_domain}\"]}}" \
+            -d "{\"msgtype\":\"m.text\",\"body\":\"@${worker}:${matrix_domain} Your model has been updated to \`${new_model}\` (reasoning=${REASONING}). Please use your file-sync skill to sync the latest config.\",\"m.mentions\":{\"user_ids\":[\"@${worker}:${matrix_domain}\"]}}" \
             > /dev/null 2>&1 \
             && _log "Notified @${worker} to use file-sync skill" \
             || _log "WARNING: Failed to notify @${worker} (container may be stopped)"
@@ -185,7 +188,7 @@ update_worker_model() {
         _log "WARNING: Could not send Matrix notification (missing room_id or token)"
     fi
 
-    _log "Model update complete for ${worker}: ${new_model} (ctx=${CTX}, max=${MAX}, input=${INPUT})"
+    _log "Model update complete for ${worker}: ${new_model} (ctx=${CTX}, max=${MAX}, reasoning=${REASONING}, input=${INPUT})"
 }
 
 # ─── Argument parsing ─────────────────────────────────────────────────────────
@@ -193,6 +196,7 @@ update_worker_model() {
 WORKER=""
 MODEL=""
 CTX_OVERRIDE=""
+REASONING="true"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -208,6 +212,10 @@ while [[ $# -gt 0 ]]; do
             CTX_OVERRIDE="$2"
             shift 2
             ;;
+        --no-reasoning)
+            REASONING="false"
+            shift
+            ;;
         *)
             echo "Unknown argument: $1" >&2
             exit 1
@@ -216,9 +224,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$WORKER" ] || [ -z "$MODEL" ]; then
-    echo "Usage: $0 --worker <name> --model <model-id> [--context-window <size>]" >&2
+    echo "Usage: $0 --worker <name> --model <model-id> [--context-window <size>] [--no-reasoning]" >&2
     echo "Example: $0 --worker alice --model claude-sonnet-4-6" >&2
     echo "         $0 --worker alice --model my-custom-model --context-window 300000" >&2
+    echo "         $0 --worker alice --model deepseek-chat --no-reasoning" >&2
     exit 1
 fi
 

@@ -255,11 +255,12 @@ ROOM_RESP=$(curl -sf -X POST http://127.0.0.1:6167/_matrix/client/v3/createRoom 
             "'"${ADMIN_MATRIX_ID}"'",
             "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
         ],
-        "preset": "private_chat",
+        "preset": "trusted_private_chat",
         "power_level_content_override": {
             "users": {
                 "'"${MANAGER_MATRIX_ID}"'": 100,
-                "'"${ADMIN_MATRIX_ID}"'": 100
+                "'"${ADMIN_MATRIX_ID}"'": 100,
+                "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
             }
         }
     }' 2>/dev/null) || _fail "Failed to create Matrix room"

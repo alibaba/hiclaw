@@ -100,6 +100,23 @@ On release, the workflow automatically renames `current.md` → `vX.Y.Z.md` and 
 3. **Unified credential management**: Worker uses one Consumer key-auth token for both LLM and MCP Server access. Manager controls permissions.
 4. **Skills as documentation**: Each SKILL.md is a self-contained reference that tells the Agent how to use an API or tool.
 
+## Agent-Facing Content: Writing Convention
+
+Files under `manager/agent/` and `worker/agent/` (including `copaw/`) are **read by the Agent at runtime**, not by human developers. All content in these paths must be written from the Agent's own perspective using second-person voice ("you"):
+
+- **AGENTS.md, SOUL.md, HEARTBEAT.md** — address the Agent directly: "You are the Manager...", "Your responsibilities include..."
+- **SKILL.md** — instruct the Agent as the reader: "Use this script to...", "You can call...", "Run `mcporter --config ~/mcporter-servers.json list` to see..."
+- **TOOLS.md** — describe tools available to the Agent: "You have access to...", "Use `mc cp` to push..."
+- **Script `log` output and comments** — write from the system's perspective, but keep the Agent as the implied operator. Avoid third-person references like "the Manager does X" — instead say "Step 4: Updating your mcporter-servers.json..."
+
+**Do NOT** use third-person descriptions like "Manager can call..." or "This skill provides..." in agent-facing files. The Agent is the reader — talk to it directly.
+
+This convention applies to all files that end up in the Agent's workspace or are loaded as skills/prompts at runtime:
+- `manager/agent/**` (Manager Agent config, skills, tools)
+- `worker/agent/**` (Worker Agent config, skills)
+- `manager/agent/copaw-worker-agent/**` (CoPaw Worker Agent config)
+- `manager/agent/worker-skills/**` (skill definitions pushed to Workers on creation)
+
 ## Environment Variables
 
 See [manager/scripts/init/start-manager-agent.sh](manager/scripts/init/start-manager-agent.sh) for the full list of `HICLAW_*` environment variables used by the Manager container.

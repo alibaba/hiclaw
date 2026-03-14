@@ -5,20 +5,22 @@
 # OpenClaw detects the file change (~300ms) and reloads config automatically.
 #
 # Usage:
-#   update-manager-model.sh <MODEL_ID> [--context-window <SIZE>]
+#   update-manager-model.sh <MODEL_ID> [--context-window <SIZE>] [--no-reasoning]
 #
 # Example:
 #   update-manager-model.sh claude-sonnet-4-6
 #   update-manager-model.sh my-custom-model --context-window 300000
+#   update-manager-model.sh deepseek-chat --no-reasoning
 
 set -e
 source /opt/hiclaw/scripts/lib/base.sh
 
 MODEL_NAME="${1:-}"
 if [ -z "${MODEL_NAME}" ]; then
-    echo "Usage: $0 <MODEL_ID> [--context-window <SIZE>]"
+    echo "Usage: $0 <MODEL_ID> [--context-window <SIZE>] [--no-reasoning]"
     echo "Example: $0 claude-sonnet-4-6"
     echo "         $0 my-custom-model --context-window 300000"
+    echo "         $0 deepseek-chat --no-reasoning"
     exit 1
 fi
 shift
@@ -26,11 +28,16 @@ shift
 MODEL_NAME="${MODEL_NAME#hiclaw-gateway/}"
 
 CTX_OVERRIDE=""
+REASONING="true"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --context-window)
             CTX_OVERRIDE="$2"
             shift 2
+            ;;
+        --no-reasoning)
+            REASONING="false"
+            shift
             ;;
         *)
             echo "Unknown argument: $1" >&2
@@ -84,7 +91,7 @@ case "${MODEL_NAME}" in
         INPUT='["text"]' ;;
 esac
 
-log "Updating Manager model: ${MODEL_NAME} (ctx=${CTX}, max=${MAX}, input=${INPUT})"
+log "Updating Manager model: ${MODEL_NAME} (ctx=${CTX}, max=${MAX}, reasoning=${REASONING}, input=${INPUT})"
 
 # ── Pre-flight: verify the model is reachable via AI Gateway ──────────────────
 GATEWAY_URL="http://${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}:8080/v1/chat/completions"
@@ -119,10 +126,12 @@ TMP=$(mktemp)
 jq --arg model "${MODEL_NAME}" \
    --argjson ctx "${CTX}" \
    --argjson max "${MAX}" \
+   --argjson reasoning "${REASONING}" \
    --argjson input "${INPUT}" \
    '(.models.providers["hiclaw-gateway"].models[0]) |= (. + {
        "id": $model,
        "name": $model,
+       "reasoning": $reasoning,
        "contextWindow": $ctx,
        "maxTokens": $max,
        "input": $input

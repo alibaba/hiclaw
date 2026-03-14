@@ -107,11 +107,13 @@ class Worker:
         self._copaw_working_dir = self.config.install_dir / self.worker_name / ".copaw"
         self._copaw_working_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write SOUL.md / AGENTS.md into CoPaw working dir
+        # Write SOUL.md / AGENTS.md into CoPaw working dir and workspace root (Worker-managed)
         if soul_content:
             (self._copaw_working_dir / "SOUL.md").write_text(soul_content)
+            (self.sync.local_dir / "SOUL.md").write_text(soul_content)
         if agents_content:
             (self._copaw_working_dir / "AGENTS.md").write_text(agents_content)
+            (self.sync.local_dir / "AGENTS.md").write_text(agents_content)
 
         # 4. Bridge openclaw.json -> CoPaw config.json + providers.json
         console.print("[yellow]Bridging configuration to CoPaw...[/yellow]")
@@ -341,24 +343,22 @@ class Worker:
     # ------------------------------------------------------------------
 
     async def _on_files_pulled(self, pulled_files: list[str]) -> None:
-        """Re-bridge config when openclaw.json / SOUL.md / AGENTS.md change."""
+        """Re-bridge config when Manager-managed files change (openclaw.json).
+        SOUL.md, AGENTS.md are Worker-managed and not pulled; use local copies."""
         # Re-sync skills if any skill file changed
         if any(f.startswith("skills/") for f in pulled_files):
             self._sync_skills()
 
-        needs_rebridge = any(
-            name in f
-            for f in pulled_files
-            for name in ("openclaw.json", "SOUL.md", "AGENTS.md")
-        )
+        needs_rebridge = "openclaw.json" in pulled_files
         if not needs_rebridge:
             return
 
         console.print("[yellow]Config changed, re-bridging...[/yellow]")
         try:
             openclaw_cfg = self.sync.get_config()
-            soul = self.sync.get_soul()
-            agents = self.sync.get_agents_md()
+            # Use local Worker-managed files; fallback to MinIO for initial bootstrap
+            soul = (self.sync.local_dir / "SOUL.md").read_text() if (self.sync.local_dir / "SOUL.md").exists() else self.sync.get_soul()
+            agents = (self.sync.local_dir / "AGENTS.md").read_text() if (self.sync.local_dir / "AGENTS.md").exists() else self.sync.get_agents_md()
 
             if soul:
                 (self._copaw_working_dir / "SOUL.md").write_text(soul)

@@ -104,13 +104,15 @@ log "  Project files created at ${PROJECT_DIR}"
 # ============================================================
 log "Step 2: Creating Matrix project room..."
 
-# Build invite list
+# Build invite list and worker power level overrides (all workers → level 0)
 INVITE_LIST="[\"@${ADMIN_USER}:${MATRIX_DOMAIN}\""
+WORKER_POWER_LEVELS=""
 IFS=',' read -ra WORKER_ARR <<< "${WORKERS_CSV}"
 for worker in "${WORKER_ARR[@]}"; do
     worker=$(echo "${worker}" | tr -d ' ')
     [ -z "${worker}" ] && continue
     INVITE_LIST="${INVITE_LIST},\"@${worker}:${MATRIX_DOMAIN}\""
+    WORKER_POWER_LEVELS="${WORKER_POWER_LEVELS},\"@${worker}:${MATRIX_DOMAIN}\": 0"
 done
 INVITE_LIST="${INVITE_LIST}]"
 
@@ -123,11 +125,11 @@ ROOM_RESP=$(curl -sf -X POST http://127.0.0.1:6167/_matrix/client/v3/createRoom 
         "name": "Project: '"${PROJECT_TITLE}"'",
         "topic": "Project room for '"${PROJECT_TITLE}"' — managed by @manager",
         "invite": '"${INVITE_LIST}"',
-        "preset": "private_chat",
+        "preset": "trusted_private_chat",
         "power_level_content_override": {
             "users": {
                 "'"${MANAGER_MATRIX_ID}"'": 100,
-                "'"${ADMIN_MATRIX_ID}"'": 100
+                "'"${ADMIN_MATRIX_ID}"'": 100'"${WORKER_POWER_LEVELS}"'
             }
         }
     }' 2>/dev/null) || _fail "Failed to create Matrix project room"
