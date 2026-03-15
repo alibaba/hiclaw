@@ -457,7 +457,18 @@ Handle as described in Step 4 (Handle Blocked Tasks).
 3. Update `plan.md`: change `[~]` to `[x]` for the completed task
 4. Add entry to plan.md Change Log
 5. If `SUCCESS_WITH_NOTES`, record the notes for reference
-6. Proceed to find next tasks (Step 3e)
+6. Notify admin about the task completion. **Read SOUL.md first** — use the identity, personality, and user's preferred language defined there.
+
+   Resolve the notification channel:
+   ```bash
+   bash /opt/hiclaw/agent/skills/task-management/scripts/resolve-notify-channel.sh
+   ```
+   The script outputs JSON with `channel`, `target`, and `via` fields. Use the `message` tool with those values:
+   - If `channel` is not `"none"`: send `[Project Task Completed] {project-title} — {task-id}: {task title} by {worker}. {one-line summary}` to the resolved `target`.
+   - If `channel` is `"none"`: skip notification (heartbeat will catch up).
+
+   Compose the message in the persona and language from SOUL.md. Keep it concise.
+7. Proceed to find next tasks (Step 3e)
 
 ### 3e. Find next tasks
 

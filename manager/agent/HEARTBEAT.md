@@ -11,21 +11,20 @@ cat ~/state.json
 
 The `active_tasks` field in state.json contains all in-progress tasks (both finite and infinite). No need to iterate over all meta.json files.
 
-**Resolve admin notification channel** (used in Step 7 for heartbeat reports):
+**Ensure admin notification channel is available** (used in Step 7):
 
-1. Read primary channel config:
-   ```bash
-   cat ~/primary-channel.json 2>/dev/null || echo '{"confirmed":false}'
-   ```
-   If `confirmed` is `true` and `channel` is not `"matrix"`, use the primary channel for admin notifications (see Step 7).
-
-2. **Fallback — Matrix DM**: Check `admin_dm_room_id` in state.json. If `null`, discover it now:
+1. Check `admin_dm_room_id` in state.json. If `null`, discover it now:
    - List joined rooms, find the DM room with exactly 2 members: you and `@${HICLAW_ADMIN_USER}:${HICLAW_MATRIX_DOMAIN}`
    - Persist it:
      ```bash
      bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
        --action set-admin-dm --room-id "<discovered-room-id>"
      ```
+2. Verify the channel is resolvable:
+   ```bash
+   bash /opt/hiclaw/agent/skills/task-management/scripts/resolve-notify-channel.sh
+   ```
+   If the output shows `"channel": "none"`, the admin DM room discovery above may have failed — retry or log a warning.
 
 ---
 
@@ -102,7 +101,7 @@ done
 
 ### 5. Capacity Assessment
 
-- Count the number of `type=finite` entries in state.json (finite tasks in progress) and identify idle Workers with no assigned tasks
+- Count the number of `type=finite` entries in state.json (finite tasks in progress) and identify idle Workers with no assigned tasks (neither finite nor infinite)
 - If Workers are insufficient, check in with the human admin about whether new Workers need to be created
 - If Workers are idle, suggest reassigning tasks
 
@@ -123,7 +122,7 @@ If the output is `available`, proceed with the following steps:
    bash /opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh --action sync-status
    ```
 
-2. Detect idle Workers: For each Worker, if there are no finite tasks for them in state.json and container_status=running:
+2. Detect idle Workers: For each Worker, if there are no active tasks (neither finite nor infinite) for them in state.json and container_status=running:
    - If idle_since is not set, set it to the current time
    - If (now - idle_since) > idle_timeout_minutes, perform auto-stop:
      ```bash
@@ -135,7 +134,7 @@ If the output is `available`, proceed with the following steps:
      message: Worker <name> container has been automatically paused due to idle timeout. It will be automatically resumed when a task is assigned.
      ```
 
-3. If a Worker has a running finite task but its container status is `stopped` or `not_found` (anomaly), start/recreate it and send an alert to the admin (see Step 7):
+3. If a Worker has an active task (finite or infinite) but its container status is `stopped` or `not_found` (anomaly), start/recreate it and send an alert to the admin (see Step 7):
    ```bash
    bash /opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh --action start --worker <name>
    ```
@@ -149,19 +148,10 @@ If the output is `available`, proceed with the following steps:
 
 - If all Workers are healthy and there are no pending items: HEARTBEAT_OK (no message needed)
 - Otherwise, **read SOUL.md first** — use the identity, personality, and **user's preferred language** defined there when composing the report. Report in that language and tone.
-- Send a summary to the admin. **Priority order** (determined in Step 1):
-
-**Primary channel** (preferred) — if `primary-channel.json` has `confirmed: true` and `channel` is not `"matrix"`, use the `message` tool:
-
-| Parameter | Value |
-|-----------|-------|
-| `channel` | `.channel` from `primary-channel.json` |
-| `target`  | `.to` from `primary-channel.json` |
-| `message` | `[Heartbeat Report] <summarize findings and recommended actions, in SOUL.md persona and language>` |
-
-**Matrix DM** (fallback) — if no primary channel is configured, use `admin_dm_room_id` from state.json:
-
-| Parameter | Value |
-|-----------|-------|
-| `target`  | `room:<admin_dm_room_id>` |
-| `message` | `[Heartbeat Report] <summarize findings and recommended actions, in SOUL.md persona and language>` |
+- Resolve the notification channel:
+  ```bash
+  bash /opt/hiclaw/agent/skills/task-management/scripts/resolve-notify-channel.sh
+  ```
+  The script outputs JSON with `channel`, `target`, and `via` fields. Use the `message` tool with those values:
+  - If `channel` is not `"none"`: send `[Heartbeat Report] <summarize findings and recommended actions, in SOUL.md persona and language>` to the resolved `target`.
+  - If `channel` is `"none"`: admin DM room has not been discovered yet — attempt discovery now (see Step 1), then retry.

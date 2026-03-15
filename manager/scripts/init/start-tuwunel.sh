@@ -12,6 +12,7 @@ export CONDUWUIT_ALLOW_REGISTRATION=true
 export CONDUWUIT_REGISTRATION_TOKEN="${HICLAW_REGISTRATION_TOKEN}"
 export CONDUWUIT_ALLOW_LEGACY_MEDIA=true
 export CONDUWUIT_ALLOW_UNSTABLE_ROOM_VERSIONS=true
+export CONDUWUIT_DB_POOL_WORKERS_LIMIT=32
 
 # User creation is handled by start-manager-agent.sh via Registration API
 # (single-step registration, no UIAA flow needed)

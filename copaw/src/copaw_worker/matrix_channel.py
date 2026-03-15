@@ -68,9 +68,43 @@ _SLASH_ALIASES: dict[str, str] = {
 }
 
 
-def _text_to_html(text: str) -> str:
-    """Escape HTML special chars and convert newlines to <br> for Matrix."""
-    return html.escape(text).replace("\n", "<br>\n")
+def _md_to_html(text: str) -> str:
+    """Convert Markdown text to HTML for Matrix ``formatted_body``.
+
+    Uses ``markdown-it-py`` (the Python port of markdown-it) with the same
+    configuration as OpenClaw's Matrix extension so rendering is consistent
+    across both runtimes:
+
+    - html disabled (raw HTML is escaped)
+    - linkify enabled (bare URLs become clickable links)
+    - breaks enabled (single newlines become ``<br>``)
+    - strikethrough enabled (``~~text~~``)
+
+    Falls back to simple HTML-escape + ``<br>`` if the library is missing.
+    """
+    try:
+        from markdown_it import MarkdownIt
+
+        md = MarkdownIt(
+            "commonmark",
+            {"html": False, "linkify": True, "breaks": True, "typographer": False},
+        )
+        md.enable("strikethrough")
+        md.enable("table")
+
+        # linkify support requires linkify-it-py
+        try:
+            from linkify_it import LinkifyIt
+            md.linkify = LinkifyIt()
+        except ImportError:
+            pass
+
+        return md.render(text).rstrip("\n")
+    except ImportError:
+        logger.warning(
+            "markdown-it-py not installed; formatted_body will be plain text"
+        )
+        return html.escape(text).replace("\n", "<br>\n")
 
 # Markers that separate accumulated history from the triggering message,
 # matching the convention used by OpenClaw so agents can parse uniformly.
@@ -951,7 +985,7 @@ class MatrixChannel(BaseChannel):
 
         body = content.get("body", "")
         # Reuse already-converted formatted_body (set by send()) or convert now
-        html_body = content.get("formatted_body") or _text_to_html(body)
+        html_body = content.get("formatted_body") or _md_to_html(body)
         content["format"] = "org.matrix.custom.html"
         content["formatted_body"] = f"{pill} {html_body}" if html_body else pill
         # Prepend plain-text fallback so non-HTML clients also see the mention
@@ -989,7 +1023,7 @@ class MatrixChannel(BaseChannel):
             "msgtype": "m.text",
             "body": text,
             "format": "org.matrix.custom.html",
-            "formatted_body": _text_to_html(text),
+            "formatted_body": _md_to_html(text),
         }
 
         sender_id = (meta or {}).get("sender_id") or (meta or {}).get("user_id")

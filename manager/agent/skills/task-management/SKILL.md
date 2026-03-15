@@ -9,14 +9,41 @@ description: Assign and track tasks for Worker Agents. Use when the human admin 
 
 **Trigger**: Admin gives a task without naming a Worker.
 
-1. Check existing Workers and workload: `cat ~/workers-registry.json && bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh --action list`
-2. Present options to admin:
-   - **Option A** — Assign to an idle existing Worker (list name + role + status)
-   - **Option B** — Create a new Worker (suggest name/role/skills/model based on task type; ask about find-skills, see Step 4)
-   - **Option C** — Handle it yourself (note: broader system access than Workers; use isolated Worker for untrusted inputs)
-3. Act on choice: A → container check then assign; B → create Worker then assign; C → work directly (no task directory needed)
+Run the find-worker script to get a consolidated view of all Workers — registry info, active tasks, container status, and role — in one call:
 
-**Skip Step 0 when**: admin explicitly names a Worker, says "do it yourself", or it's a heartbeat-triggered infinite task. In YOLO mode, decide autonomously.
+```bash
+# All workers with full availability info
+bash /opt/hiclaw/agent/skills/task-management/scripts/find-worker.sh
+
+# Filter by required skills (only show workers that have ALL listed skills)
+bash /opt/hiclaw/agent/skills/task-management/scripts/find-worker.sh --skills github-operations,git-delegation
+```
+
+The output is JSON with a `summary` (idle/busy/stopped/unavailable counts) and a `workers` array. Each worker entry includes:
+
+| Field | Meaning |
+|-------|---------|
+| `availability` | `idle` (ready to assign), `busy` (has finite tasks), `stopped` (needs wake-up), `unavailable` (container gone, needs recreate) |
+| `role` | First line from SOUL.md's `## Role` section — use this to match task requirements |
+| `skills` | Skill list from registry — use this to check capability fit |
+| `finite_tasks` / `infinite_tasks` | Current workload counts |
+| `active_tasks` | List of `{task_id, type, title}` for tasks currently assigned |
+| `container_status` | Raw status: `running`, `stopped`, `not_found`, `remote`, `unknown` |
+
+**Decision flow based on output (delegation-first — always prefer assigning to a Worker):**
+
+1. **Idle workers exist** → pick the best match by role + skills, present to admin as **Option A** (strongly recommended)
+2. **Only busy workers** → present workload info, suggest **Option B** (create new Worker) or wait for a Worker to become idle
+3. **No workers at all** → suggest **Option B** (create new Worker). Only fall back to **Option C** if the admin explicitly requests it
+
+Present options to admin:
+- **Option A** (preferred) — Assign to an idle existing Worker (show name + role + skills + current workload from the script output)
+- **Option B** — Create a new Worker (suggest name/role/skills/model based on task type; ask about find-skills, see Step 4)
+- **Option C** (last resort) — Handle it yourself. Only choose this when the admin explicitly says "do it yourself", or the task falls within your management skills listed in `TOOLS.md` (e.g., worker-management, mcp-server-management, model-switch). Never default to this just because no Worker is available — propose creating one first.
+
+Act on choice: A → ensure container ready then assign; B → create Worker then assign; C → work directly (no task directory needed).
+
+**Skip Step 0 when**: admin explicitly names a Worker, says "do it yourself", or it's a heartbeat-triggered infinite task. In YOLO mode, autonomously pick the best Worker or create one — still prefer delegation over self-execution.
 
 **Step 4 — Find-Skills (only when creating a new Worker):**
 
@@ -28,10 +55,28 @@ Ask admin: enable find-skills (recommended) or disable; optionally provide custo
 
 ## Before Assigning Tasks: Container Status Check
 
-1. Check status: `bash -c 'source /opt/hiclaw/scripts/lib/container-api.sh && container_status_worker "<name>"'`
-2. **stopped** → wake up: `lifecycle-worker.sh --action start --worker <name>`, wait 30s, then assign
-3. **not_found** → notify admin, Worker must be recreated via `create-worker.sh`
-4. **running** or no container API → assign directly
+The `find-worker.sh` output already includes `container_status` and `availability`. Use it directly:
+
+1. `availability = "idle"` or `"busy"` → container is running, assign directly
+2. `availability = "stopped"` → wake up first: `lifecycle-worker.sh --action start --worker <name>`, wait 30s, then assign
+3. `availability = "unavailable"` → notify admin, Worker must be recreated via `create-worker.sh`
+
+If you already ran `find-worker.sh` in Step 0, you do NOT need a separate container status check — the information is already in the output. Only run a standalone check when assigning to an explicitly named Worker (Step 0 was skipped):
+
+```bash
+bash -c 'source /opt/hiclaw/scripts/lib/container-api.sh && container_status_worker "<name>"'
+```
+
+---
+
+## Choosing Task Type: Finite vs Infinite
+
+Before creating a task, determine the correct type:
+
+- **Finite** — the task has a clear end state. Once the Worker delivers the result, it's done. Examples: "implement login page", "fix bug #123", "write a report on X", "review this PR".
+- **Infinite** — the task repeats on a schedule with no natural end. The Worker executes it periodically and reports back each time. Examples: "run security scan every day at 9am", "check service health every hour", "sync data from API every Monday".
+
+**Decision rule**: if the admin's request contains a recurring schedule (daily, hourly, every N minutes, cron expression) or implies ongoing monitoring/polling, use infinite. Everything else is finite. When ambiguous, ask the admin to clarify.
 
 ---
 
@@ -79,6 +124,17 @@ Ask admin: enable find-skills (recommended) or disable; optionally provide custo
      --action complete --task-id {task-id}
    ```
    Log to `memory/YYYY-MM-DD.md`.
+7. Notify admin that the task is complete. **Read SOUL.md first** — use the identity, personality, and user's preferred language defined there when composing the notification.
+
+   Resolve the notification channel:
+   ```bash
+   bash /opt/hiclaw/agent/skills/task-management/scripts/resolve-notify-channel.sh
+   ```
+   The script outputs JSON with `channel`, `target`, and `via` fields. Use the `message` tool with those values:
+   - If `channel` is not `"none"`: send `[Task Completed] {task-id}: {title} — assigned to {worker}. {one-line summary from result.md}` to the resolved `target`.
+   - If `channel` is `"none"`: the admin DM room has not been discovered yet. Log a warning and skip notification (heartbeat will catch up).
+
+   Compose the message in the persona and language from SOUL.md. Keep it concise — one or two sentences summarizing the outcome.
 
 **Task directory layout:**
 ```

@@ -124,6 +124,20 @@ _worker_has_finite_tasks() {
     [ "$count" -gt 0 ]
 }
 
+# Check if a worker has any active tasks (finite or infinite) in state.json
+# Returns 0 if worker has any active tasks, 1 otherwise
+_worker_has_any_tasks() {
+    local worker="$1"
+    if [ ! -f "$STATE_FILE" ]; then
+        return 1
+    fi
+    local count
+    count=$(jq -r --arg w "$worker" \
+        '[.active_tasks[] | select(.assigned_to == $w)] | length' \
+        "$STATE_FILE" 2>/dev/null || echo "0")
+    [ "$count" -gt 0 ]
+}
+
 # ─── Actions ─────────────────────────────────────────────────────────────────
 
 # Sync container status from Docker API into lifecycle file
@@ -190,12 +204,12 @@ action_check_idle() {
             continue
         fi
 
-        if _worker_has_finite_tasks "$worker"; then
-            # Worker is active — clear idle_since
+        if _worker_has_any_tasks "$worker"; then
+            # Worker is active (finite or infinite task) — clear idle_since
             local current_idle
             current_idle=$(_get_worker_field "$worker" "idle_since")
             if [ -n "$current_idle" ] && [ "$current_idle" != "null" ]; then
-                _log "Worker $worker has active finite tasks — clearing idle_since"
+                _log "Worker $worker has active tasks — clearing idle_since"
                 local tmp
                 tmp=$(mktemp)
                 jq --arg w "$worker" --arg ts "$(_ts)" \
@@ -203,7 +217,7 @@ action_check_idle() {
                     "$LIFECYCLE_FILE" > "$tmp" && mv "$tmp" "$LIFECYCLE_FILE"
             fi
         else
-            # Worker has no finite tasks
+            # Worker has no active tasks (neither finite nor infinite)
             if [ "$container_status" != "running" ]; then
                 continue
             fi

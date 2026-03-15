@@ -147,8 +147,8 @@ action_executed() {
     existing=$(jq -r --arg id "$TASK_ID" \
         '[.active_tasks[] | select(.task_id == $id and .type == "infinite")] | length' "$STATE_FILE")
     if [ "$existing" -eq 0 ]; then
-        echo "ERROR: infinite task $TASK_ID not found in active_tasks" >&2
-        return 1
+        echo "WARN: infinite task $TASK_ID not found in active_tasks (may be a legacy task not yet registered). Skipping update."
+        return 0
     fi
 
     local tmp

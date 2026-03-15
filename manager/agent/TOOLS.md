@@ -41,16 +41,18 @@ bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
 
 ### Runtime Selection
 
-| Runtime | Memory | Description |
-|---------|--------|-------------|
-| `openclaw` | ~500MB | Node.js container |
-| `copaw` | ~150MB | Python container, lightweight; console off by default, enable on demand via `enable-worker-console.sh` |
+| Runtime | Memory | Deployment | Description |
+|---------|--------|------------|-------------|
+| `openclaw` | ~500MB | local only | Node.js container |
+| `copaw` | ~150MB | local + remote (`--remote`) | Python container; with `--remote`, runs as native process on admin's machine instead |
 
 Default runtime is set by `HICLAW_DEFAULT_WORKER_RUNTIME` (chosen during installation). Only pass `--runtime` explicitly when:
 - The admin requests a specific runtime (e.g., "create a copaw worker" → `--runtime copaw`)
 - You recommend a specific runtime to solve a problem (see below)
 
-**Local environment access:** If the admin wants the Worker to operate on their local machine — e.g., "create a local worker", "create a worker in local mode", "I want a worker that can access my local environment", open a browser, run desktop apps, access local files, run local commands, or interact with the host OS — always recommend `--runtime copaw --remote`. This outputs a `pip install copaw-worker && copaw-worker ...` command that the admin runs directly on their machine, so the Worker process lives on the admin's host and has full local access. Ask the admin to confirm before proceeding.
+**Local environment access (--remote flag):** If the admin wants the Worker to run on their local machine — e.g., "create a local worker", "local mode", "access my local environment", open a browser, run desktop apps, access local files — add `--remote` to the create command. This works with copaw runtime only: `--runtime copaw --remote`. It outputs a `pip install copaw-worker && copaw-worker ...` command for the admin to run on their machine. The registry will have `"deployment": "remote"` for this Worker. Ask the admin to confirm before proceeding.
+
+**Important:** Without `--remote`, a copaw Worker is a normal container — just like openclaw. Do not confuse `--runtime copaw` (container) with `--runtime copaw --remote` (admin's local machine).
 
 > **Terminology note:** `--remote` means "remote from the Manager's perspective" (i.e., not a container managed by the Manager). From the admin's perspective, this is actually the **local** deployment — the Worker runs as a native process on the admin's own machine.
 
@@ -70,8 +72,10 @@ Default runtime is set by `HICLAW_DEFAULT_WORKER_RUNTIME` (chosen during install
 
 Assign, track, and complete tasks for Workers.
 
-- Admin gives a task and no Worker is specified → Worker availability check (Step 0)
-- Assigning a finite or infinite task to a Worker → create task directory, write `meta.json` + `spec.md`, notify Worker
+- Admin gives a task and no Worker is specified → run `find-worker.sh` (Step 0) to get a consolidated view of all Workers (availability, workload, container status, role, skills) in one call
+- Filter by required skills: `find-worker.sh --skills github-operations` — only returns workers that have all listed skills
+- Assigning a finite task to a Worker → create task directory, write `meta.json` (type=finite) + `spec.md`, notify Worker
+- Admin says "run a security scan every day at 9am" or any request with a recurring schedule → create an **infinite** task with `meta.json` (type=infinite, schedule, timezone) + `spec.md`, notify Worker. Heartbeat will trigger execution on schedule.
 - Worker @mentions you with completion → update `meta.json`, run `manage-state.sh --action complete`, log to memory
 
 ## task-coordination
@@ -118,8 +122,13 @@ Multi-Worker collaborative projects.
 
 Multi-channel identity recognition, permission enforcement, and primary notification routing.
 
+Check current primary channel:
+```bash
+bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh --action show
+```
+
 - In a group room with multiple human users → identify each sender as admin, trusted contact, or unknown (ignore unknown)
-- Admin messages from any non-Matrix channel for the first time → run first-contact protocol, ask about primary channel
+- Admin messages from a non-Matrix channel that doesn't match current primary channel → run first-contact protocol, ask about primary channel
 - Admin says "switch my primary channel to Discord"
 - Admin says "you can talk to the person who just messaged" → add trusted contact
 - Working in a Matrix room and need an urgent admin decision → cross-channel escalation

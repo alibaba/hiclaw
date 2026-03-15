@@ -957,133 +957,72 @@ function Send-WelcomeMessage {
     )
 
     # Skip if soul already configured
-    $soulConfigured = docker exec $Container test -f /root/manager-workspace/soul-configured 2>$null
+    $null = docker exec $Container test -f /root/manager-workspace/soul-configured 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Log (Get-Msg "install.welcome_msg.soul_configured")
         return $true
     }
 
-    $matrixUrl = "http://127.0.0.1:6167"
-    $managerUser = "manager"
-    $managerFullId = "@${managerUser}:${MatrixDomain}"
-
-    # Login to get admin access token
     Write-Log (Get-Msg "install.welcome_msg.logging_in" -f $AdminUser)
 
-    $loginBody = @{
-        type = "m.login.password"
-        identifier = @{ type = "m.id.user"; user = $AdminUser }
-        password = $AdminPassword
-    } | ConvertTo-Json -Compress
+    # Run all Matrix API calls inside the container via bash to avoid
+    # PowerShell -> docker exec -> curl quote-escaping issues.
+    # Credentials and config are passed as env vars (-e) so they never
+    # appear in the script body.  jq is available inside the container.
+    $innerScript = @'
+MATRIX_URL="http://127.0.0.1:6167"
+MANAGER_FULL_ID="@manager:${MATRIX_DOMAIN}"
 
-    try {
-        $loginResp = docker exec $Container curl -sf -X POST "$matrixUrl/_matrix/client/v3/login" `
-            -H "Content-Type: application/json" `
-            -d $loginBody 2>$null
+login_resp=$(curl -sf -X POST "${MATRIX_URL}/_matrix/client/v3/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"type\":\"m.login.password\",\"identifier\":{\"type\":\"m.id.user\",\"user\":\"${ADMIN_USER}\"},\"password\":\"${ADMIN_PASSWORD}\"}" 2>/dev/null) || true
+access_token=$(echo "${login_resp}" | jq -r '.access_token // empty' 2>/dev/null)
+if [ -z "${access_token}" ]; then
+    echo "LOGIN_FAILED: ${login_resp}" >&2; echo "LOGIN_FAILED"; exit 0
+fi
 
-        $accessToken = ($loginResp | ConvertFrom-Json).access_token
-        if (-not $accessToken) {
-            Write-Log (Get-Msg "install.welcome_msg.login_failed" -f $AdminUser)
-            return $false
-        }
-    }
-    catch {
-        Write-Log (Get-Msg "install.welcome_msg.login_failed" -f $AdminUser)
-        return $false
-    }
+room_id=""
+rooms=$(curl -sf "${MATRIX_URL}/_matrix/client/v3/joined_rooms" \
+    -H "Authorization: Bearer ${access_token}" 2>/dev/null | jq -r '.joined_rooms[]' 2>/dev/null) || true
+for rid in ${rooms}; do
+    members=$(curl -sf "${MATRIX_URL}/_matrix/client/v3/rooms/${rid}/members" \
+        -H "Authorization: Bearer ${access_token}" 2>/dev/null | jq -r '.chunk[].state_key' 2>/dev/null) || continue
+    member_count=$(echo "${members}" | wc -l | xargs)
+    if [ "${member_count}" = "2" ] && echo "${members}" | grep -q "@manager:"; then
+        room_id="${rid}"; break
+    fi
+done
 
-    # Find or create DM room
-    Write-Log (Get-Msg "install.welcome_msg.finding_room")
+if [ -z "${room_id}" ]; then
+    create_resp=$(curl -sf -X POST "${MATRIX_URL}/_matrix/client/v3/createRoom" \
+        -H "Authorization: Bearer ${access_token}" \
+        -H 'Content-Type: application/json' \
+        -d "{\"is_direct\":true,\"invite\":[\"${MANAGER_FULL_ID}\"],\"preset\":\"trusted_private_chat\"}" 2>/dev/null) || true
+    room_id=$(echo "${create_resp}" | jq -r '.room_id // empty' 2>/dev/null)
+fi
+[ -z "${room_id}" ] && { echo "NO_ROOM" >&2; echo "NO_ROOM"; exit 0; }
 
-    try {
-        $roomsResp = docker exec $Container curl -sf "$matrixUrl/_matrix/client/v3/joined_rooms" `
-            -H "Authorization: Bearer $accessToken" 2>$null
-        $rooms = ($roomsResp | ConvertFrom-Json).joined_rooms
-    }
-    catch {
-        $rooms = @()
-    }
+# Wait for Manager to join; bail out if it never does (avoids 403 on send)
+manager_joined=false
+wait_elapsed=0
+while [ "${wait_elapsed}" -lt 60 ]; do
+    members=$(curl -sf "${MATRIX_URL}/_matrix/client/v3/rooms/${room_id}/members" \
+        -H "Authorization: Bearer ${access_token}" 2>/dev/null | jq -r '.chunk[].state_key' 2>/dev/null) || true
+    if echo "${members}" | grep -q "${MANAGER_FULL_ID}"; then
+        manager_joined=true; break
+    fi
+    sleep 2; wait_elapsed=$((wait_elapsed + 2))
+done
+if [ "${manager_joined}" != "true" ]; then
+    echo "NO_ROOM" >&2; echo "NO_ROOM"; exit 0
+fi
 
-    $roomId = $null
-    foreach ($rid in $rooms) {
-        try {
-            $membersResp = docker exec $Container curl -sf "$matrixUrl/_matrix/client/v3/rooms/$rid/members" `
-                -H "Authorization: Bearer $accessToken" 2>$null
-            $members = ($membersResp | ConvertFrom-Json).chunk.state_key
-
-            if ($members.Count -eq 2 -and $members -match "@${managerUser}:") {
-                $roomId = $rid
-                break
-            }
-        } catch {
-            continue
-        }
-    }
-
-    if (-not $roomId) {
-        Write-Log (Get-Msg "install.welcome_msg.creating_room")
-        $createBody = @{
-            is_direct = $true
-            invite = @($managerFullId)
-            preset = "trusted_private_chat"
-        } | ConvertTo-Json -Compress
-
-        try {
-            $createResp = docker exec $Container curl -sf -X POST "$matrixUrl/_matrix/client/v3/createRoom" `
-                -H "Authorization: Bearer $accessToken" `
-                -H "Content-Type: application/json" `
-                -d $createBody 2>$null
-            $roomId = ($createResp | ConvertFrom-Json).room_id
-        } catch {
-            Write-Log (Get-Msg "install.welcome_msg.no_room")
-            return $false
-        }
-    }
-
-    if (-not $roomId) {
-        Write-Log (Get-Msg "install.welcome_msg.no_room")
-        return $false
-    }
-
-    # Wait for Manager to join
-    Write-Log (Get-Msg "install.welcome_msg.waiting_join")
-    $waitElapsed = 0
-    $waitTimeout = 60
-
-    $managerJoined = $false
-    while ($waitElapsed -lt $waitTimeout) {
-        try {
-            $membersResp = docker exec $Container curl -sf "$matrixUrl/_matrix/client/v3/rooms/$roomId/members" `
-                -H "Authorization: Bearer $accessToken" 2>$null
-            $members = ($membersResp | ConvertFrom-Json).chunk.state_key
-
-            if ($members -match [regex]::Escape($managerFullId)) {
-                $managerJoined = $true
-                break
-            }
-        } catch {
-            # Continue waiting
-        }
-
-        Start-Sleep -Seconds 2
-        $waitElapsed += 2
-    }
-
-    # Bail out if Manager never joined — sending would return 403
-    if (-not $managerJoined) {
-        Write-Log (Get-Msg "install.welcome_msg.no_room")
-        return $false
-    }
-
-    # Send welcome message
-    Write-Log (Get-Msg "install.welcome_msg.sending")
-
-    $welcomeMsg = @"
-This is an automated message from the HiClaw installation script. This is a fresh installation.
+# HICLAW_LANGUAGE and HICLAW_TIMEZONE are passed in via -e flags; use them directly
+welcome_msg="This is an automated message from the HiClaw installation script. This is a fresh installation.
 
 --- Installation Context ---
-User Language: $Language  (zh = Chinese, en = English)
-User Timezone: $Timezone  (IANA timezone identifier)
+User Language: ${HICLAW_LANGUAGE}  (zh = Chinese, en = English)
+User Timezone: ${HICLAW_TIMEZONE}  (IANA timezone identifier)
 ---
 
 You are an AI agent that manages a team of worker agents. Your identity and personality have not been configured yet — the human admin is about to meet you for the first time.
@@ -1091,38 +1030,60 @@ You are an AI agent that manages a team of worker agents. Your identity and pers
 Please begin the onboarding conversation:
 
 1. Greet the admin warmly and briefly describe what you can do (coordinate workers, manage tasks, run multi-agent projects) — without referring to yourself by any specific title yet
-2. The user has selected "$Language" as their preferred language during installation. Use this language for your greeting and all subsequent communication.
-3. The user's timezone is $Timezone. Based on this timezone, you may infer their likely region and suggest additional language options (e.g., Japanese, Korean, German, etc.) that they might prefer for future interactions.
+2. The user has selected \"${HICLAW_LANGUAGE}\" as their preferred language during installation. Use this language for your greeting and all subsequent communication.
+3. The user's timezone is ${HICLAW_TIMEZONE}. Based on this timezone, you may infer their likely region and suggest additional language options (e.g., Japanese, Korean, German, etc.) that they might prefer for future interactions.
 4. Ask them the following questions (one message is fine):
    a. What would they like to call you? (name or title)
    b. What communication style do they prefer? (e.g. formal, casual, concise, detailed)
    c. Any specific behavior guidelines or constraints they want you to follow?
    d. Confirm the default language they want you to use (offer alternatives based on timezone)
-5. After they reply, write their preferences to the "Identity & Personality" section of ~/SOUL.md — replace the "(not yet configured)" placeholder with the configured identity
+5. After they reply, write their preferences to the \"Identity & Personality\" section of ~/SOUL.md — replace the \"(not yet configured)\" placeholder with the configured identity
 6. Confirm what you wrote, and ask if they would like to adjust anything
 7. Once the admin confirms the identity is set, run: touch ~/soul-configured
 
-The human admin will start chatting shortly.
-"@
+The human admin will start chatting shortly."
 
-    $txnId = "welcome-$(Get-Date -UFormat %s)"
-    $msgBody = @{
-        msgtype = "m.text"
-        body = $welcomeMsg
-    } | ConvertTo-Json -Compress
+txn_id="welcome-$(date +%s)"
+payload=$(jq -nc --arg body "${welcome_msg}" '{"msgtype":"m.text","body":$body}')
+curl -sf -X PUT "${MATRIX_URL}/_matrix/client/v3/rooms/${room_id}/send/m.room.message/${txn_id}" \
+    -H "Authorization: Bearer ${access_token}" \
+    -H 'Content-Type: application/json' \
+    -d "${payload}" > /dev/null 2>&1 || { echo "SEND_FAILED" >&2; echo "SEND_FAILED"; exit 0; }
+echo "OK"
+'@
 
-    try {
-        docker exec $Container curl -sf -X PUT "$matrixUrl/_matrix/client/v3/rooms/$roomId/send/m.room.message/$txnId" `
-            -H "Authorization: Bearer $accessToken" `
-            -H "Content-Type: application/json" `
-            -d $msgBody 2>$null | Out-Null
+    # Pass credentials and language/timezone as env vars (-e) so they never
+    # touch the script body — avoids all quoting/escaping issues.
+    $result = docker exec `
+        -e "ADMIN_USER=$AdminUser" `
+        -e "ADMIN_PASSWORD=$AdminPassword" `
+        -e "MATRIX_DOMAIN=$MatrixDomain" `
+        -e "HICLAW_LANGUAGE=$Language" `
+        -e "HICLAW_TIMEZONE=$Timezone" `
+        $Container bash -c $innerScript 2>$null
 
-        Write-Log (Get-Msg "install.welcome_msg.sent")
-        return $true
-    }
-    catch {
-        Write-Log (Get-Msg "install.welcome_msg.send_failed")
-        return $false
+    switch -Wildcard ($result) {
+        "*LOGIN_FAILED*" {
+            Write-Log (Get-Msg "install.welcome_msg.login_failed" -f $AdminUser)
+            return $false
+        }
+        "*NO_ROOM*" {
+            Write-Log (Get-Msg "install.welcome_msg.no_room")
+            return $false
+        }
+        "*SEND_FAILED*" {
+            Write-Log (Get-Msg "install.welcome_msg.send_failed")
+            return $false
+        }
+        "*OK*" {
+            Write-Log (Get-Msg "install.welcome_msg.sent")
+            return $true
+        }
+        default {
+            Write-Log "WARNING: Send-WelcomeMessage got unexpected result: $result"
+            Write-Log (Get-Msg "install.welcome_msg.send_failed")
+            return $false
+        }
     }
 }
 

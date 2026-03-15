@@ -111,9 +111,9 @@ Fields:
 - `channel_name`: human-readable name for display (e.g. `"Discord"`, `"飞书"`)
 - `confirmed_at`: ISO-8601 timestamp when the admin confirmed this choice
 
-Read with fallback:
+Read with:
 ```bash
-cat ~/primary-channel.json 2>/dev/null || echo '{"confirmed":false}'
+bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh --action show
 ```
 
 ## Sending Messages to Primary Channel
@@ -124,7 +124,7 @@ Use the built-in `message` tool to send proactive notifications (daily reminders
 
 1. Read `primary-channel.json`:
    ```bash
-   cat ~/primary-channel.json 2>/dev/null || echo '{"confirmed":false}'
+   bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh --action show
    ```
 2. If `confirmed` is `true` and `channel` is not `"matrix"`, call the `message` tool:
 
@@ -159,34 +159,41 @@ Call the `message` tool with:
 Trigger: admin sends a DM from a channel that doesn't match `primary-channel.json`'s `.channel`.
 
 Steps:
-1. Read `primary-channel.json` — check if `.channel` matches the current session's channel
+1. Read `primary-channel.json` — check if `.channel` matches the current session's channel:
+   ```bash
+   bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh --action show
+   ```
 2. Respond to the admin's message normally
 3. Send a follow-up asking about primary channel preference, **in the same language the admin used in their message**:
    > I noticed this is your first time contacting me via [Channel Name]. Would you like to set [Channel Name] as your primary channel? If so, my daily reminders and proactive notifications will be sent here instead of Matrix DM. Reply "yes" to confirm, or "no" to keep using Matrix DM.
 4. On **"yes" / "confirm" / 「是」/ 「确认」** (or equivalent in their language):
    ```bash
-   cat > ~/primary-channel.json << 'EOF'
-   {
-     "confirmed": true,
-     "channel": "<channel>",
-     "to": "<to>",
-     "sender_id": "<sender_id>",
-     "channel_name": "<Channel Name>",
-     "confirmed_at": "<ISO-8601 now>"
-   }
-   EOF
+   bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh \
+     --action confirm --channel "<channel>" --to "<to>" \
+     --sender-id "<sender_id>" --channel-name "<Channel Name>"
    ```
-5. On **「否」/ "no"**: write `{"confirmed": false}` or leave unchanged; Matrix DM remains primary
+5. On **「否」/ "no"**:
+   ```bash
+   bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh --action reset
+   ```
+   Matrix DM remains primary.
 6. On no reply (session ends): leave unchanged; Matrix DM remains primary
 
 ## Changing Primary Channel
 
 When admin requests a switch (e.g. "switch to Discord as primary", "切换到飞书作为主频道", etc.), in any language:
 
-1. Read current `primary-channel.json`
-2. Update: `channel`, `to`, `sender_id`, `channel_name`, `confirmed: true`, `confirmed_at` = now
-3. Write updated file
-4. Confirm in the admin's language, e.g.: "Primary channel switched to [Channel Name]. Daily reminders and proactive notifications will now be sent there."
+1. Read current state:
+   ```bash
+   bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh --action show
+   ```
+2. Update to the new channel:
+   ```bash
+   bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh \
+     --action confirm --channel "<channel>" --to "<to>" \
+     --sender-id "<sender_id>" --channel-name "<Channel Name>"
+   ```
+3. Confirm in the admin's language, e.g.: "Primary channel switched to [Channel Name]. Daily reminders and proactive notifications will now be sent there."
 
 ## Cross-Channel Escalation
 
@@ -199,7 +206,10 @@ When blocked on an admin decision while working in a Matrix room:
 
 ### How to Escalate
 
-1. Read `primary-channel.json` (see "Primary Channel State" above)
+1. Resolve the notification channel:
+   ```bash
+   bash /opt/hiclaw/agent/skills/task-management/scripts/resolve-notify-channel.sh
+   ```
 2. If a non-Matrix primary channel is confirmed, use the `message` tool to send the question directly:
 
    | Parameter | Value |
@@ -231,5 +241,8 @@ If `primary-channel.json` is missing, `confirmed` is `false`, or channel is `mat
 3. Is the `to` value in `primary-channel.json` correct for the channel format? (see "Primary Channel State" field descriptions above)
 4. Fallback to Matrix DM is automatic; no manual intervention needed for individual failures
 
-**Admin confirmed wrong channel**: Admin wants to revert to Matrix DM. Write `{"confirmed": false}` to `primary-channel.json`.
+**Admin confirmed wrong channel**: Admin wants to revert to Matrix DM:
+```bash
+bash /opt/hiclaw/agent/skills/channel-management/scripts/manage-primary-channel.sh --action reset
+```
 
