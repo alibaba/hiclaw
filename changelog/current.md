@@ -31,3 +31,4 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - feat(manager): pre-configure all known models in openclaw.json templates — switching between known models is now a hot-reload (no restart); unknown models are appended dynamically with RESTART_REQUIRED output
 - feat(manager): model-switch and worker-model-switch scripts detect known vs unknown models via openclaw.json models array instead of overwriting models[0]
 - feat(manager): model-switch and worker-model-switch SKILL.md updated — Agent checks script output for RESTART_REQUIRED to decide whether to prompt user for restart
+- fix(manager): ExtraHosts now injected for all configured domains when creating Worker containers, not just `*-local.hiclaw.io` — fixes NAT hairpin issue on ECS where Workers could not reach Manager via custom public domains

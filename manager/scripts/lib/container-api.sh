@@ -147,9 +147,7 @@ container_create_worker() {
     local fs_host="${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}"
 
     for h in "${matrix_host}" "${matrix_client_host}" "${ai_gw_host}" "${fs_host}"; do
-        if [[ "${h}" == *-local.hiclaw.io ]]; then
-            extra_hosts="${extra_hosts}\"${h}:${manager_ip}\","
-        fi
+        extra_hosts="${extra_hosts}\"${h}:${manager_ip}\","
     done
     extra_hosts="${extra_hosts%,}"
 
@@ -383,9 +381,7 @@ container_create_copaw_worker() {
     local fs_host="${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}"
 
     for h in "${matrix_host}" "${matrix_client_host}" "${ai_gw_host}" "${fs_host}"; do
-        if [[ "${h}" == *-local.hiclaw.io ]]; then
-            extra_hosts="${extra_hosts}\"${h}:${manager_ip}\","
-        fi
+        extra_hosts="${extra_hosts}\"${h}:${manager_ip}\","
     done
     extra_hosts="${extra_hosts%,}"
 
