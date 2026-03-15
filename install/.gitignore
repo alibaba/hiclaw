@@ -1,3 +1,0 @@
-# Ignore real env files (contain secrets)
-hiclaw-manager.env
-!hiclaw-manager.env.example
