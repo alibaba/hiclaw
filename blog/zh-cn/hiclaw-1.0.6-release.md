@@ -361,10 +361,10 @@ Bob：任务已中断。这是我正在做的事情：
 
 ## 快速开始
 
-已经在使用 HiClaw？升级到 1.0.6：
+已经在使用 HiClaw？升级到最新版本：
 
 ```bash
-HICLAW_VERSION=v1.0.6 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 ```
 
 HiClaw 新用户？一条命令开始：

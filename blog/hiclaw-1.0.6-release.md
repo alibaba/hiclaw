@@ -361,10 +361,10 @@ This release completes the **"Universal MCP Service Support"** item from our roa
 
 ## Getting Started
 
-Already running HiClaw? Upgrade to 1.0.6:
+Already running HiClaw? Upgrade to the latest version:
 
 ```bash
-HICLAW_VERSION=v1.0.6 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 ```
 
 New to HiClaw? One command gets you started:
