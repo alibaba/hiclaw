@@ -1,0 +1,37 @@
+# HiClaw Manager - Docker Compose
+#
+# Usage:
+#   1. Copy hiclaw-manager.env.example to hiclaw-manager.env and fill in your values
+#   2. docker compose up -d
+#
+# This is equivalent to the `docker run` command in hiclaw-install.sh.
+# For interactive setup with auto-configuration, use hiclaw-install.sh instead.
+
+services:
+  manager:
+    image: ${HICLAW_REGISTRY:-higress-registry.cn-hangzhou.cr.aliyuncs.com}/higress/hiclaw-manager:${HICLAW_VERSION:-latest}
+    container_name: hiclaw-manager
+    restart: unless-stopped
+    env_file:
+      - ${HICLAW_ENV_FILE:-hiclaw-manager.env}
+    environment:
+      - HOME=/root/manager-workspace
+      - HOST_ORIGINAL_HOME=${HICLAW_HOST_SHARE_DIR:-${HOME}}
+      - TZ=${HICLAW_TIMEZONE:-Asia/Shanghai}
+    working_dir: /root/manager-workspace
+    ports:
+      - "${HICLAW_PORT_GATEWAY:-18080}:8080"
+      - "${HICLAW_PORT_CONSOLE:-18001}:8001"
+      - "${HICLAW_PORT_ELEMENT_WEB:-18088}:8088"
+      - "127.0.0.1:${HICLAW_PORT_OPENCLAW_CONSOLE:-18888}:18888"
+    volumes:
+      - ${HICLAW_DATA_DIR:-hiclaw-data}:/data
+      - ${HICLAW_WORKSPACE_DIR:-~/hiclaw-manager}:/root/manager-workspace
+      - ${HICLAW_HOST_SHARE_DIR:-${HOME}}:/host-share
+      - /var/run/docker.sock:/var/run/docker.sock
+    security_opt:
+      - label=disable
+
+volumes:
+  hiclaw-data:
+    name: ${HICLAW_DATA_DIR:-hiclaw-data}
