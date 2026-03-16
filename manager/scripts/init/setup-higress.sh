@@ -163,7 +163,7 @@ if [ -n "${HICLAW_LLM_API_KEY}" ]; then
     # Create/update LLM provider (GET → PUT if exists, POST if not)
     case "${LLM_PROVIDER}" in
         qwen)
-            PROVIDER_BODY='{"type":"qwen","name":"qwen","tokens":["'"${HICLAW_LLM_API_KEY}"'"],"protocol":"openai/v1","tokenFailoverConfig":{"enabled":false},"rawConfigs":{"qwenEnableSearch":false,"qwenEnableCompatible":true,"qwenFileIds":[]}}'
+            PROVIDER_BODY='{"type":"qwen","name":"qwen","tokens":["'"${HICLAW_LLM_API_KEY}"'"],"protocol":"openai/v1","tokenFailoverConfig":{"enabled":false},"rawConfigs":{"qwenEnableSearch":false,"qwenEnableCompatible":true,"qwenFileIds":[],"mergeConsecutiveMessages":true}}'
             existing_provider=$(higress_get /v1/ai/providers/qwen)
             if [ -n "${existing_provider}" ]; then
                 higress_api PUT /v1/ai/providers/qwen "Updating LLM provider (qwen)" "${PROVIDER_BODY}"
@@ -194,7 +194,7 @@ if [ -n "${HICLAW_LLM_API_KEY}" ]; then
                     higress_api POST /v1/service-sources "Registering openai-compat DNS service source" "${SVC_BODY}"
                 fi
 
-                PROVIDER_BODY='{"type":"openai","name":"openai-compat","tokens":["'"${HICLAW_LLM_API_KEY}"'"],"version":0,"protocol":"openai/v1","tokenFailoverConfig":{"enabled":false},"rawConfigs":{"openaiCustomUrl":"'"${OPENAI_BASE_URL}"'","openaiCustomServiceName":"openai-compat.dns","openaiCustomServicePort":'"${OC_PORT}"'}}'
+                PROVIDER_BODY='{"type":"openai","name":"openai-compat","tokens":["'"${HICLAW_LLM_API_KEY}"'"],"version":0,"protocol":"openai/v1","tokenFailoverConfig":{"enabled":false},"rawConfigs":{"openaiCustomUrl":"'"${OPENAI_BASE_URL}"'","openaiCustomServiceName":"openai-compat.dns","openaiCustomServicePort":'"${OC_PORT}"',"mergeConsecutiveMessages":true}}'
                 existing_provider=$(higress_get /v1/ai/providers/openai-compat)
                 if [ -n "${existing_provider}" ]; then
                     higress_api PUT /v1/ai/providers/openai-compat "Updating LLM provider (openai-compat)" "${PROVIDER_BODY}"
@@ -205,7 +205,11 @@ if [ -n "${HICLAW_LLM_API_KEY}" ]; then
             ;;
         *)
             PROVIDER_BODY='{"name":"'"${LLM_PROVIDER}"'","type":"openai","tokens":["'"${HICLAW_LLM_API_KEY}"'"],"modelMapping":{},"protocol":"openai/v1"'
-            [ -n "${LLM_API_URL}" ] && PROVIDER_BODY="${PROVIDER_BODY}"',"rawConfigs":{"apiUrl":"'"${LLM_API_URL}"'"}'
+            if [ -n "${LLM_API_URL}" ]; then
+                PROVIDER_BODY="${PROVIDER_BODY}"',"rawConfigs":{"apiUrl":"'"${LLM_API_URL}"'","mergeConsecutiveMessages":true}'
+            else
+                PROVIDER_BODY="${PROVIDER_BODY}"',"rawConfigs":{"mergeConsecutiveMessages":true}'
+            fi
             PROVIDER_BODY="${PROVIDER_BODY}"'}'
             existing_provider=$(higress_get /v1/ai/providers/"${LLM_PROVIDER}")
             if [ -n "${existing_provider}" ]; then
