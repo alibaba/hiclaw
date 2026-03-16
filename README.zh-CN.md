@@ -218,17 +218,23 @@ docker exec -it hiclaw-manager cat /var/log/hiclaw/manager-agent.log
 
 ## Roadmap
 
-### 轻量级 Worker 运行时
+### ✅ 已发布
 
-目前 Worker 基于 OpenClaw 运行，内存占用较高（约 500MB+）。我们计划支持更轻量的 Agent 运行时：
+- ~~**CoPaw** —— 轻量级 Agent 运行时~~ [已在 1.0.4 发布](blog/zh-cn/hiclaw-1.0.4-release.md)：Docker 模式内存占用约 150MB（对比 OpenClaw 的 500MB），还支持本地模式可操作浏览器、访问本地文件。
+- ~~**通用 MCP 服务支持** —— MCP 服务集成~~ [已在 1.0.6 发布](blog/zh-cn/hiclaw-1.0.6-release.md)：任意 MCP 服务可安全暴露给 Worker，Worker 仅使用 Higress 签发的 token，真实凭证零泄露。
 
-- **CoPaw** ✅ **[已在 1.0.4 发布](blog/zh-cn/hiclaw-1.0.4-release.md)** —— AgentScope 团队开发的轻量 Agent 运行时。Docker 模式内存占用约 150MB（对比 OpenClaw 的 500MB），还支持本地模式可操作浏览器、访问本地文件。
-- **ZeroClaw** —— 基于 Rust 的超轻量运行时，3.4MB 二进制，冷启动 <10ms，专为边缘和资源受限环境设计
-- **NanoClaw** —— 极简 OpenClaw 替代品，<4000 行代码，基于容器隔离，使用 Anthropic Agents SDK
+### 进行中
+
+#### 轻量级 Worker 运行时
+
+- **ZeroClaw** —— 基于 Rust 的超轻量运行时，3.4MB 二进制，冷启动 <10ms，专为边缘和资源受限环境设计。
+- **NanoClaw** —— 极简 OpenClaw 替代品，<4000 行代码，基于容器隔离，使用 Anthropic Agents SDK。
 
 目标：将单 Worker 内存占用从 ~500MB 降至 <100MB，在相同硬件上支持更多 Worker。
 
-### Team 管理中心
+### 计划中
+
+#### Team 管理中心
 
 开箱即用的可视化控制台，用于观察和管控整个 Agent Team：
 
@@ -238,16 +244,6 @@ docker exec -it hiclaw-manager cat /var/log/hiclaw/manager-agent.log
 - **资源监控**：每个 Worker 的 CPU/内存使用情况
 
 目标：让 Agent Teams 像人类团队一样透明可控——没有黑盒。
-
-### 通用 MCP 服务支持
-
-目前 Worker 通过 Higress MCP 网关 + mcporter 访问 GitHub，只需使用 Higress 签发的 token，真实的 GitHub PAT 永远不会暴露给 Worker。这个安全的模式可以扩展到任意 MCP 服务：
-
-- **预置 MCP 连接器**：GitHub、Slack、Notion、Linear 等常用服务
-- **自定义 MCP 集成**：接入自己的 MCP 服务，由 Higress 统一管理认证
-- **细粒度权限控制**：Manager 可按 Worker 授予/撤销 MCP 服务访问权限
-
-目标：任何支持 MCP 协议的工具都能安全地暴露给 Worker，凭证零泄露。
 
 ---
 

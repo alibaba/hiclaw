@@ -170,21 +170,25 @@ No hidden agent-to-agent calls. Everything is visible and intervenable.
 
 ## Roadmap
 
-### Lightweight Worker Runtimes
+### ✅ Released
 
-- **CoPaw** ✅ [Released in 1.0.4](blog/hiclaw-1.0.4-release.md) — ~150MB memory usage (vs ~500MB for OpenClaw), plus local host mode for browser automation.
+- ~~**CoPaw** — Lightweight agent runtime~~ [Released in 1.0.4](blog/hiclaw-1.0.4-release.md): ~150MB memory usage (vs ~500MB for OpenClaw), plus local host mode for browser automation.
+- ~~**Universal MCP Service Support** — MCP server integration~~ [Released in 1.0.6](blog/hiclaw-1.0.6-release.md): Any MCP server can be safely exposed to Workers through the gateway. Workers access tools using only Higress-issued tokens; real credentials never leave the gateway.
+
+### In Progress
+
+#### Lightweight Worker Runtimes
+
 - **ZeroClaw** — Rust-based ultra-lightweight runtime, 3.4MB binary, <10ms cold start.
 - **NanoClaw** — Minimal OpenClaw alternative, <4000 LOC, container-based isolation.
 
 Goal: Reduce per-Worker memory from ~500MB to <100MB.
 
-### Team Management Center
+### Planned
+
+#### Team Management Center
 
 A built-in dashboard for observing and controlling your Agent Teams — real-time observation, active interruption, task timeline, resource monitoring.
-
-### Universal MCP Service Support ✅
-
-[Released in 1.0.6](blog/hiclaw-1.0.6-release.md) — Any MCP server can be safely exposed to Workers through the gateway. Workers access tools using only Higress-issued tokens; real credentials never leave the gateway.
 
 ---
 
