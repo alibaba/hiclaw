@@ -52,6 +52,49 @@ In HiClaw 1.0.6, both Manager and Workers use mcporter to interact with MCP serv
 
 ---
 
+## MCP and SKILLS: Complementary, Not Competing
+
+Before diving into HiClaw's MCP integration architecture, it's worth clarifying the **relationship between MCP and SKILLS**.
+
+### HiClaw's Open Skills Ecosystem
+
+HiClaw supports an **open SKILLS marketplace** through [skills.sh](https://skills.sh), as well as **enterprise self-hosted SKILLS marketplaces** via Nacos. SKILLS are scenario-oriented, iterable capability packages:
+
+- **Scenario-oriented**: Combine atomic tools into complete business workflows
+- **Continuously evolving**: Optimize and improve based on real-world experience
+- **Knowledge accumulation**: Include best practices, error handling, and parameter descriptions
+
+### MCP's Role in the Ecosystem
+
+MCP is **not meant to replace SKILLS** — it serves as a **complement to the SKILLS ecosystem**, enabling rapid conversion of existing APIs into standardized agent-usable tools. MCP's core value lies in:
+
+- **Clear constraints and specifications**: More rigorous tool definitions and type constraints
+- **Permission governance system**: Reuse MCP's authentication/authorization capabilities (tool-level permission management)
+- **Batch conversion capability**: Especially in enterprise scenarios, Higress-based MCP gateway capabilities enable painless batch conversion of existing APIs into MCP tools with fine-grained management
+
+### mcporter as a Bridge
+
+Through CLI tools like mcporter, HiClaw achieves **re-orchestration and organization of MCP tools**, forming iterable SKILLs:
+
+```
+MCP Tools (Atomic Capabilities)
+    ↓ mcporter orchestration
+SKILLs (Scenario-based Capability Packages)
+    ↓ Practical usage
+SKILL Iterative Optimization
+```
+
+### SKILL + MCP = 1+1 > 2
+
+The best practice for both is:
+
+- **SKILLs handle scenario evolution**: Adapt to actual business scenarios, continuously iterate on skill composition logic and best practices
+- **MCP handles fine-grained permission control**: Align with business capabilities for tool-level permission governance and credential management
+
+This complementary relationship achieves the **SKILL + MCP 1+1 > 2 effect**: Enterprises can enjoy the rich capabilities of the open SKILLS marketplace while maintaining secure, fine-grained permission control over internal APIs through the MCP gateway.
+
+---
+
 ## The Architecture: How It All Works
 
 Here's the complete flow when you want to add a new API tool for your workers:
