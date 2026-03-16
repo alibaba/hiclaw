@@ -531,4 +531,9 @@ cd "${HOME}"
 find "${HOME}/.openclaw/agents" -name "*.jsonl.lock" -delete 2>/dev/null || true
 log "Cleaned up any orphaned session write locks"
 
+# Clean Matrix crypto storage (SQLite WAL may be corrupted after unclean shutdown)
+# Crypto state is re-negotiated on startup; losing it only means re-establishing E2EE sessions
+rm -rf "${HOME}/.openclaw/matrix/accounts" 2>/dev/null || true
+log "Cleaned Matrix crypto storage (will re-establish E2EE sessions)"
+
 exec openclaw gateway run --verbose --force
