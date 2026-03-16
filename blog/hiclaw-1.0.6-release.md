@@ -69,7 +69,7 @@ HiClaw supports an **open SKILLS marketplace** through [skills.sh](https://skill
 MCP is **not meant to replace SKILLS** — it serves as a **complement to the SKILLS ecosystem**, enabling rapid conversion of existing APIs into standardized agent-usable tools. MCP's core value lies in:
 
 - **Clear constraints and specifications**: More rigorous tool definitions and type constraints
-- **Permission governance system**: Reuse MCP's authentication/authorization capabilities (tool-level permission management)
+- **Permission governance system**: Reuse MCP's authentication/authorization capabilities (MCP Server-level permission management, tool-level supported in Enterprise Edition)
 - **Batch conversion capability**: Especially in enterprise scenarios, Higress-based MCP gateway capabilities enable painless batch conversion of existing APIs into MCP tools with fine-grained management
 
 ### mcporter as a Bridge
@@ -89,7 +89,7 @@ SKILL Iterative Optimization
 The best practice for both is:
 
 - **SKILLs handle scenario evolution**: Adapt to actual business scenarios, continuously iterate on skill composition logic and best practices
-- **MCP handles fine-grained permission control**: Align with business capabilities for tool-level permission governance and credential management
+- **MCP handles fine-grained permission control**: Align with business capabilities for MCP Server and tool permission governance and credential management
 
 This complementary relationship achieves the **SKILL + MCP 1+1 > 2 effect**: Enterprises can enjoy the rich capabilities of the open SKILLS marketplace while maintaining secure, fine-grained permission control over internal APIs through the MCP gateway.
 
@@ -159,9 +159,15 @@ Once configured, the Manager can view the list of tools under the MCP Server in 
 
 Through the console, you can:
 - View all tools contained in the MCP Server
-- Configure tool-level access permissions for each Consumer (Worker)
+- Configure MCP Server-level access permissions for each Consumer (Worker)
 - Monitor tool invocation and performance metrics
 - Dynamically adjust permission policies without restarting services
+
+> **Permission Management Notes**:
+> - **Higress Open Source**: Supports **MCP Server-level** permission management (e.g., Worker A can access the entire `stock-index` MCP Server)
+> - **Higress Enterprise Edition**: Supports **tool-level** permission management (e.g., Worker A can only call `stock-index.get_index`, but not `stock-index.update_index`)
+> 
+> HiClaw 1.0.6 implements MCP Server-level security isolation based on the open-source version, which already meets the permission control requirements of most enterprise scenarios.
 
 **Key Security Principle: Workers never see real credentials.**
 
