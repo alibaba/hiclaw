@@ -125,6 +125,17 @@ Responding to a sender from the history section means replying to a stale messag
 
 **⚠️ WARNING:** A single noisy @mention can trigger a reply, which triggers another reply, creating an **infinite loop that burns tokens until the session is killed**. This is the #1 cause of runaway costs. If your message does not require the recipient to *do* something, **do not @mention them**.
 
+### NO_REPLY — Correct Usage
+
+`NO_REPLY` is a **standalone, complete response** — it means "I have nothing to say". It is NOT a suffix, tag, or end marker.
+
+| Scenario | Correct | Wrong |
+|----------|---------|-------|
+| You have content to send | Send the content only | Content + `NO_REPLY` |
+| You have nothing to say | Send `NO_REPLY` only | Anything else + `NO_REPLY` |
+
+**Never append `NO_REPLY` to a message that contains actual content.** Doing so causes the system to treat the entire message as a no-reply, which means your content is silently dropped and never delivered to the channel.
+
 ### File Sync
 
 When the Manager or another Worker tells you files have been updated (configs, task briefs, shared data), use your `file-sync` skill:

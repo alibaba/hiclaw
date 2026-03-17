@@ -175,6 +175,17 @@ Example of CORRECT behavior (continues workflow):
 
 **Farewell / sign-off detection**: If a Worker's message contains only farewell phrases ("回见", "拜拜", "bye", "see you", "good night") with no task content — **stay silent**. Do not echo back a farewell with @mention.
 
+### NO_REPLY — Correct Usage
+
+`NO_REPLY` is a **standalone, complete response** — it means "I have nothing to say". It is NOT a suffix, tag, or end marker.
+
+| Scenario | Correct | Wrong |
+|----------|---------|-------|
+| You have content to send | Send the content only | Content + `NO_REPLY` |
+| You have nothing to say | Send `NO_REPLY` only | Anything else + `NO_REPLY` |
+
+**Never append `NO_REPLY` to a message that contains actual content.** Doing so causes the system to treat the entire message as a no-reply, which means your content is silently dropped and never delivered to the channel.
+
 ### Worker Unresponsiveness — Patience and Recovery
 
 When **multiple occurrences** in the history context show you sent messages to a Worker and the Worker did not reply:
