@@ -316,10 +316,10 @@ else
             log "Existing DM room found: ${DM_ROOM_ID}"
         else
             log "Creating DM room with Manager..."
-            _CREATE_RESP=$(curl -sf -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom" \
+            _CREATE_RESP=$(curl -s -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom" \
                 -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" \
                 -H 'Content-Type: application/json' \
-                -d "{\"is_direct\":true,\"invite\":[\"${MANAGER_FULL_ID}\"],\"preset\":\"trusted_private_chat\"}" 2>/dev/null) || true
+                -d "{\"is_direct\":true,\"invite\":[\"${MANAGER_FULL_ID}\"],\"preset\":\"trusted_private_chat\"}" 2>&1) || true
             DM_ROOM_ID=$(echo "${_CREATE_RESP}" | jq -r '.room_id // empty' 2>/dev/null)
             if [ -n "${DM_ROOM_ID}" ]; then
                 log "DM room created: ${DM_ROOM_ID}"
@@ -373,12 +373,15 @@ Please begin the onboarding conversation:
 The human admin will start chatting shortly."
                 _txn_id="welcome-cloud-$(date +%s)"
                 _payload=$(jq -nc --arg body "${_welcome_msg}" '{"msgtype":"m.text","body":$body}')
-                curl -sf -X PUT "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${DM_ROOM_ID}/send/m.room.message/${_txn_id}" \
+                _send_resp=$(curl -s -X PUT "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${DM_ROOM_ID}/send/m.room.message/${_txn_id}" \
                     -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" \
                     -H 'Content-Type: application/json' \
-                    -d "${_payload}" > /dev/null 2>&1 \
-                    && echo "[cloud-manager] Welcome message sent to DM room" \
-                    || echo "[cloud-manager] WARNING: Failed to send welcome message"
+                    -d "${_payload}" 2>&1) || true
+                if echo "${_send_resp}" | jq -e '.event_id' > /dev/null 2>&1; then
+                    echo "[cloud-manager] Welcome message sent to DM room"
+                else
+                    echo "[cloud-manager] WARNING: Failed to send welcome message: ${_send_resp}"
+                fi
             ) &
             log "Welcome message background process started (PID: $!)"
         fi
@@ -701,14 +704,17 @@ if [ -f /root/manager-workspace/.upgrade-pending-worker-notify ]; then
                     _worker_id="@${_worker_name}:${MATRIX_DOMAIN}"
                     _txn_id="upgrade-$(date +%s%N)"
                     _msg="@${_worker_name}:${MATRIX_DOMAIN} Manager upgraded builtin files (AGENTS.md, skills). Please use your file-sync skill to sync the latest config."
-                    curl -sf -X PUT \
+                    _notify_resp=$(curl -s -X PUT \
                         "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${_room_id}/send/m.room.message/${_txn_id}" \
                         -H "Authorization: Bearer ${MANAGER_TOKEN}" \
                         -H 'Content-Type: application/json' \
                         -d "{\"msgtype\":\"m.text\",\"body\":\"${_msg}\",\"m.mentions\":{\"user_ids\":[\"${_worker_id}\"]}}" \
-                        > /dev/null 2>&1 \
-                        && { log "  Notified ${_worker_name}"; _notify_ok=true; } \
-                        || log "  WARNING: Failed to notify ${_worker_name}"
+                        2>&1) || true
+                    if echo "${_notify_resp}" | jq -e '.event_id' > /dev/null 2>&1; then
+                        log "  Notified ${_worker_name}"; _notify_ok=true
+                    else
+                        log "  WARNING: Failed to notify ${_worker_name}: ${_notify_resp}"
+                    fi
                 fi
             done
         fi
