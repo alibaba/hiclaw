@@ -356,6 +356,19 @@ msg() {
         "llm.openai.model_prompt.en") text="Default Model ID [gpt-5.4]" ;;
         "llm.openai.base_url_label.zh") text="  Base URL: %s" ;;
         "llm.openai.base_url_label.en") text="  Base URL: %s" ;;
+        # --- Custom model parameters ---
+        "llm.custom_model.detected.zh") text="  ⚠️  模型 '%s' 不在内置模型列表中，请配置模型参数:" ;;
+        "llm.custom_model.detected.en") text="  ⚠️  Model '%s' is not in the built-in model list. Please configure model parameters:" ;;
+        "llm.custom_model.context_prompt.zh") text="最大上下文长度（token 数）[150000]" ;;
+        "llm.custom_model.context_prompt.en") text="Max context window (tokens) [150000]" ;;
+        "llm.custom_model.max_tokens_prompt.zh") text="最大输出长度（token 数）[128000]" ;;
+        "llm.custom_model.max_tokens_prompt.en") text="Max output tokens [128000]" ;;
+        "llm.custom_model.reasoning_prompt.zh") text="是否支持推理/思考模式？[Y/n]" ;;
+        "llm.custom_model.reasoning_prompt.en") text="Does it support reasoning/thinking mode? [Y/n]" ;;
+        "llm.custom_model.vision_prompt.zh") text="是否支持图片输入？[y/N]" ;;
+        "llm.custom_model.vision_prompt.en") text="Does it support image input? [y/N]" ;;
+        "llm.custom_model.summary.zh") text="  自定义模型参数: 上下文=%s, 最大输出=%s, 推理=%s, 图片=%s" ;;
+        "llm.custom_model.summary.en") text="  Custom model params: context=%s, maxTokens=%s, reasoning=%s, vision=%s" ;;
         # --- Admin Credentials ---
         "admin.title.zh") text="--- 管理员凭据 ---" ;;
         "admin.title.en") text="--- Admin Credentials ---" ;;
@@ -740,6 +753,51 @@ HICLAW_REGISTRY="${HICLAW_REGISTRY:-$(detect_registry)}"
 MANAGER_IMAGE="${HICLAW_INSTALL_MANAGER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-manager:${HICLAW_VERSION}}"
 WORKER_IMAGE="${HICLAW_INSTALL_WORKER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-worker:${HICLAW_VERSION}}"
 COPAW_WORKER_IMAGE="${HICLAW_INSTALL_COPAW_WORKER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-copaw-worker:${HICLAW_VERSION}}"
+
+# ============================================================
+# Known models list — used to detect custom models during install
+# ============================================================
+KNOWN_MODELS="gpt-5.4 gpt-5.3-codex gpt-5-mini gpt-5-nano claude-opus-4-6 claude-sonnet-4-6 claude-haiku-4-5 qwen3.5-plus deepseek-chat deepseek-reasoner kimi-k2.5 glm-5 MiniMax-M2.5"
+
+is_known_model() {
+    local model="$1"
+    for m in ${KNOWN_MODELS}; do
+        [ "${m}" = "${model}" ] && return 0
+    done
+    return 1
+}
+
+# Prompt user for custom model parameters when model is not in the known list.
+# Sets: HICLAW_MODEL_CONTEXT_WINDOW, HICLAW_MODEL_MAX_TOKENS, HICLAW_MODEL_REASONING, HICLAW_MODEL_VISION
+prompt_custom_model_params() {
+    local model="$1"
+    if is_known_model "${model}"; then
+        # Clear any stale custom params for known models
+        HICLAW_MODEL_CONTEXT_WINDOW=""
+        HICLAW_MODEL_MAX_TOKENS=""
+        HICLAW_MODEL_REASONING=""
+        HICLAW_MODEL_VISION=""
+        return
+    fi
+    echo ""
+    log "$(msg llm.custom_model.detected "${model}")"
+    echo ""
+    read -e -p "  $(msg llm.custom_model.context_prompt): " HICLAW_MODEL_CONTEXT_WINDOW
+    HICLAW_MODEL_CONTEXT_WINDOW="${HICLAW_MODEL_CONTEXT_WINDOW:-150000}"
+    read -e -p "  $(msg llm.custom_model.max_tokens_prompt): " HICLAW_MODEL_MAX_TOKENS
+    HICLAW_MODEL_MAX_TOKENS="${HICLAW_MODEL_MAX_TOKENS:-128000}"
+    read -e -p "  $(msg llm.custom_model.reasoning_prompt): " _reasoning
+    case "${_reasoning}" in
+        n|N|no|NO) HICLAW_MODEL_REASONING="false" ;;
+        *) HICLAW_MODEL_REASONING="true" ;;
+    esac
+    read -e -p "  $(msg llm.custom_model.vision_prompt): " _vision
+    case "${_vision}" in
+        y|Y|yes|YES) HICLAW_MODEL_VISION="true" ;;
+        *) HICLAW_MODEL_VISION="false" ;;
+    esac
+    log "$(msg llm.custom_model.summary "${HICLAW_MODEL_CONTEXT_WINDOW}" "${HICLAW_MODEL_MAX_TOKENS}" "${HICLAW_MODEL_REASONING}" "${HICLAW_MODEL_VISION}")"
+}
 
 # ============================================================
 # Wait for Manager agent to be ready
@@ -1518,6 +1576,7 @@ install_manager() {
                             HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
                             log "$(msg llm.provider.selected_qwen)"
                             log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
+                            prompt_custom_model_params "${HICLAW_DEFAULT_MODEL}"
                             ;;
                         *)
                             HICLAW_LLM_PROVIDER="openai-compat"
@@ -1583,6 +1642,7 @@ install_manager() {
                 HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-gpt-5.4}"
                 log "$(msg llm.openai.base_url_label "${HICLAW_OPENAI_BASE_URL}")"
                 log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
+                prompt_custom_model_params "${HICLAW_DEFAULT_MODEL}"
                 log ""
                 prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true"
                 test_llm_connectivity "${HICLAW_OPENAI_BASE_URL}" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}"
@@ -1817,6 +1877,10 @@ HICLAW_LLM_PROVIDER=${HICLAW_LLM_PROVIDER}
 HICLAW_DEFAULT_MODEL=${HICLAW_DEFAULT_MODEL}
 HICLAW_LLM_API_KEY=${HICLAW_LLM_API_KEY}
 HICLAW_OPENAI_BASE_URL=${HICLAW_OPENAI_BASE_URL:-}
+HICLAW_MODEL_CONTEXT_WINDOW=${HICLAW_MODEL_CONTEXT_WINDOW:-}
+HICLAW_MODEL_MAX_TOKENS=${HICLAW_MODEL_MAX_TOKENS:-}
+HICLAW_MODEL_REASONING=${HICLAW_MODEL_REASONING:-}
+HICLAW_MODEL_VISION=${HICLAW_MODEL_VISION:-}
 
 # Admin
 HICLAW_ADMIN_USER=${HICLAW_ADMIN_USER}

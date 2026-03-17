@@ -414,6 +414,11 @@ case "${MODEL_NAME}" in
 esac
 export MODEL_REASONING=true
 
+# Override with user-supplied custom model parameters from env (set during install)
+[ -n "${HICLAW_MODEL_CONTEXT_WINDOW:-}" ] && export MODEL_CONTEXT_WINDOW="${HICLAW_MODEL_CONTEXT_WINDOW}"
+[ -n "${HICLAW_MODEL_MAX_TOKENS:-}" ] && export MODEL_MAX_TOKENS="${HICLAW_MODEL_MAX_TOKENS}"
+[ -n "${HICLAW_MODEL_REASONING:-}" ] && export MODEL_REASONING="${HICLAW_MODEL_REASONING}"
+
 # E2EE: convert HICLAW_MATRIX_E2EE to JSON boolean for template substitution
 if [ "${HICLAW_MATRIX_E2EE:-0}" = "1" ] || [ "${HICLAW_MATRIX_E2EE:-}" = "true" ]; then
     export MATRIX_E2EE_ENABLED=true
@@ -429,6 +434,12 @@ case "${MODEL_NAME}" in
     *)
         export MODEL_INPUT='["text"]' ;;
 esac
+# Override with user-supplied vision setting from env
+if [ "${HICLAW_MODEL_VISION:-}" = "true" ]; then
+    export MODEL_INPUT='["text", "image"]'
+elif [ "${HICLAW_MODEL_VISION:-}" = "false" ]; then
+    export MODEL_INPUT='["text"]'
+fi
 
 log "Model: ${MODEL_NAME} (context=${MODEL_CONTEXT_WINDOW}, maxTokens=${MODEL_MAX_TOKENS}, reasoning=${MODEL_REASONING}, input=${MODEL_INPUT})"
 
