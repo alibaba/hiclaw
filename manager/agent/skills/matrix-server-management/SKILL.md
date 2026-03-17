@@ -7,7 +7,14 @@ description: Manage the Tuwunel Matrix Homeserver (register users, create rooms,
 
 ## Overview
 
-This skill allows you to manage the Tuwunel Matrix Homeserver. Tuwunel is a conduwuit fork running at `http://127.0.0.1:6167`. Access the server directly (not through the Higress gateway).
+This skill allows you to manage the Tuwunel Matrix Homeserver. In local deployment, Tuwunel runs at `http://127.0.0.1:6167`. In cloud deployment (SAE), use the `${HICLAW_MATRIX_SERVER}` environment variable to get the actual Matrix server address.
+
+**Determine the Matrix server URL at runtime:**
+```bash
+MATRIX_URL="${HICLAW_MATRIX_SERVER:-http://127.0.0.1:6167}"
+```
+
+Use `${MATRIX_URL}` in all API calls below instead of hardcoded addresses.
 
 ## Environment Variables
 
@@ -30,7 +37,7 @@ Tuwunel uses **single-step registration** with a registration token (no UIAA flo
 ### Register a New User
 
 ```bash
-curl -X POST http://127.0.0.1:6167/_matrix/client/v3/register \
+curl -X POST ${MATRIX_URL}/_matrix/client/v3/register \
   -H 'Content-Type: application/json' \
   -d '{
     "username": "<USERNAME>",
@@ -47,7 +54,7 @@ Response includes `user_id` and `access_token`.
 ### Login (Get Access Token)
 
 ```bash
-curl -X POST http://127.0.0.1:6167/_matrix/client/v3/login \
+curl -X POST ${MATRIX_URL}/_matrix/client/v3/login \
   -H 'Content-Type: application/json' \
   -d '{
     "type": "m.login.password",
@@ -66,7 +73,7 @@ When creating a Worker, always create a Room with the human admin, Manager, and 
 
 ```bash
 MANAGER_TOKEN="<manager_access_token>"
-curl -X POST http://127.0.0.1:6167/_matrix/client/v3/createRoom \
+curl -X POST ${MATRIX_URL}/_matrix/client/v3/createRoom \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
@@ -95,7 +102,7 @@ Response: `{"room_id": "!<id>:<DOMAIN>"}`
 
 **Simple message (no mention):**
 ```bash
-curl -X PUT "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
+curl -X PUT "${MATRIX_URL}/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
@@ -110,7 +117,7 @@ curl -X PUT "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room
 
 ```bash
 # Mention a single user
-curl -X PUT "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
+curl -X PUT "${MATRIX_URL}/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
@@ -124,7 +131,7 @@ curl -X PUT "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room
 
 ```bash
 # Mention multiple users
-curl -X PUT "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
+curl -X PUT "${MATRIX_URL}/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
@@ -150,7 +157,7 @@ curl -X PUT "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room
 Use this to send files to the admin — task output artifacts, generated reports, config exports, log files, etc.
 
 ```bash
-curl -X POST "http://127.0.0.1:6167/_matrix/media/v3/upload?filename=<FILENAME>" \
+curl -X POST "${MATRIX_URL}/_matrix/media/v3/upload?filename=<FILENAME>" \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" \
   -H "Content-Type: application/octet-stream" \
   --data-binary @/path/to/file
@@ -161,7 +168,7 @@ Response: `{"content_uri": "mxc://<SERVER>/<MEDIA_ID>"}`
 After uploading, send the `mxc://` URI to the admin as a Matrix message using the `m.file` (or `m.image` / `m.text`) msgtype:
 
 ```bash
-curl -X PUT "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
+curl -X PUT "${MATRIX_URL}/_matrix/client/v3/rooms/<ROOM_ID>/send/m.room.message/$(date +%s)" \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
@@ -184,14 +191,14 @@ MEDIA: mxc://<SERVER>/<MEDIA_ID>
 ### List Joined Rooms
 
 ```bash
-curl -s http://127.0.0.1:6167/_matrix/client/v3/joined_rooms \
+curl -s ${MATRIX_URL}/_matrix/client/v3/joined_rooms \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" | jq
 ```
 
 ### Get Room Messages
 
 ```bash
-curl -s "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/messages?dir=b&limit=20" \
+curl -s "${MATRIX_URL}/_matrix/client/v3/rooms/<ROOM_ID>/messages?dir=b&limit=20" \
   -H "Authorization: Bearer ${MANAGER_TOKEN}" | jq
 ```
 
@@ -201,5 +208,5 @@ curl -s "http://127.0.0.1:6167/_matrix/client/v3/rooms/<ROOM_ID>/messages?dir=b&
 - **Server name**: Set in `CONDUWUIT_SERVER_NAME`, usually `${HICLAW_MATRIX_DOMAIN}`
 - **User ID format**: `@<username>:${HICLAW_MATRIX_DOMAIN}`
 - **Registration token**: Stored in `HICLAW_REGISTRATION_TOKEN` env var
-- **Direct access**: Use `http://127.0.0.1:6167` for server management (not through Higress Gateway port 8080)
+- **Direct access**: In local mode, use `http://127.0.0.1:6167` directly. In cloud mode, use `${HICLAW_MATRIX_SERVER}`. Always prefer the `MATRIX_URL` variable defined at the top of this document.
 

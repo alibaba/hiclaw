@@ -318,6 +318,7 @@ bash /opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh --ac
 
 # Manually wake up (start) a stopped Worker container
 bash /opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh --action start --worker <name>
+
 ```
 
 ### Changing the Idle Timeout
@@ -335,7 +336,7 @@ jq '.idle_timeout_minutes = 60' ~/worker-lifecycle.json > /tmp/lc.json && mv /tm
 |-----------|---------|-------|
 | Container is stopped | `lifecycle-worker.sh --action start` | Restarts the existing container, preserving all config and mounts |
 | Container does not exist (`not_found`) | `create-worker.sh` | Rebuilds from image; full registration flow required |
-| Worker needs reset or config update | `create-worker.sh` (removes old container first) | Full rebuild; Matrix account is reused |
+| Worker needs reset | `create-worker.sh` | Removes old container first, then full registration flow |
 | copaw runtime worker (container) | `lifecycle-worker.sh --action start` | Restarts the existing CoPaw container |
 | copaw runtime worker (remote) | `copaw-worker --name <name> ...` (on target machine) | Not container-managed; lifecycle scripts skip these workers |
 | Any runtime worker (remote deployment) | Admin runs install command on target machine | `deployment: "remote"` in registry; Manager skips auto-restart on upgrade |
@@ -363,6 +364,8 @@ Provide the `install_cmd` value **verbatim in a code block** to the admin — do
 ## CoPaw Console Management
 
 The CoPaw console is a browser-based management dashboard for the CoPaw Worker — the admin can view Worker status, logs, configuration, and other operational details from a single web page.
+
+> **Cloud deployment (SAE) note:** CoPaw console is only available for local container deployments. On cloud (SAE), use the SAE application console or SLS logs to view Worker status and logs. The `enable-worker-console.sh` script will exit with an error in cloud mode.
 
 CoPaw Workers are created without the console by default to save ~500MB RAM. Enable it on demand when the admin asks to "open console", "open terminal", "debug the worker", "access the worker shell", or similar.
 
@@ -398,8 +401,12 @@ This script:
 
 ## Reset a Worker
 
-1. Delete Worker's config directory: `rm -rf /root/hiclaw-fs/agents/<WORKER_NAME>/`
-2. Re-create: write a new SOUL.md and run `create-worker.sh` again (the script handles re-registration gracefully and re-configures gateway consumers/routes automatically)
+1. Remove the Worker's config directory:
+   ```bash
+   rm -rf /root/hiclaw-fs/agents/<WORKER_NAME>/
+   ```
+
+2. Re-create: write a new SOUL.md and run `create-worker.sh` again (the script handles re-registration gracefully — it removes the old container first, then creates a fresh one with updated config)
 
 ## Manage Worker Skills
 

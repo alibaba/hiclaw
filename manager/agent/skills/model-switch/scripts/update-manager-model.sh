@@ -114,8 +114,12 @@ if [ "${HTTP_CODE}" != "200" ]; then
     echo "ERROR: Model test failed (HTTP ${HTTP_CODE}): ${RESP_BODY}"
     echo ""
     echo "The model '${MODEL_NAME}' is not reachable via the AI Gateway."
-    echo "Please check the Higress Console to confirm the AI route is configured for this model:"
-    echo "  http://<manager-host>:8001  →  AI Routes → verify provider and model mapping"
+    if [ "${HICLAW_RUNTIME:-}" = "cloud-aliyun" ]; then
+        echo "Please check the Alibaba Cloud AI Gateway console to confirm the model route is configured."
+    else
+        echo "Please check the Higress Console to confirm the AI route is configured for this model:"
+        echo "  http://<manager-host>:8001  →  AI Routes → verify provider and model mapping"
+    fi
     exit 1
 fi
 log "Model test passed (HTTP 200)"
