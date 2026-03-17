@@ -30,7 +30,7 @@ do_build() {
     log "Building cloud-manager: ${MANAGER_IMAGE}"
     docker build \
         --build-arg OPENCLAW_BASE_IMAGE="${OPENCLAW_BASE}" \
-        -f cloud-manager/Dockerfile \
+        -f manager/Dockerfile.aliyun \
         -t "${MANAGER_IMAGE}" \
         .
 

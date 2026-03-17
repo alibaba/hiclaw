@@ -478,28 +478,28 @@ if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
     jq --arg homeserver "${HICLAW_MATRIX_SERVER}" \
        --arg gateway "${HICLAW_AI_GATEWAY_URL}/v1" \
        --arg key "${HICLAW_MANAGER_GATEWAY_KEY}" \
-       '.gateway.port = 9000
-        | .gateway.bind = "lan"
-        | .channels.matrix.homeserver = $homeserver
+       '.channels.matrix.homeserver = $homeserver
         | .models.providers["hiclaw-gateway"].baseUrl = $gateway
         | .models.providers["hiclaw-gateway"].apiKey = $key
         | .hooks.token = $key
-        | .commands.restart = false
-        | .session.group = {"mode": "idle", "idleMinutes": 2880}' \
+        | .commands.restart = false' \
        /root/manager-workspace/openclaw.json > /tmp/openclaw-cloud.json && \
         mv /tmp/openclaw-cloud.json /root/manager-workspace/openclaw.json
     log "Cloud overlay applied"
 fi
 
 # ============================================================
-# Detect container runtime socket (for direct Worker creation)
+# Detect container runtime (for Worker creation)
 # ============================================================
 source /opt/hiclaw/scripts/lib/container-api.sh
 if container_api_available; then
     log "Container runtime socket detected at ${CONTAINER_SOCKET} — direct Worker creation enabled"
     export HICLAW_CONTAINER_RUNTIME="socket"
+elif [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
+    log "Cloud mode — Workers created via SAE API"
+    export HICLAW_CONTAINER_RUNTIME="cloud"
 else
-    log "No container runtime socket found — Worker creation will output install commands"
+    log "No container runtime found — Worker creation will output install commands"
     export HICLAW_CONTAINER_RUNTIME="none"
 fi
 
@@ -751,8 +751,4 @@ if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
 fi
 
 # Launch OpenClaw
-OPENCLAW_ARGS="--verbose --force"
-if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
-    OPENCLAW_ARGS="${OPENCLAW_ARGS} --bind lan"
-fi
-exec openclaw gateway run ${OPENCLAW_ARGS}
+exec openclaw gateway run --verbose --force

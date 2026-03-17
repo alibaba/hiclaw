@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-cloud-worker-api.py — Cloud Worker management for HiClaw Manager on SAE.
+aliyun-api.py — Alibaba Cloud Worker management for HiClaw Manager.
 
 Provides SAE application CRUD and AI Gateway consumer management,
 callable from shell scripts (create-worker.sh, lifecycle-worker.sh).
@@ -11,14 +11,14 @@ Authentication priority:
   3. Fail
 
 Usage:
-  cloud-worker-api.py sae-create  --name <worker> [--image <url>] [--envs '{"K":"V"}']
-  cloud-worker-api.py sae-delete  --name <worker>
-  cloud-worker-api.py sae-stop    --name <worker>
-  cloud-worker-api.py sae-start   --name <worker>
-  cloud-worker-api.py sae-status  --name <worker>
-  cloud-worker-api.py sae-list
-  cloud-worker-api.py gw-create-consumer --name <consumer>
-  cloud-worker-api.py gw-bind-consumer   --consumer-id <id> --api-id <id> --env-id <id>
+  aliyun-api.py sae-create  --name <worker> [--image <url>] [--envs '{"K":"V"}']
+  aliyun-api.py sae-delete  --name <worker>
+  aliyun-api.py sae-stop    --name <worker>
+  aliyun-api.py sae-start   --name <worker>
+  aliyun-api.py sae-status  --name <worker>
+  aliyun-api.py sae-list
+  aliyun-api.py gw-create-consumer --name <consumer>
+  aliyun-api.py gw-bind-consumer   --consumer-id <id> --api-id <id> --env-id <id>
 
 Output: JSON to stdout.  Logs to stderr.
 """
@@ -33,7 +33,7 @@ import sys
 # ---------------------------------------------------------------------------
 
 def log(msg):
-    print(f"[cloud-worker-api] {msg}", file=sys.stderr)
+    print(f"[aliyun-api] {msg}", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # Credential helpers

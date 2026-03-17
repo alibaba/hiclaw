@@ -2,14 +2,14 @@
 # aliyun-sae.sh - Alibaba Cloud SAE provider for HiClaw worker management
 #
 # Sourced by container-api.sh when the file exists.
-# All SAE operations are delegated to cloud-worker-api.py.
+# All SAE operations are delegated to aliyun-api.py.
 #
 # Prerequisites:
 #   - HICLAW_SAE_WORKER_IMAGE env var set (signals cloud SAE mode)
-#   - /opt/hiclaw/cloud-scripts/cloud-worker-api.py available
+#   - /opt/hiclaw/scripts/lib/cloud/aliyun-api.py available
 #   - RRSA OIDC configured on the SAE application
 
-CLOUD_WORKER_API="/opt/hiclaw/cloud-scripts/cloud-worker-api.py"
+CLOUD_WORKER_API="/opt/hiclaw/scripts/lib/cloud/aliyun-api.py"
 
 cloud_sae_available() {
     [ -n "${HICLAW_SAE_WORKER_IMAGE:-}" ] && [ -f "${CLOUD_WORKER_API}" ]

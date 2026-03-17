@@ -190,9 +190,11 @@ When `--runtime copaw` is specified:
 - The worker entry in `workers-registry.json` will have `"runtime": "copaw"`
 
 **Default behavior** (without `--remote`):
-- Starts the Worker container locally. In a standard HiClaw installation the Docker socket is always mounted — this is the expected path for all local deployments.
+- In local deployments (`HICLAW_CONTAINER_RUNTIME=socket`): starts the Worker container locally via Docker.
+- In cloud deployments (`HICLAW_CONTAINER_RUNTIME=cloud`): creates the Worker as a SAE application via cloud API. No Docker socket is needed — the script automatically detects cloud mode and uses the SAE backend.
+- If neither is available (`HICLAW_CONTAINER_RUNTIME=none`): falls back to outputting an install command (same as `--remote`).
 
-Only use `--remote` when the admin **explicitly** requests deploying the Worker on a separate machine (e.g., "create a remote worker", "I'll run it on my laptop"). Do **NOT** use `--remote` when the admin just says "create a worker" or does not mention deployment location.
+Only use `--remote` when the admin **explicitly** requests deploying the Worker on a separate machine (e.g., "create a remote worker", "I'll run it on my laptop"). Do **NOT** use `--remote` when the admin just says "create a worker" or does not mention deployment location — even in cloud mode, the script handles Worker creation automatically.
 
 The script outputs a JSON result after `---RESULT---`:
 

@@ -8,7 +8,7 @@
 # All infrastructure is external (SAE + AI Gateway + OSS).
 #
 # Build from project root:
-#   docker build -f cloud-manager/Dockerfile -t hiclaw/cloud-manager:latest .
+#   docker build -f manager/Dockerfile.aliyun -t hiclaw/cloud-manager:latest .
 # ============================================================
 
 ARG HIGRESS_REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com
@@ -39,16 +39,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-pip && 
 # Ensure openclaw binary is on PATH
 ENV PATH="/opt/openclaw/packages/clawdbot/node_modules/.bin:${PATH}"
 
-# ---- Copy Manager agent definitions (from manager/) ----
+# ---- Copy Manager agent definitions ----
 COPY manager/agent/ /opt/hiclaw/agent/
 COPY manager/configs/ /opt/hiclaw/configs/
 
-# ---- Copy scripts: shared libs first, then manager scripts (includes init/) ----
+# ---- Copy scripts: shared libs first, then manager scripts ----
+# manager/scripts/ includes lib/cloud/aliyun-api.py and lib/cloud/aliyun-sae.sh
 COPY shared/lib/ /opt/hiclaw/scripts/lib/
 COPY manager/scripts/ /opt/hiclaw/scripts/
-
-# ---- Copy cloud-specific scripts (SAE + AI Gateway Python API) ----
-COPY cloud-manager/cloud-scripts/ /opt/hiclaw/cloud-scripts/
 
 ARG BUILTIN_VERSION=latest
 RUN echo "${BUILTIN_VERSION}" > /opt/hiclaw/agent/.builtin-version
