@@ -183,13 +183,23 @@ For recurring/scheduled tasks:
      --assigned-to {worker} --room-id {room-id} \
      --schedule "{cron}" --timezone "{tz}" --next-scheduled-at "{ISO-8601}"
    ```
-4. Heartbeat triggers when `now > next_scheduled_at + 30min` and `last_executed_at < next_scheduled_at`
-5. Trigger message: `@{worker}:{domain} Execute recurring task {task-id}: {title}. Report back with "executed" when done.`
-6. On execution: update `last_executed_at` and recalculate `next_scheduled_at`:
-   ```bash
-   bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
-     --action executed --task-id {task-id} --next-scheduled-at "{new-ISO-8601}"
-   ```
+
+### Triggering execution (heartbeat only)
+
+Infinite tasks are triggered **exclusively by heartbeat** when `now > next_scheduled_at + 30min` and `last_executed_at < next_scheduled_at`. See HEARTBEAT.md Step 3 for the full logic.
+
+Trigger message: `@{worker}:{domain} Execute recurring task {task-id}: {title}. Report back with "executed" when done.`
+
+### Recording execution completion (on Worker report)
+
+When a Worker reports `executed` for an infinite task, you MUST **only** update `state.json` — nothing else:
+
+```bash
+bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
+  --action executed --task-id {task-id} --next-scheduled-at "{new-ISO-8601}"
+```
+
+**⚠️ CRITICAL: Do NOT @mention the Worker after recording execution.** "Recording completion" and "triggering next execution" are two completely independent actions. Recording happens immediately when the Worker reports back. Triggering happens later, only during heartbeat, only when the schedule says it's time. If you @mention the Worker here, you create a rapid-fire loop where the Worker executes → reports → you trigger again → Worker executes → reports → ... burning tokens continuously.
 
 ---
 

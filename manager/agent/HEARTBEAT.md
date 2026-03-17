@@ -89,11 +89,13 @@ user_id: @{worker}:${HICLAW_MATRIX_DOMAIN}
 message: @{worker}:{domain} It's time to run your scheduled task {task-id} "{task-title}". Please execute it now and report back with the keyword "executed".
 ```
 
-**Note**: Infinite tasks are never removed from active_tasks. After the Worker reports `executed`, update `last_executed_at` and `next_scheduled_at`:
+**Note**: Infinite tasks are never removed from active_tasks. After the Worker reports `executed`, **only** update `last_executed_at` and `next_scheduled_at` — do NOT @mention the Worker again:
 ```bash
 bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
   --action executed --task-id {task-id} --next-scheduled-at "{new-ISO-8601}"
 ```
+
+**⚠️ CRITICAL**: Triggering and recording are independent actions. Heartbeat triggers execution when the schedule says it's time. Recording happens when the Worker reports back. Never re-trigger a Worker immediately after recording — the next execution will be triggered by a future heartbeat when `next_scheduled_at` is due.
 
 ---
 
