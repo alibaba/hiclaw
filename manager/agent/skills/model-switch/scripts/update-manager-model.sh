@@ -111,14 +111,27 @@ HTTP_CODE=$(curl -s -o /tmp/model-test-resp.json -w '%{http_code}' \
 
 if [ "${HTTP_CODE}" != "200" ]; then
     RESP_BODY=$(cat /tmp/model-test-resp.json 2>/dev/null | head -c 300 || true)
-    echo "ERROR: Model test failed (HTTP ${HTTP_CODE}): ${RESP_BODY}"
+    echo "ERROR: MODEL_NOT_REACHABLE"
+    echo "Model: ${MODEL_NAME}"
+    echo "HTTP status: ${HTTP_CODE}"
+    echo "Response: ${RESP_BODY}"
     echo ""
     echo "The model '${MODEL_NAME}' is not reachable via the AI Gateway."
+    echo "This most likely means the current default AI Provider does not support this model."
+    echo ""
     if [ "${HICLAW_RUNTIME:-}" = "aliyun" ]; then
-        echo "Please check the Alibaba Cloud AI Gateway console to confirm the model route is configured."
+        echo "To fix this, the human admin needs to check the Alibaba Cloud AI Gateway console"
+        echo "to confirm the model route is configured for this model."
     else
-        echo "Please check the Higress Console to confirm the AI route is configured for this model:"
-        echo "  http://<manager-host>:8001  →  AI Routes → verify provider and model mapping"
+        echo "To fix this, the human admin needs to open the Higress Console and:"
+        echo "  1. Create a NEW AI Provider for the model vendor (e.g. 'kimi', 'deepseek', 'minimax')"
+        echo "  2. Create a NEW AI Route that matches this model by name prefix"
+        echo "     (e.g. for provider 'kimi', set model name predicate to match 'kimi-*')"
+        echo "     so requests for models with that prefix are routed to the new provider,"
+        echo "     while unmatched models still go through the default AI Route."
+        echo ""
+        echo "WARNING: Do NOT modify the default AI Provider — it is managed by the"
+        echo "initialization config and will be overwritten on restart."
     fi
     exit 1
 fi

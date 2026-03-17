@@ -50,7 +50,17 @@ If the Worker container is stopped, the config is still updated in MinIO — it 
 
 ## On failure
 
-If the gateway test fails (non-200), the script prints an error with details. No changes are made to `openclaw.json` in this case.
+If the gateway test fails (non-200), the script outputs `ERROR: MODEL_NOT_REACHABLE` and exits. No changes are made to `openclaw.json`.
+
+When you see this error, tell the human admin clearly:
+
+1. The model is not reachable because the current default AI Provider likely does not support it.
+2. They need to open the Higress Console and:
+   - Create a **new AI Provider** for the model's vendor (e.g. `kimi`, `deepseek`, `minimax`).
+   - Create a **new AI Route** with a model name prefix predicate (e.g. provider `kimi` → match `kimi-*`), so that requests for models with that prefix are routed to the new provider, while unmatched models continue to go through the default route.
+3. **Do NOT modify the default AI Provider** — it is managed by the initialization config and will be overwritten on restart.
+
+After the admin confirms the provider and route are configured, you can retry the model-switch script.
 
 ## Important
 

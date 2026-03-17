@@ -109,13 +109,27 @@ update_worker_model() {
         local resp_body
         resp_body=$(cat /tmp/model-test-resp-${worker}.json 2>/dev/null | head -c 300 || true)
         rm -f /tmp/model-test-resp-${worker}.json
-        _log "ERROR: Model test failed (HTTP ${http_code}): ${resp_body}"
+        _log "ERROR: MODEL_NOT_REACHABLE"
+        _log "Model: ${new_model}"
+        _log "HTTP status: ${http_code}"
+        _log "Response: ${resp_body}"
+        _log ""
         _log "The model '${new_model}' is not reachable via the AI Gateway."
+        _log "This most likely means the current default AI Provider does not support this model."
+        _log ""
         if [ "${HICLAW_RUNTIME:-}" = "aliyun" ]; then
-            _log "Please check the Alibaba Cloud AI Gateway console to confirm the model route is configured."
+            _log "To fix this, the human admin needs to check the Alibaba Cloud AI Gateway console"
+            _log "to confirm the model route is configured for this model."
         else
-            _log "Please check the Higress Console to confirm the AI route is configured for this model:"
-            _log "  http://<manager-host>:8001  →  AI Routes → verify provider and model mapping"
+            _log "To fix this, the human admin needs to open the Higress Console and:"
+            _log "  1. Create a NEW AI Provider for the model vendor (e.g. 'kimi', 'deepseek', 'minimax')"
+            _log "  2. Create a NEW AI Route that matches this model by name prefix"
+            _log "     (e.g. for provider 'kimi', set model name predicate to match 'kimi-*')"
+            _log "     so requests for models with that prefix are routed to the new provider,"
+            _log "     while unmatched models still go through the default AI Route."
+            _log ""
+            _log "WARNING: Do NOT modify the default AI Provider — it is managed by the"
+            _log "initialization config and will be overwritten on restart."
         fi
         return 1
     fi
