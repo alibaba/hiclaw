@@ -37,7 +37,7 @@
 #   - Higress Console running at http://127.0.0.1:8001
 
 set -euo pipefail
-source /opt/hiclaw/scripts/lib/base.sh
+source /opt/hiclaw/scripts/lib/hiclaw-env.sh
 
 # ============================================================
 # Parse arguments
@@ -379,7 +379,8 @@ if [ -f "${REGISTRY_FILE}" ]; then
         # Backward-compatible symlink
         ln -sfn "${MCPORTER_FILE}" "${MCPORTER_COMPAT}"
         # Push to MinIO immediately (don't rely on mc mirror --watch)
-        mc cp "${MCPORTER_FILE}" "hiclaw/hiclaw-storage/agents/${wname}/config/mcporter.json" 2>/dev/null \
+        ensure_mc_credentials 2>/dev/null || true
+        mc cp "${MCPORTER_FILE}" "${HICLAW_STORAGE_PREFIX}/agents/${wname}/config/mcporter.json" 2>/dev/null \
             && log "  Pushed config/mcporter.json to MinIO for ${wname}" \
             || log "  WARNING: Failed to push config/mcporter.json to MinIO for ${wname}"
     done

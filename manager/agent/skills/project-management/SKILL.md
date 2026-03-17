@@ -97,7 +97,7 @@ Wait for human confirmation before proceeding.
 ### 1e. After confirmation
 
 1. Update meta.json: `"status": "planning" → "active"`, set `confirmed_at`
-2. Sync to MinIO: `mc mirror /root/hiclaw-fs/shared/projects/${PROJECT_ID}/ hiclaw/hiclaw-storage/shared/projects/${PROJECT_ID}/ --overwrite`
+2. Sync to MinIO: `mc mirror /root/hiclaw-fs/shared/projects/${PROJECT_ID}/ ${HICLAW_STORAGE_PREFIX}/shared/projects/${PROJECT_ID}/ --overwrite`
 3. Verify the human admin is in the project room — if not, invite them immediately:
    ```bash
    curl -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${ROOM_ID}/invite" \
@@ -273,15 +273,15 @@ All your work for this task must stay in `/root/hiclaw-fs/shared/tasks/<task-id>
 - Create `plan.md` **before starting** (your step-by-step execution plan)
 - Store all intermediate artifacts here (code drafts, notes, tool outputs)
 - Write `result.md` when done
-- Push everything with: `mc mirror /root/hiclaw-fs/shared/tasks/<task-id>/ hiclaw/hiclaw-storage/shared/tasks/<task-id>/ --overwrite --exclude "spec.md" --exclude "base/"` (spec.md and base/ are Manager-owned, do not overwrite them)
+- Push everything with: `mc mirror /root/hiclaw-fs/shared/tasks/<task-id>/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/<task-id>/ --overwrite --exclude "spec.md" --exclude "base/"` (spec.md and base/ are Manager-owned, do not overwrite them)
 EOF
 ```
 
 ### 2b. Sync to MinIO
 
 ```bash
-mc cp /root/hiclaw-fs/shared/tasks/${TASK_ID}/meta.json hiclaw/hiclaw-storage/shared/tasks/${TASK_ID}/meta.json
-mc cp /root/hiclaw-fs/shared/tasks/${TASK_ID}/spec.md hiclaw/hiclaw-storage/shared/tasks/${TASK_ID}/spec.md
+mc cp /root/hiclaw-fs/shared/tasks/${TASK_ID}/meta.json ${HICLAW_STORAGE_PREFIX}/shared/tasks/${TASK_ID}/meta.json
+mc cp /root/hiclaw-fs/shared/tasks/${TASK_ID}/spec.md ${HICLAW_STORAGE_PREFIX}/shared/tasks/${TASK_ID}/spec.md
 ```
 
 ### 2c. Update plan.md
@@ -297,7 +297,7 @@ Send a message in the **project room** @mentioning the Worker. Adapt the languag
 
 {2-3 sentence summary: task purpose and key deliverables}
 
-Full spec: hiclaw/hiclaw-storage/shared/tasks/{task-id}/spec.md
+Full spec: ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/spec.md
 
 Please use file-sync to pull the task files first, then read the spec. Create plan.md in the task directory before starting. Keep all intermediate artifacts there. @mention me when complete.
 ```
@@ -313,7 +313,7 @@ When a Worker @mentions you with a task completion in the project room:
 **First, pull the task directory from MinIO** (Worker has pushed results there), then read `result.md`:
 
 ```bash
-mc mirror hiclaw/hiclaw-storage/shared/tasks/${TASK_ID}/ /root/hiclaw-fs/shared/tasks/${TASK_ID}/ --overwrite
+mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/${TASK_ID}/ /root/hiclaw-fs/shared/tasks/${TASK_ID}/ --overwrite
 RESULT_FILE="/root/hiclaw-fs/shared/tasks/${TASK_ID}/result.md"
 
 # Look for the Outcome section
@@ -418,8 +418,8 @@ EOF
 5. **Push revision task files to MinIO and update plan.md**:
 
    ```bash
-   mc cp /root/hiclaw-fs/shared/tasks/${REVISION_TASK_ID}/meta.json hiclaw/hiclaw-storage/shared/tasks/${REVISION_TASK_ID}/meta.json
-   mc cp /root/hiclaw-fs/shared/tasks/${REVISION_TASK_ID}/spec.md hiclaw/hiclaw-storage/shared/tasks/${REVISION_TASK_ID}/spec.md
+   mc cp /root/hiclaw-fs/shared/tasks/${REVISION_TASK_ID}/meta.json ${HICLAW_STORAGE_PREFIX}/shared/tasks/${REVISION_TASK_ID}/meta.json
+   mc cp /root/hiclaw-fs/shared/tasks/${REVISION_TASK_ID}/spec.md ${HICLAW_STORAGE_PREFIX}/shared/tasks/${REVISION_TASK_ID}/spec.md
    ```
 
    Add the revision task to plan.md:
@@ -439,7 +439,7 @@ EOF
 
 **Task**: {REVISION_TASK_ID} — Revise based on feedback
 
-**Feedback source**: hiclaw/hiclaw-storage/shared/tasks/${ORIGINAL_TASK_ID}/result.md
+**Feedback source**: ${HICLAW_STORAGE_PREFIX}/shared/tasks/${ORIGINAL_TASK_ID}/result.md
 
 Please use file-sync to pull the latest files, review the revision requirements, and @mention me when complete.
 ```
@@ -556,7 +556,7 @@ Also add to manager's `groupAllowFrom`:
 ```bash
 jq --arg w "@<new-worker>:<domain>" '.channels.matrix.groupAllowFrom += [$w]' \
   ~/openclaw.json > /tmp/cfg.json && mv /tmp/cfg.json ~/openclaw.json
-mc cp ~/openclaw.json hiclaw/hiclaw-storage/agents/manager/openclaw.json
+mc cp ~/openclaw.json ${HICLAW_STORAGE_PREFIX}/agents/manager/openclaw.json
 ```
 
 ### 6b. Send onboarding message in project room
@@ -573,7 +573,7 @@ mc cp ~/openclaw.json hiclaw/hiclaw-storage/agents/manager/openclaw.json
 
 **Your role**: {description of what this Worker will contribute}
 
-**Project plan** (latest): hiclaw/hiclaw-storage/shared/projects/{project-id}/plan.md
+**Project plan** (latest): ${HICLAW_STORAGE_PREFIX}/shared/projects/{project-id}/plan.md
 
 Please use file-sync to pull the latest files and read plan.md for the full picture. I will assign your first task shortly.
 ```

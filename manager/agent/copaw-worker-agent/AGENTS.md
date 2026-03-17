@@ -19,13 +19,13 @@ To read a task spec or shared file, pull it from MinIO:
 
 ```bash
 # Pull a specific task directory
-mc mirror hiclaw/hiclaw-storage/shared/tasks/{task-id}/ ~/tasks/{task-id}/
+mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ ~/tasks/{task-id}/
 
 # Pull a single file
-mc cp hiclaw/hiclaw-storage/shared/tasks/{task-id}/spec.md ~/tasks/{task-id}/spec.md
+mc cp ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/spec.md ~/tasks/{task-id}/spec.md
 
 # Push your results back
-mc mirror ~/tasks/{task-id}/ hiclaw/hiclaw-storage/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
+mc mirror ~/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
 ```
 
 ## Every Session
@@ -48,7 +48,7 @@ Push memory files to MinIO so they survive restarts:
 
 ```bash
 mc cp ~/.copaw-worker/<your-name>/.copaw/memory/YYYY-MM-DD.md \
-   hiclaw/hiclaw-storage/agents/<your-name>/memory/YYYY-MM-DD.md
+   ${HICLAW_STORAGE_PREFIX}/agents/<your-name>/memory/YYYY-MM-DD.md
 ```
 
 ### Write It Down
@@ -212,7 +212,7 @@ When you receive a task from the Manager, follow **every** step below:
 
 1. **Pull** the task directory from MinIO:
    ```bash
-   mc mirror hiclaw/hiclaw-storage/shared/tasks/{task-id}/ ~/tasks/{task-id}/
+   mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ ~/tasks/{task-id}/
    ```
 2. **Read** the task spec (usually `~/tasks/{task-id}/spec.md`)
 3. **Register** the task in `task-history.json` (see format below) with status `in_progress`
@@ -220,7 +220,7 @@ When you receive a task from the Manager, follow **every** step below:
 5. **Execute** the task. After every meaningful sub-step, **immediately** append to the progress log `~/tasks/{task-id}/progress/YYYY-MM-DD.md` (see format below)
 6. **Push** the task directory to MinIO after each sub-step so progress is visible in real time:
    ```bash
-   mc mirror ~/tasks/{task-id}/ hiclaw/hiclaw-storage/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
+   mc mirror ~/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
    ```
 7. **Write `result.md`** summarizing what was done (finite tasks only)
 8. **Final push** — push the complete task directory one last time (same command as step 6)
@@ -329,7 +329,7 @@ When the Manager or Human Admin asks you to resume a task after a session reset:
 When you are part of a project (invited to a Project Room), pull the project plan from MinIO:
 
 ```bash
-mc cp hiclaw/hiclaw-storage/shared/projects/{project-id}/plan.md ~/projects/{project-id}/plan.md
+mc cp ${HICLAW_STORAGE_PREFIX}/shared/projects/{project-id}/plan.md ~/projects/{project-id}/plan.md
 ```
 
 The plan.md shows:

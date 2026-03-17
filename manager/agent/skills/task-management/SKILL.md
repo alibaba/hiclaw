@@ -101,8 +101,8 @@ Before creating a task, determine the correct type:
    ```
 3. Push task files to MinIO immediately:
    ```bash
-   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/meta.json hiclaw/hiclaw-storage/shared/tasks/{task-id}/meta.json
-   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/spec.md hiclaw/hiclaw-storage/shared/tasks/{task-id}/spec.md
+   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/meta.json ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/meta.json
+   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/spec.md ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/spec.md
    ```
 4. Notify Worker in their Room:
    ```
@@ -118,9 +118,9 @@ Before creating a task, determine the correct type:
    If the task belongs to a project, append `--project-room-id {project-room-id}`.
 6. On completion: pull the task directory from MinIO first (Worker has pushed results), then update `meta.json` status=completed + completed_at, and remove from `state.json`:
    ```bash
-   mc mirror hiclaw/hiclaw-storage/shared/tasks/{task-id}/ /root/hiclaw-fs/shared/tasks/{task-id}/ --overwrite
+   mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ /root/hiclaw-fs/shared/tasks/{task-id}/ --overwrite
    # Update meta.json, then:
-   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/meta.json hiclaw/hiclaw-storage/shared/tasks/{task-id}/meta.json
+   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/meta.json ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/meta.json
    bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
      --action complete --task-id {task-id}
    ```
@@ -173,8 +173,8 @@ For recurring/scheduled tasks:
    - `schedule`: standard 5-field cron; `timezone`: tz database name
 2. Push task files to MinIO immediately:
    ```bash
-   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/meta.json hiclaw/hiclaw-storage/shared/tasks/{task-id}/meta.json
-   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/spec.md hiclaw/hiclaw-storage/shared/tasks/{task-id}/spec.md
+   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/meta.json ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/meta.json
+   mc cp /root/hiclaw-fs/shared/tasks/{task-id}/spec.md ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/spec.md
    ```
 3. Add to `state.json`:
    ```bash

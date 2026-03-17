@@ -401,7 +401,7 @@ mc stat "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/openclaw.json" > /dev/nu
 # Worker reads it via mc cat on startup for E2EE re-login
 _tmp_pw="/tmp/matrix-pw-$$"
 echo -n "${WORKER_PASSWORD}" > "${_tmp_pw}"
-mc cp "${_tmp_pw}" "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/credentials/matrix/password" 2>/dev/null \
+mc cp "${_tmp_pw}" "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/credentials/matrix/password" 2>/dev/null \
     || log "  WARNING: Failed to write Matrix password to MinIO"
 rm -f "${_tmp_pw}"
 

@@ -90,7 +90,7 @@ Before making changes, check if the task directory is being processed:
 
 ```bash
 # Sync from MinIO
-mc mirror "hiclaw/hiclaw-storage/shared/tasks/{task-id}/" \
+mc mirror "${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/" \
   "/root/hiclaw-fs/shared/tasks/{task-id}/"
 
 # Check for processing marker
@@ -149,7 +149,7 @@ cat src/main.py
 
 # When ready to commit, sync to MinIO first
 mc mirror "/root/hiclaw-fs/shared/tasks/task-20260225/" \
-  "hiclaw/hiclaw-storage/shared/tasks/task-20260225/" --overwrite
+  "${HICLAW_STORAGE_PREFIX}/shared/tasks/task-20260225/" --overwrite
 ```
 
 ### 5. Commit and Push

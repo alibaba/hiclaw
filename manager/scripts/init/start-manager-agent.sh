@@ -4,7 +4,7 @@
 # It waits for all dependencies, creates Matrix users, configures Higress,
 # creates symlinks for host directory access, and launches OpenClaw.
 
-source /opt/hiclaw/scripts/lib/base.sh
+source /opt/hiclaw/scripts/lib/hiclaw-env.sh
 
 # ============================================================
 # Set timezone from TZ env var
@@ -362,7 +362,7 @@ if [ -f "${REGISTRY_FILE}" ]; then
         _KNOWN_MODELS=$(cat "${KNOWN_MODELS_FILE}")
         for _wname in $(jq -r '.workers | keys[]' "${REGISTRY_FILE}" 2>/dev/null); do
             [ -z "${_wname}" ] && continue
-            _minio_path="hiclaw/hiclaw-storage/agents/${_wname}/openclaw.json"
+            _minio_path="${HICLAW_STORAGE_PREFIX}/agents/${_wname}/openclaw.json"
             _tmp_in="/tmp/openclaw-${_wname}-models-upgrade-in.json"
             if mc cp "${_minio_path}" "${_tmp_in}" 2>/dev/null; then
                 _tmp_out="/tmp/openclaw-${_wname}-models-upgrade-out.json"
@@ -401,12 +401,12 @@ if [ -f "${REGISTRY_FILE}" ]; then
         _creds_file="/data/worker-creds/${_wname}.env"
         if [ -f "${_creds_file}" ]; then
             # Check if password file already exists in MinIO
-            if ! mc stat "hiclaw/hiclaw-storage/agents/${_wname}/credentials/matrix/password" > /dev/null 2>&1; then
+            if ! mc stat "${HICLAW_STORAGE_PREFIX}/agents/${_wname}/credentials/matrix/password" > /dev/null 2>&1; then
                 source "${_creds_file}"
                 if [ -n "${WORKER_PASSWORD}" ]; then
                     _tmp_pw="/tmp/matrix-pw-${_wname}"
                     echo -n "${WORKER_PASSWORD}" > "${_tmp_pw}"
-                    mc cp "${_tmp_pw}" "hiclaw/hiclaw-storage/agents/${_wname}/credentials/matrix/password" 2>/dev/null \
+                    mc cp "${_tmp_pw}" "${HICLAW_STORAGE_PREFIX}/agents/${_wname}/credentials/matrix/password" 2>/dev/null \
                         && log "Worker ${_wname}: wrote Matrix password to MinIO (E2EE re-login fix)" \
                         || log "Worker ${_wname}: WARNING: failed to write Matrix password to MinIO"
                     rm -f "${_tmp_pw}"

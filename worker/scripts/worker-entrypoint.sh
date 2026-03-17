@@ -205,7 +205,7 @@ log "Cleaned Matrix crypto storage (will re-establish E2EE sessions)"
 # identity key (crypto storage was just wiped) causes other clients to
 # reject key distribution. Re-login creates a new device_id, matching
 # the Manager's behavior and allowing clean E2EE session establishment.
-MATRIX_PASSWORD_FILE="hiclaw/hiclaw-storage/agents/${WORKER_NAME}/credentials/matrix/password"
+MATRIX_PASSWORD_FILE="${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/credentials/matrix/password"
 MATRIX_PASSWORD=$(mc cat "${MATRIX_PASSWORD_FILE}" 2>/dev/null) || true
 if [ -n "${MATRIX_PASSWORD}" ]; then
     # Read homeserver URL from openclaw.json (already pulled from MinIO)

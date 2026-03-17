@@ -25,18 +25,18 @@ There is no `~/hiclaw-fs/` directory. Access shared files directly via `mc`. The
 
 | MinIO path | Local path (convention) |
 |---|---|
-| `hiclaw/hiclaw-storage/shared/tasks/{task-id}/` | `~/tasks/{task-id}/` |
-| `hiclaw/hiclaw-storage/shared/projects/{project-id}/` | `~/projects/{project-id}/` |
+| `${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/` | `~/tasks/{task-id}/` |
+| `${HICLAW_STORAGE_PREFIX}/shared/projects/{project-id}/` | `~/projects/{project-id}/` |
 
 ```bash
 # Pull a task directory from MinIO
-mc mirror hiclaw/hiclaw-storage/shared/tasks/{task-id}/ ~/tasks/{task-id}/
+mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ ~/tasks/{task-id}/
 
 # Read the spec
 cat ~/tasks/{task-id}/spec.md
 
 # Push your results back to MinIO
-mc mirror ~/tasks/{task-id}/ hiclaw/hiclaw-storage/shared/tasks/{task-id}/ \
+mc mirror ~/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ \
   --overwrite --exclude "spec.md" --exclude "base/"
 ```
 
@@ -50,14 +50,14 @@ Always confirm to the sender after sync completes.
 **Example workflow:**
 ```bash
 # Manager assigns task: "New task [task-20260309-120000]. Pull spec from MinIO."
-mc mirror hiclaw/hiclaw-storage/shared/tasks/task-20260309-120000/ ~/tasks/task-20260309-120000/
+mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/task-20260309-120000/ ~/tasks/task-20260309-120000/
 cat ~/tasks/task-20260309-120000/spec.md
 
 # ... do the work ...
 
 # Push results
 mc mirror ~/tasks/task-20260309-120000/ \
-  hiclaw/hiclaw-storage/shared/tasks/task-20260309-120000/ \
+  ${HICLAW_STORAGE_PREFIX}/shared/tasks/task-20260309-120000/ \
   --overwrite --exclude "spec.md" --exclude "base/"
 
 # Confirm to Manager

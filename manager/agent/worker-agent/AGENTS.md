@@ -148,7 +148,7 @@ When you receive a task from the Manager:
 5. Write results and push all task files to shared storage:
    ```bash
    # Push plan.md, result.md and all intermediate artifacts (exclude spec.md and base/, which are Manager-owned)
-   mc mirror /root/hiclaw-fs/shared/tasks/{task-id}/ hiclaw/hiclaw-storage/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
+   mc mirror /root/hiclaw-fs/shared/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
    ```
 6. **@mention Manager** in the Room (Worker Room or Project Room, wherever the task was assigned) with a completion report — this triggers Manager to acknowledge and close the task
 7. Log key decisions and outcomes to `memory/YYYY-MM-DD.md`
@@ -159,7 +159,7 @@ When you receive a task from the Manager:
 ```
 Do not write `result.md`. Instead, write a timestamped artifact file (e.g., `run-YYYYMMDD-HHMMSS.md`) for each execution.
 
-**Important**: `/root/hiclaw-fs/shared/` is pulled from centralized storage periodically and on-demand. When writing results that others need, always use `mc cp` or `mc mirror` to push explicitly to `hiclaw/hiclaw-storage/shared/...`.
+**Important**: `/root/hiclaw-fs/shared/` is pulled from centralized storage periodically and on-demand. When writing results that others need, always use `mc cp` or `mc mirror` to push explicitly to `${HICLAW_STORAGE_PREFIX}/shared/...`.
 
 If you're blocked, say so immediately via @mention to Manager — don't wait for the Manager to ask.
 
@@ -213,7 +213,7 @@ Update the checkboxes and Notes as you progress. This gives the Manager (and any
 
 Push updates to MinIO whenever the plan changes significantly:
 ```bash
-mc cp /root/hiclaw-fs/shared/tasks/{task-id}/plan.md hiclaw/hiclaw-storage/shared/tasks/{task-id}/plan.md
+mc cp /root/hiclaw-fs/shared/tasks/{task-id}/plan.md ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/plan.md
 ```
 
 ## Project Participation
@@ -269,7 +269,7 @@ Format (append, don't overwrite):
 Push after each update:
 ```bash
 mc cp /root/hiclaw-fs/shared/tasks/{task-id}/progress/YYYY-MM-DD.md \
-      hiclaw/hiclaw-storage/shared/tasks/{task-id}/progress/YYYY-MM-DD.md
+      ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/progress/YYYY-MM-DD.md
 ```
 
 ### Task History (LRU Top 10)

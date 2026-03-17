@@ -184,7 +184,7 @@ Workers push their output (task results, artifacts, etc.) to MinIO. Your local `
 **When a Worker reports task completion**, always pull the task directory before reading:
 
 ```bash
-mc mirror hiclaw/hiclaw-storage/shared/tasks/{task-id}/ /root/hiclaw-fs/shared/tasks/{task-id}/ --overwrite
+mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ /root/hiclaw-fs/shared/tasks/{task-id}/ --overwrite
 cat /root/hiclaw-fs/shared/tasks/{task-id}/result.md
 ```
 
@@ -192,10 +192,10 @@ cat /root/hiclaw-fs/shared/tasks/{task-id}/result.md
 
 ```bash
 # Single file
-mc cp hiclaw/hiclaw-storage/<path-worker-gave-you> /root/hiclaw-fs/<same-path>
+mc cp ${HICLAW_STORAGE_PREFIX}/<path-worker-gave-you> /root/hiclaw-fs/<same-path>
 
 # Directory
-mc mirror hiclaw/hiclaw-storage/<dir>/ /root/hiclaw-fs/<dir>/ --overwrite
+mc mirror ${HICLAW_STORAGE_PREFIX}/<dir>/ /root/hiclaw-fs/<dir>/ --overwrite
 ```
 
 **File sync rules you must follow:**
