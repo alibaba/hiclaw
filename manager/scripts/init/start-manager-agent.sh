@@ -337,20 +337,17 @@ else
                 _HICLAW_LANGUAGE="${HICLAW_LANGUAGE:-zh}"
                 _HICLAW_TIMEZONE="${TZ:-Asia/Shanghai}"
                 _wait=0
-                _joined=false
-                while [ "${_wait}" -lt 120 ]; do
-                    _m=$(curl -sf "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${DM_ROOM_ID}/members" \
-                        -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" 2>/dev/null \
-                        | jq -r '.chunk[].state_key' 2>/dev/null) || true
-                    if echo "${_m}" | grep -q "${MANAGER_FULL_ID}"; then
-                        _joined=true
+                _ready=false
+                while [ "${_wait}" -lt 300 ]; do
+                    if curl -sf http://127.0.0.1:18799/ > /dev/null 2>&1; then
+                        _ready=true
                         break
                     fi
                     sleep 3
                     _wait=$((_wait + 3))
                 done
-                if [ "${_joined}" != "true" ]; then
-                    echo "[cloud-manager] WARNING: Manager did not join DM room within 120s, skipping welcome message"
+                if [ "${_ready}" != "true" ]; then
+                    echo "[cloud-manager] WARNING: OpenClaw gateway not ready within 300s, skipping welcome message"
                     exit 0
                 fi
                 _welcome_msg="This is an automated message from the HiClaw cloud deployment. This is a fresh installation.
