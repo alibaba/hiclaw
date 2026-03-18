@@ -54,8 +54,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 RUN git clone --depth 1 --single-branch -b hiclaw-v1 \
         https://github.com/johnlanni/openclaw.git /opt/openclaw && \
     cd /opt/openclaw && \
-    git fetch --depth 1 origin fe10963e081bcb176f9c543ccc4205dd9af6ef0a && \
-    git checkout fe10963e081bcb176f9c543ccc4205dd9af6ef0a && \
+    git fetch --depth 1 origin 86dad1383c12629ad3aa48575f2dd350fc0775d4 && \
+    git checkout 86dad1383c12629ad3aa48575f2dd350fc0775d4 && \
     pnpm config set registry ${NPM_REGISTRY} && \
     pnpm install && \
     pnpm build && \
