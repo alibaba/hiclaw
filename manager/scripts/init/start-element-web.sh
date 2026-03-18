@@ -53,7 +53,8 @@ NGINX
 # Generate Nginx config for OpenClaw Console reverse proxy.
 # Injects the gateway token into the HTML via sub_filter so the Control UI
 # auto-authenticates without requiring the user to enter a token manually.
-# localStorage key: "openclaw.control.settings.v1" → { token: "<key>" }
+# New versions of OpenClaw store the token in sessionStorage (scoped by gateway URL)
+# and set a CSP header that blocks inline scripts, so we strip CSP and use sessionStorage.
 OPENCLAW_TOKEN="${HICLAW_MANAGER_GATEWAY_KEY:-}"
 cat > /etc/nginx/conf.d/openclaw-console.conf << NGINX
 # OpenClaw Console — reverse proxy to gateway loopback with auto-token injection
@@ -72,10 +73,13 @@ server {
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
 
-        # Auto-inject gateway token into localStorage so Control UI connects without manual auth
+        # Strip upstream CSP so inline token-injection script can run
+        proxy_hide_header Content-Security-Policy;
+
+        # Auto-inject gateway token into sessionStorage so Control UI connects without manual auth
         sub_filter_types text/html;
         sub_filter_once on;
-        sub_filter '</head>' '<script>(function(){var K="openclaw.control.settings.v1",T="${OPENCLAW_TOKEN}";if(!T)return;try{var r=localStorage.getItem(K),s=r?JSON.parse(r):{};s.token=T;localStorage.setItem(K,JSON.stringify(s))}catch(e){}})();</script></head>';
+        sub_filter '</head>' '<script>(function(){var T="${OPENCLAW_TOKEN}";if(!T)return;var p=location.protocol==="https:"?"wss":"ws";var gw=p+"://"+location.host;var K="openclaw.control.token.v1:"+gw;try{sessionStorage.setItem(K,T)}catch(e){}})();</script></head>';
     }
 }
 NGINX
