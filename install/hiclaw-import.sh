@@ -746,6 +746,21 @@ if [ -n "${DM_ROOM_ID}" ]; then
         MESSAGE="${MESSAGE} 容器环境变量需设置 HTTP_PROXY=${PROXY} HTTPS_PROXY=${PROXY} NO_PROXY=${NO_PROXY_LIST}"
     fi
 
+    # Append cron job info if present
+    CRON_FILE="${TMP_DIR}/crons/jobs.json"
+    if [ -f "${CRON_FILE}" ]; then
+        CRON_COUNT=$(jq 'length' "${CRON_FILE}" 2>/dev/null || echo "0")
+        if [ "${CRON_COUNT}" -gt 0 ]; then
+            CRON_SUMMARY=$(jq -r '.[] | "- \(.name // .id): schedule=\(.schedule.cron // .schedule.every // "unknown"), payload=\(.payload.agentTurn.parts[0].text // "N/A" | .[0:80])"' "${CRON_FILE}" 2>/dev/null || echo "")
+            if [ -n "${CRON_SUMMARY}" ]; then
+                MESSAGE="${MESSAGE}
+
+此 Worker 从源环境迁移了 ${CRON_COUNT} 个定时任务，请为 ${WORKER_NAME} 创建对应的 scheduled tasks:
+${CRON_SUMMARY}"
+            fi
+        fi
+    fi
+
     TXN_ID="migrate-$(date +%s)-$$"
     ENCODED_DM_RID=$(echo -n "${DM_ROOM_ID}" | jq -sRr @uri)
 

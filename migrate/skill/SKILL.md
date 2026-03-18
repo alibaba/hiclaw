@@ -146,8 +146,8 @@ Your SOUL.md needs the HiClaw AI Identity section. Produce:
 
 If you have cron jobs (`~/.openclaw/cron/jobs.json`), they need adaptation:
 - Remove `delivery` configuration (Discord channel targets, etc.)
-- Keep `schedule` and `payload.agentTurn` content
-- Note: These will become HiClaw scheduled tasks managed by the Manager
+- Keep `schedule` (cron expression + timezone) and `payload.agentTurn` content (the actual task description)
+- These will NOT run as OpenClaw cron jobs in the Worker. Instead, the import script includes them in the DM message to the Manager, who will create corresponding HiClaw **scheduled tasks** — the Manager periodically checks and @mentions the Worker to execute them
 
 ### Step 5: Generate the ZIP Package
 
