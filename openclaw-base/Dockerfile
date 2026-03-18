@@ -51,11 +51,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 # 1. Clone with single branch to minimize .git size
 # 2. Install dependencies and build
 # 3. Remove unnecessary files (tests, .git, etc.) - keep all node_modules for extensions
-RUN git clone --depth 1 --single-branch \
+RUN git clone --depth 1 --single-branch -b hiclaw-v1.1 \
         https://github.com/johnlanni/openclaw.git /opt/openclaw && \
     cd /opt/openclaw && \
-    git fetch --depth 1 origin eb6b412b8bf59da7f26566cb1699a54eb7d0bc2f && \
-    git checkout eb6b412b8bf59da7f26566cb1699a54eb7d0bc2f && \
+    git fetch --depth 1 origin 17e955b91a025fd960ff4d3354e940839ca36a47 && \
+    git checkout 17e955b91a025fd960ff4d3354e940839ca36a47 && \
     pnpm config set registry ${NPM_REGISTRY} && \
     pnpm install && \
     pnpm build && \
@@ -76,6 +76,7 @@ RUN git clone --depth 1 --single-branch \
         .detect-secrets.cfg .npmrc \
         .env.example appcast.xml \
         vitest*.config.ts tsdown.config.ts fly*.toml render.yaml && \
+    find extensions -name '*.ts' -delete && \
     rm -rf /root/.local/share/pnpm /root/.npm
 
 # Install mcporter
