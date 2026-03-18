@@ -5,4 +5,7 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 ---
 
 - fix(manager): normalize worker name to lowercase in create-worker.sh to match Tuwunel's username storage behavior, fixing invite failures when worker names contain uppercase letters
-- feat(cloud): add Alibaba Cloud SAE deployment support with unified cloud/local abstraction layer
+- feat(cloud): add Alibaba Cloud native deployment support with unified cloud/local abstraction layer
+- feat(cloud): add CoPaw worker support for cloud deployment
+- feat(agent): render env var placeholders in SKILL.md/AGENTS.md at startup via envsubst, so AI agents read plain text instead of raw ${VAR} references
+- fix(manager): use gateway health check instead of Matrix room member polling for welcome message readiness in Aliyun deployment, increase timeout to 300s

@@ -122,7 +122,7 @@ Starting work on feature XYZ
 Git operations completed successfully.
 Cloned to: /root/hiclaw-fs/shared/tasks/task-20260225/workspace/hiclaw
 Created branch: feature-xyz
-Run `bash /opt/hiclaw/agent/skills/file-sync/scripts/hiclaw-sync.sh` to sync.
+Run `hiclaw-sync` to sync.
 ```
 
 **Failure** — `git-failed:`
@@ -138,7 +138,7 @@ After receiving `git-result:`:
 
 ```bash
 # Sync from MinIO
-bash /opt/hiclaw/agent/skills/file-sync/scripts/hiclaw-sync.sh
+hiclaw-sync
 
 # Now you can work locally
 cd /root/hiclaw-fs/shared/tasks/task-20260225/workspace/hiclaw

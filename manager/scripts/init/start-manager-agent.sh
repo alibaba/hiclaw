@@ -337,20 +337,17 @@ else
                 _HICLAW_LANGUAGE="${HICLAW_LANGUAGE:-zh}"
                 _HICLAW_TIMEZONE="${TZ:-Asia/Shanghai}"
                 _wait=0
-                _joined=false
-                while [ "${_wait}" -lt 120 ]; do
-                    _m=$(curl -sf "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${DM_ROOM_ID}/members" \
-                        -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" 2>/dev/null \
-                        | jq -r '.chunk[].state_key' 2>/dev/null) || true
-                    if echo "${_m}" | grep -q "${MANAGER_FULL_ID}"; then
-                        _joined=true
+                _ready=false
+                while [ "${_wait}" -lt 300 ]; do
+                    if curl -sf http://127.0.0.1:18799/ > /dev/null 2>&1; then
+                        _ready=true
                         break
                     fi
                     sleep 3
                     _wait=$((_wait + 3))
                 done
-                if [ "${_joined}" != "true" ]; then
-                    echo "[cloud-manager] WARNING: Manager did not join DM room within 120s, skipping welcome message"
+                if [ "${_ready}" != "true" ]; then
+                    echo "[cloud-manager] WARNING: OpenClaw gateway not ready within 300s, skipping welcome message"
                     exit 0
                 fi
                 _welcome_msg="This is an automated message from the HiClaw cloud deployment. This is a fresh installation.
@@ -761,6 +758,26 @@ log "Cleaned up any orphaned session write locks"
 # Crypto state is re-negotiated on startup; losing it only means re-establishing E2EE sessions
 rm -rf "${HOME}/.openclaw/matrix" 2>/dev/null || true
 log "Cleaned Matrix crypto storage (will re-establish E2EE sessions)"
+
+# ── Render agent doc templates ────────────────────────────────────────────
+# Replace ${VAR} placeholders with actual values so the AI agent reads
+# plain text and never needs to resolve environment variables.
+export MANAGER_MATRIX_TOKEN MANAGER_TOKEN HIGRESS_COOKIE_FILE
+RENDER=/opt/hiclaw/scripts/lib/render-skills.sh
+log "Rendering agent doc templates..."
+# Manager-owned docs (workspace)
+bash "$RENDER" /root/manager-workspace/skills
+bash "$RENDER" /root/manager-workspace/skills-alpha
+bash "$RENDER" /root/manager-workspace AGENTS.md TOOLS.md HEARTBEAT.md SOUL.md
+# Worker templates (workspace + image) — rendered before push to MinIO
+# so Workers (including remote pip-install) receive plain text
+bash "$RENDER" /root/manager-workspace/worker-skills
+bash "$RENDER" /root/manager-workspace/worker-agent
+bash "$RENDER" /root/manager-workspace/copaw-worker-agent
+bash "$RENDER" /opt/hiclaw/agent/worker-skills
+bash "$RENDER" /opt/hiclaw/agent/worker-agent
+bash "$RENDER" /opt/hiclaw/agent/copaw-worker-agent
+log "Agent doc templates rendered"
 
 # Cloud mode: start background file sync (workspace ↔ OSS) and initial push
 if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then

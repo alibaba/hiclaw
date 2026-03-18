@@ -99,7 +99,7 @@ mc mirror "/root/hiclaw-fs/shared/tasks/${task_id}/" \
 @{worker}:DOMAIN task-{task-id} git-result:
 Git operations completed successfully.
 {Summary of what was done - commits, pushes, branches created, etc.}
-Run `bash /opt/hiclaw/agent/skills/file-sync/scripts/hiclaw-sync.sh` to sync.
+Run `hiclaw-sync` to sync.
 ```
 
 **On failure** — send to Worker:

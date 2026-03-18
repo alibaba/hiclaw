@@ -102,6 +102,10 @@ printf '#!/bin/bash\nexec /bin/sh "%s/skills/file-sync/scripts/hiclaw-sync.sh" "
     "${WORKSPACE}" > /usr/local/bin/hiclaw-sync
 chmod +x /usr/local/bin/hiclaw-sync
 
+# Defensive symlink: /opt/hiclaw/agent/skills -> actual skills directory
+mkdir -p /opt/hiclaw/agent
+ln -sfn "${WORKSPACE}/skills" /opt/hiclaw/agent/skills
+
 log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 
 # ============================================================

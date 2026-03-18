@@ -10,7 +10,7 @@ description: Sync files with centralized storage. Use when Manager or another Wo
 When the Manager notifies you that your config has been updated (e.g., model switch, skill update), trigger an immediate sync:
 
 ```bash
-python3 /opt/hiclaw/agent/copaw-worker-agent/skills/file-sync/scripts/copaw-sync.py
+copaw-sync
 ```
 
 This pulls `openclaw.json`, `SOUL.md`, `AGENTS.md`, and skills from MinIO and re-bridges the config. CoPaw automatically hot-reloads config changes within ~2 seconds.

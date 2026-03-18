@@ -134,7 +134,7 @@ CLI 工具执行失败...你生成的提示词已保存于：/root/hiclaw-fs/sha
 
 ```bash
 # Sync changes from MinIO
-bash /opt/hiclaw/agent/skills/file-sync/scripts/hiclaw-sync.sh
+hiclaw-sync
 
 # Review what changed
 cd /root/hiclaw-fs/shared/tasks/{task-id}/workspace
