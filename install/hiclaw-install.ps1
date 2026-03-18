@@ -1926,9 +1926,11 @@ function Install-Manager {
         "--name", "hiclaw-manager",
         "--env-file", $script:HICLAW_ENV_FILE,
         "-e", "HOME=/root/manager-workspace",
-        "-w", "/root/manager-workspace",
-        "-e", "HOST_ORIGINAL_HOME=$($config.HOST_SHARE_DIR)"
+        "-w", "/root/manager-workspace"
     )
+    # Note: HOST_ORIGINAL_HOME is NOT set on Windows because Linux containers
+    # cannot interpret Windows paths (e.g., D:\Users\xxx). The container's
+    # start-manager-agent.sh will create a fallback symlink at /root/host-home -> /host-share.
 
     # Timezone
     $dockerArgs += @("-e", "TZ=$($script:HICLAW_TIMEZONE)")
