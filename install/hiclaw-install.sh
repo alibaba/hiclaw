@@ -36,6 +36,7 @@ set -e
 HICLAW_VERSION="${HICLAW_VERSION:-latest}"
 HICLAW_NON_INTERACTIVE="${HICLAW_NON_INTERACTIVE:-0}"
 HICLAW_MOUNT_SOCKET="${HICLAW_MOUNT_SOCKET:-1}"
+STEP_RESULT=""  # Used by state machine to signal "back" navigation
 
 # ============================================================
 # Log all output to file
@@ -552,10 +553,12 @@ msg() {
         "llm.openai.test.fail.codingplan.en") text="⚠️  Hint: Please verify that your API Key has CodingPlan service enabled. Enable at: https://www.alibabacloud.com/en/campaign/ai-scene-coding" ;;
         "llm.openai.test.no_curl.zh") text="⚠️  未找到 curl，跳过 API 联通性测试" ;;
         "llm.openai.test.no_curl.en") text="⚠️  curl not found, skipping API connectivity test" ;;
-        "llm.openai.test.confirm.zh") text="是否仍要继续安装？[y/N] " ;;
-        "llm.openai.test.confirm.en") text="Continue with installation anyway? [y/N] " ;;
+        "llm.openai.test.confirm.zh") text="是否仍要继续安装？[y/N/b] " ;;
+        "llm.openai.test.confirm.en") text="Continue with installation anyway? [y/N/b] " ;;
         "llm.openai.test.aborted.zh") text="安装已中止。" ;;
         "llm.openai.test.aborted.en") text="Installation aborted." ;;
+        "nav.back_hint.zh") text="（输入 b 返回上一步）" ;;
+        "nav.back_hint.en") text="(enter b to go back)" ;;
         # --- OpenAI-compatible provider creation ---
         "install.openai_compat.missing.zh") text="警告: OpenAI Base URL 或 API Key 未设置，跳过提供商创建" ;;
         "install.openai_compat.missing.en") text="WARNING: OpenAI Base URL or API Key not set, skipping provider creation" ;;
@@ -783,15 +786,19 @@ prompt_custom_model_params() {
     log "$(msg llm.custom_model.detected "${model}")"
     echo ""
     read -e -p "  $(msg llm.custom_model.context_prompt): " HICLAW_MODEL_CONTEXT_WINDOW
+    if [ "${HICLAW_MODEL_CONTEXT_WINDOW}" = "b" ]; then STEP_RESULT="back"; return 1; fi
     HICLAW_MODEL_CONTEXT_WINDOW="${HICLAW_MODEL_CONTEXT_WINDOW:-150000}"
     read -e -p "  $(msg llm.custom_model.max_tokens_prompt): " HICLAW_MODEL_MAX_TOKENS
+    if [ "${HICLAW_MODEL_MAX_TOKENS}" = "b" ]; then STEP_RESULT="back"; return 1; fi
     HICLAW_MODEL_MAX_TOKENS="${HICLAW_MODEL_MAX_TOKENS:-128000}"
     read -e -p "  $(msg llm.custom_model.reasoning_prompt): " _reasoning
+    if [ "${_reasoning}" = "b" ]; then STEP_RESULT="back"; return 1; fi
     case "${_reasoning}" in
         n|N|no|NO) HICLAW_MODEL_REASONING="false" ;;
         *) HICLAW_MODEL_REASONING="true" ;;
     esac
     read -e -p "  $(msg llm.custom_model.vision_prompt): " _vision
+    if [ "${_vision}" = "b" ]; then STEP_RESULT="back"; return 1; fi
     case "${_vision}" in
         y|Y|yes|YES) HICLAW_MODEL_VISION="true" ;;
         *) HICLAW_MODEL_VISION="false" ;;
@@ -1039,6 +1046,7 @@ prompt() {
                 echo
             else
                 read -e -p "${prompt_text}: " new_value
+                if [ "${new_value}" = "b" ]; then STEP_RESULT="back"; return 1; fi
             fi
             if [ -n "${new_value}" ]; then
                 eval "export ${var_name}='${new_value}'"
@@ -1072,6 +1080,7 @@ prompt() {
         echo
     else
         read -e -p "${prompt_text}: " value
+        if [ "${value}" = "b" ]; then STEP_RESULT="back"; return 1; fi
     fi
 
     value="${value:-${default_value}}"
@@ -1121,6 +1130,7 @@ prompt_optional() {
                 echo
             else
                 read -e -p "${prompt_text}: " new_value
+                if [ "${new_value}" = "b" ]; then STEP_RESULT="back"; return 1; fi
             fi
             if [ -n "${new_value}" ]; then
                 eval "export ${var_name}='${new_value}'"
@@ -1143,6 +1153,7 @@ prompt_optional() {
         echo
     else
         read -e -p "${prompt_text}: " value
+        if [ "${value}" = "b" ]; then STEP_RESULT="back"; return 1; fi
     fi
 
     eval "export ${var_name}='${value}'"
@@ -1222,6 +1233,590 @@ detect_lan_ip() {
 }
 
 # ============================================================
+# Step-back navigation helpers
+# ============================================================
+
+# should_skip_step: returns 0 (skip) when the step is irrelevant in current mode
+should_skip_step() {
+    local step_fn="$1"
+    case "${step_fn}" in
+        step_lang|step_mode)
+            [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
+            ;;
+        step_existing)
+            local _env="${HICLAW_ENV_FILE:-${HOME}/hiclaw-manager.env}"
+            [ ! -f "${_env}" ] && return 0
+            ;;
+        step_volume|step_workspace)
+            [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
+            [ "${HICLAW_QUICKSTART}" = "1" ] && return 0
+            ;;
+        step_e2ee|step_idle)
+            [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
+            [ "${HICLAW_QUICKSTART}" = "1" ] && [ "${HICLAW_UPGRADE}" != "1" ] && return 0
+            ;;
+        step_hostshare)
+            [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
+            [ "${HICLAW_QUICKSTART}" = "1" ] && return 0
+            ;;
+    esac
+    return 1
+}
+
+# clear_step_vars: unset variables set by a step so it will re-prompt on re-entry
+clear_step_vars() {
+    local step_fn="$1"
+    case "${step_fn}" in
+        step_mode)   unset HICLAW_QUICKSTART ;;
+        step_existing) unset HICLAW_UPGRADE UPGRADE_EXISTING_WORKERS ;;
+        step_llm)
+            unset HICLAW_LLM_PROVIDER HICLAW_DEFAULT_MODEL HICLAW_OPENAI_BASE_URL
+            unset HICLAW_LLM_API_KEY HICLAW_MODEL_CONTEXT_WINDOW HICLAW_MODEL_MAX_TOKENS
+            unset HICLAW_MODEL_REASONING HICLAW_MODEL_VISION
+            ;;
+        step_admin)   unset HICLAW_ADMIN_USER HICLAW_ADMIN_PASSWORD ;;
+        step_network) unset HICLAW_LOCAL_ONLY ;;
+        step_ports)
+            unset HICLAW_PORT_GATEWAY HICLAW_PORT_CONSOLE
+            unset HICLAW_PORT_ELEMENT_WEB HICLAW_PORT_OPENCLAW_CONSOLE
+            ;;
+        step_domains)
+            unset HICLAW_MATRIX_DOMAIN HICLAW_MATRIX_CLIENT_DOMAIN
+            unset HICLAW_AI_GATEWAY_DOMAIN HICLAW_FS_DOMAIN HICLAW_CONSOLE_DOMAIN
+            ;;
+        step_github)    unset HICLAW_GITHUB_TOKEN ;;
+        step_skills)    unset HICLAW_SKILLS_API_URL ;;
+        step_volume)    unset HICLAW_DATA_DIR ;;
+        step_workspace) unset HICLAW_WORKSPACE_DIR ;;
+        step_runtime)   unset HICLAW_DEFAULT_WORKER_RUNTIME ;;
+        step_e2ee)      unset HICLAW_MATRIX_E2EE ;;
+        step_idle)      unset HICLAW_WORKER_IDLE_TIMEOUT ;;
+        step_hostshare) unset HICLAW_HOST_SHARE_DIR ;;
+    esac
+}
+
+# ============================================================
+# Individual step functions
+# ============================================================
+
+step_lang() {
+    local lang_default_choice="2"
+    [ "${HICLAW_LANGUAGE}" = "zh" ] && lang_default_choice="1"
+    log "$(msg lang.detected)"
+    log "$(msg lang.switch_title)"
+    echo "$(msg lang.option_zh)"
+    echo "$(msg lang.option_en)"
+    echo ""
+    local LANG_CHOICE
+    read -e -p "$(msg lang.prompt) [${lang_default_choice}]: " LANG_CHOICE
+    LANG_CHOICE="${LANG_CHOICE:-${lang_default_choice}}"
+    if [ "${LANG_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+    case "${LANG_CHOICE}" in
+        1) HICLAW_LANGUAGE="zh" ;;
+        2) HICLAW_LANGUAGE="en" ;;
+    esac
+    export HICLAW_LANGUAGE
+    log ""
+}
+
+step_mode() {
+    log "$(msg install.mode.title)"
+    echo ""
+    echo "$(msg install.mode.choose)"
+    echo "$(msg install.mode.quickstart)"
+    echo "$(msg install.mode.manual)"
+    echo ""
+    local ONBOARDING_CHOICE
+    read -e -p "$(msg install.mode.prompt): " ONBOARDING_CHOICE
+    ONBOARDING_CHOICE="${ONBOARDING_CHOICE:-1}"
+    if [ "${ONBOARDING_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+    case "${ONBOARDING_CHOICE}" in
+        1|quick|quickstart)
+            log "$(msg install.mode.quickstart_selected)"
+            HICLAW_QUICKSTART=1
+            ;;
+        2|manual)
+            log "$(msg install.mode.manual_selected)"
+            ;;
+        *)
+            log "$(msg install.mode.invalid)"
+            HICLAW_QUICKSTART=1
+            ;;
+    esac
+    log ""
+}
+
+step_existing() {
+    local existing_env="${HICLAW_ENV_FILE:-${HOME}/hiclaw-manager.env}"
+    log "$(msg install.existing.detected "${existing_env}")"
+    local running_manager="" running_workers="" existing_workers=""
+    if ${DOCKER_CMD} ps --format '{{.Names}}' | grep -q "^hiclaw-manager$"; then
+        running_manager="hiclaw-manager"
+    fi
+    running_workers=$(${DOCKER_CMD} ps --format '{{.Names}}' | grep "^hiclaw-worker-" || true)
+    existing_workers=$(${DOCKER_CMD} ps -a --format '{{.Names}}' | grep "^hiclaw-worker-" || true)
+    local UPGRADE_CHOICE
+    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
+        log "$(msg install.existing.upgrade_noninteractive)"
+        UPGRADE_CHOICE="upgrade"
+    else
+        echo ""
+        echo "$(msg install.existing.choose)"
+        echo "$(msg install.existing.upgrade)"
+        echo "$(msg install.existing.reinstall)"
+        echo "$(msg install.existing.cancel)"
+        echo ""
+        read -e -p "$(msg install.existing.prompt): " UPGRADE_CHOICE
+        UPGRADE_CHOICE="${UPGRADE_CHOICE:-1}"
+        if [ "${UPGRADE_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+    fi
+    case "${UPGRADE_CHOICE}" in
+        1|upgrade)
+            HICLAW_UPGRADE=1
+            log "$(msg install.existing.upgrading)"
+            if [ -n "${running_manager}" ] || [ -n "${running_workers}" ]; then
+                echo ""
+                echo -e "\033[33m$(msg install.existing.warn_manager_stop)\033[0m"
+                if [ -n "${existing_workers}" ]; then
+                    echo -e "\033[33m$(msg install.existing.warn_worker_recreate)\033[0m"
+                fi
+                if [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
+                    echo ""
+                    local CONFIRM_STOP
+                    read -e -p "$(msg install.existing.continue_prompt): " CONFIRM_STOP
+                    if [ "${CONFIRM_STOP}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+                    if [ "${CONFIRM_STOP}" != "y" ] && [ "${CONFIRM_STOP}" != "Y" ]; then
+                        log "$(msg install.existing.cancelled)"
+                        exit 0
+                    fi
+                fi
+            fi
+            UPGRADE_EXISTING_WORKERS="${existing_workers}"
+            ;;
+        2|reinstall)
+            log "$(msg install.reinstall.performing)"
+            local existing_workspace=""
+            if [ -f "${existing_env}" ]; then
+                existing_workspace=$(grep '^HICLAW_WORKSPACE_DIR=' "${existing_env}" 2>/dev/null | cut -d= -f2-)
+            fi
+            [ -z "${existing_workspace}" ] && existing_workspace="${HOME}/hiclaw-manager"
+            echo ""
+            echo -e "\033[33m$(msg install.reinstall.warn_stop)\033[0m"
+            [ -n "${running_manager}" ] && echo -e "\033[33m   - ${running_manager} (manager)\033[0m"
+            for w in ${running_workers}; do
+                echo -e "\033[33m   - ${w} (worker)\033[0m"
+            done
+            echo ""
+            echo -e "\033[31m$(msg install.reinstall.warn_delete)\033[0m"
+            echo -e "\033[31m$(msg install.reinstall.warn_volume)\033[0m"
+            echo -e "\033[31m$(msg install.reinstall.warn_env "${existing_env}")\033[0m"
+            echo -e "\033[31m$(msg install.reinstall.warn_workspace "${existing_workspace}")\033[0m"
+            echo -e "\033[31m$(msg install.reinstall.warn_workers)\033[0m"
+            echo ""
+            echo -e "\033[31m$(msg install.reinstall.confirm_type)\033[0m"
+            echo -e "\033[31m  ${existing_workspace}\033[0m"
+            echo ""
+            local CONFIRM_PATH
+            read -e -p "$(msg install.reinstall.confirm_path): " CONFIRM_PATH
+            if [ "${CONFIRM_PATH}" != "${existing_workspace}" ]; then
+                error "$(msg install.reinstall.path_mismatch "${CONFIRM_PATH}" "${existing_workspace}")"
+            fi
+            log "$(msg install.reinstall.confirmed)"
+            ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
+            ${DOCKER_CMD} rm hiclaw-manager 2>/dev/null || true
+            for w in $(${DOCKER_CMD} ps -a --format '{{.Names}}' | grep "^hiclaw-worker-" || true); do
+                ${DOCKER_CMD} stop "${w}" 2>/dev/null || true
+                ${DOCKER_CMD} rm "${w}" 2>/dev/null || true
+                log "$(msg install.reinstall.removed_worker "${w}")"
+            done
+            if ${DOCKER_CMD} volume ls -q | grep -q "^hiclaw-data$"; then
+                log "$(msg install.reinstall.removing_volume)"
+                ${DOCKER_CMD} volume rm hiclaw-data 2>/dev/null || log "$(msg install.reinstall.warn_volume_fail)"
+            fi
+            if [ -d "${existing_workspace}" ]; then
+                log "$(msg install.reinstall.removing_workspace "${existing_workspace}")"
+                rm -rf "${existing_workspace}" || error "$(msg install.reinstall.failed_rm_workspace)"
+            fi
+            if [ -f "${existing_env}" ]; then
+                log "$(msg install.reinstall.removing_env "${existing_env}")"
+                rm -f "${existing_env}"
+            fi
+            log "$(msg install.reinstall.cleanup_done)"
+            unset HICLAW_WORKSPACE_DIR
+            return 0
+            ;;
+        3|cancel|*)
+            log "$(msg install.existing.cancelled)"
+            exit 0
+            ;;
+    esac
+    # Load existing env file as fallback (shell env vars take priority)
+    if [ -f "${existing_env}" ]; then
+        log "$(msg install.loading_config "${existing_env}")"
+        while IFS='=' read -r key value; do
+            case "${key}" in \#*|"") continue ;; esac
+            value="${value%%#*}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            eval "_existing_val=\"\${${key}+x}\""
+            if [ -z "${_existing_val}" ]; then export "${key}=${value}"; fi
+        done < "${existing_env}"
+    fi
+}
+
+step_llm() {
+    log "$(msg llm.title)"
+    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
+        HICLAW_LLM_PROVIDER="${HICLAW_LLM_PROVIDER:-qwen}"
+        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
+        log "$(msg llm.provider.qwen_default "${HICLAW_LLM_PROVIDER}")"
+        log "$(msg llm.model.default "${HICLAW_DEFAULT_MODEL}")"
+        prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true"
+        return 0
+    fi
+    echo ""
+    echo "$(msg llm.providers_title)"
+    echo "$(msg llm.provider.alibaba)"
+    echo "$(msg llm.provider.openai_compat)"
+    echo ""
+    local PROVIDER_CHOICE
+    if [ "${HICLAW_QUICKSTART}" = "1" ]; then
+        read -e -p "$(msg llm.provider.select) [1]: " PROVIDER_CHOICE
+        PROVIDER_CHOICE="${PROVIDER_CHOICE:-1}"
+    else
+        read -e -p "$(msg llm.provider.select): " PROVIDER_CHOICE
+        PROVIDER_CHOICE="${PROVIDER_CHOICE:-1}"
+    fi
+    if [ "${PROVIDER_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+    local ALIBABA_MODEL_CHOICE=""
+    case "${PROVIDER_CHOICE}" in
+        1|alibaba-cloud)
+            if [ "${HICLAW_LANGUAGE}" = "en" ]; then
+                HICLAW_LLM_PROVIDER="openai-compat"
+                HICLAW_OPENAI_BASE_URL="https://coding-intl.dashscope.aliyuncs.com/v1"
+                ALIBABA_MODEL_CHOICE="codingplan"
+                echo ""
+                echo "$(msg llm.codingplan.models_title)"
+                echo "$(msg llm.codingplan.model.qwen35plus)"
+                echo "$(msg llm.codingplan.model.glm5)"
+                echo "$(msg llm.codingplan.model.kimi)"
+                echo "$(msg llm.codingplan.model.minimax)"
+                echo ""
+                local CODINGPLAN_MODEL_CHOICE
+                if [ "${HICLAW_QUICKSTART}" = "1" ]; then
+                    read -e -p "$(msg llm.codingplan.model.select) [1]: " CODINGPLAN_MODEL_CHOICE
+                    CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
+                else
+                    read -e -p "$(msg llm.codingplan.model.select): " CODINGPLAN_MODEL_CHOICE
+                    CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
+                fi
+                if [ "${CODINGPLAN_MODEL_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+                case "${CODINGPLAN_MODEL_CHOICE}" in
+                    1|qwen3.5-plus) HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                    2|glm-5)        HICLAW_DEFAULT_MODEL="glm-5" ;;
+                    3|kimi-k2.5)    HICLAW_DEFAULT_MODEL="kimi-k2.5" ;;
+                    4|MiniMax-M2.5) HICLAW_DEFAULT_MODEL="MiniMax-M2.5" ;;
+                    *)              HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                esac
+                log "$(msg llm.provider.selected_codingplan)"
+                log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
+            else
+                echo ""
+                echo "$(msg llm.alibaba.models_title)"
+                echo "$(msg llm.alibaba.model.codingplan)"
+                echo "$(msg llm.alibaba.model.qwen)"
+                echo ""
+                if [ "${HICLAW_QUICKSTART}" = "1" ]; then
+                    read -e -p "$(msg llm.alibaba.model.select) [1]: " ALIBABA_MODEL_CHOICE
+                    ALIBABA_MODEL_CHOICE="${ALIBABA_MODEL_CHOICE:-1}"
+                else
+                    read -e -p "$(msg llm.alibaba.model.select): " ALIBABA_MODEL_CHOICE
+                    ALIBABA_MODEL_CHOICE="${ALIBABA_MODEL_CHOICE:-1}"
+                fi
+                if [ "${ALIBABA_MODEL_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+                case "${ALIBABA_MODEL_CHOICE}" in
+                    2|qwen)
+                        HICLAW_LLM_PROVIDER="qwen"
+                        HICLAW_OPENAI_BASE_URL=""
+                        echo ""
+                        read -e -p "$(msg llm.qwen.model_prompt): " HICLAW_DEFAULT_MODEL
+                        if [ "${HICLAW_DEFAULT_MODEL}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+                        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
+                        log "$(msg llm.provider.selected_qwen)"
+                        log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
+                        prompt_custom_model_params "${HICLAW_DEFAULT_MODEL}" || return 0
+                        ;;
+                    *)
+                        HICLAW_LLM_PROVIDER="openai-compat"
+                        HICLAW_OPENAI_BASE_URL="https://coding.dashscope.aliyuncs.com/v1"
+                        echo ""
+                        echo "$(msg llm.codingplan.models_title)"
+                        echo "$(msg llm.codingplan.model.qwen35plus)"
+                        echo "$(msg llm.codingplan.model.glm5)"
+                        echo "$(msg llm.codingplan.model.kimi)"
+                        echo "$(msg llm.codingplan.model.minimax)"
+                        echo ""
+                        local CODINGPLAN_MODEL_CHOICE
+                        if [ "${HICLAW_QUICKSTART}" = "1" ]; then
+                            read -e -p "$(msg llm.codingplan.model.select) [1]: " CODINGPLAN_MODEL_CHOICE
+                            CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
+                        else
+                            read -e -p "$(msg llm.codingplan.model.select): " CODINGPLAN_MODEL_CHOICE
+                            CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
+                        fi
+                        if [ "${CODINGPLAN_MODEL_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+                        case "${CODINGPLAN_MODEL_CHOICE}" in
+                            1|qwen3.5-plus) HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                            2|glm-5)        HICLAW_DEFAULT_MODEL="glm-5" ;;
+                            3|kimi-k2.5)    HICLAW_DEFAULT_MODEL="kimi-k2.5" ;;
+                            4|MiniMax-M2.5) HICLAW_DEFAULT_MODEL="MiniMax-M2.5" ;;
+                            *)              HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                        esac
+                        log "$(msg llm.provider.selected_codingplan)"
+                        log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
+                        ;;
+                esac
+            fi
+            log ""
+            log "$(msg llm.apikey_hint)"
+            log "$(msg llm.apikey_url)"
+            log ""
+            prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true" || return 0
+            if [ "${ALIBABA_MODEL_CHOICE}" = "2" ] || [ "${ALIBABA_MODEL_CHOICE}" = "qwen" ]; then
+                test_llm_connectivity "https://dashscope.aliyuncs.com/compatible-mode/v1" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}" || return 0
+            else
+                test_llm_connectivity "${HICLAW_OPENAI_BASE_URL}" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}" "$(msg llm.openai.test.fail.codingplan)" || return 0
+            fi
+            ;;
+        2|openai-compat)
+            HICLAW_LLM_PROVIDER="openai-compat"
+            log "$(msg llm.provider.selected_openai "${HICLAW_LLM_PROVIDER}")"
+            echo ""
+            read -e -p "$(msg llm.openai.base_url_prompt): " HICLAW_OPENAI_BASE_URL
+            if [ "${HICLAW_OPENAI_BASE_URL}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+            read -e -p "$(msg llm.openai.model_prompt): " HICLAW_DEFAULT_MODEL
+            if [ "${HICLAW_DEFAULT_MODEL}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+            HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-gpt-5.4}"
+            log "$(msg llm.openai.base_url_label "${HICLAW_OPENAI_BASE_URL}")"
+            log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
+            prompt_custom_model_params "${HICLAW_DEFAULT_MODEL}" || return 0
+            log ""
+            prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true" || return 0
+            test_llm_connectivity "${HICLAW_OPENAI_BASE_URL}" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}" || return 0
+            ;;
+        *)
+            error "$(msg llm.provider.invalid "${PROVIDER_CHOICE}")"
+            ;;
+    esac
+    export HICLAW_LLM_PROVIDER HICLAW_DEFAULT_MODEL
+    [ -n "${HICLAW_OPENAI_BASE_URL+x}" ] && export HICLAW_OPENAI_BASE_URL
+    log ""
+}
+
+step_admin() {
+    log "$(msg admin.title)"
+    prompt HICLAW_ADMIN_USER "$(msg admin.username_prompt)" "admin" || return 0
+    if [ -z "${HICLAW_ADMIN_PASSWORD}" ]; then
+        prompt_optional HICLAW_ADMIN_PASSWORD "$(msg admin.password_prompt)" "true" || return 0
+        if [ -z "${HICLAW_ADMIN_PASSWORD}" ]; then
+            HICLAW_ADMIN_PASSWORD="admin$(openssl rand -hex 6)"
+            log "$(msg admin.password_generated)"
+        fi
+    else
+        log "  $(msg prompt.preset "HICLAW_ADMIN_PASSWORD")"
+    fi
+    if [ ${#HICLAW_ADMIN_PASSWORD} -lt 8 ]; then
+        error "$(msg admin.password_too_short "${#HICLAW_ADMIN_PASSWORD}")"
+    fi
+    log ""
+}
+
+step_network() {
+    log "$(msg port.local_only.title)"
+    echo ""
+    echo "  1) $(msg port.local_only.hint_yes)"
+    echo "  2) $(msg port.local_only.hint_no)"
+    echo ""
+    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
+        HICLAW_LOCAL_ONLY="${HICLAW_LOCAL_ONLY:-1}"
+    elif [ -z "${HICLAW_LOCAL_ONLY+x}" ]; then
+        local _local_choice
+        read -e -p "$(msg port.local_only.choice): " _local_choice
+        if [ "${_local_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        _local_choice="${_local_choice:-1}"
+        case "${_local_choice}" in
+            2|n|N|no|NO) HICLAW_LOCAL_ONLY="0" ;;
+            *)            HICLAW_LOCAL_ONLY="1" ;;
+        esac
+    fi
+    export HICLAW_LOCAL_ONLY
+    if [ "${HICLAW_LOCAL_ONLY}" = "1" ]; then
+        log "$(msg port.local_only.selected_local)"
+    else
+        log "$(msg port.local_only.selected_external)"
+        echo ""
+        echo -e "\033[33m$(msg port.local_only.https_hint)\033[0m"
+    fi
+}
+
+step_ports() {
+    log "$(msg port.title)"
+    prompt HICLAW_PORT_GATEWAY "$(msg port.gateway_prompt)" "18080" || return 0
+    prompt HICLAW_PORT_CONSOLE "$(msg port.console_prompt)" "18001" || return 0
+    prompt HICLAW_PORT_ELEMENT_WEB "$(msg port.element_prompt)" "18088" || return 0
+    prompt HICLAW_PORT_OPENCLAW_CONSOLE "$(msg port.openclaw_console_prompt)" "18888" || return 0
+    log ""
+}
+
+step_domains() {
+    log "$(msg domain.title)"
+    log "$(msg domain.hint)"
+    prompt HICLAW_MATRIX_DOMAIN "$(msg domain.matrix_prompt)" "matrix-local.hiclaw.io:${HICLAW_PORT_GATEWAY}" || return 0
+    prompt HICLAW_MATRIX_CLIENT_DOMAIN "$(msg domain.element_prompt)" "matrix-client-local.hiclaw.io" || return 0
+    prompt HICLAW_AI_GATEWAY_DOMAIN "$(msg domain.gateway_prompt)" "aigw-local.hiclaw.io" || return 0
+    prompt HICLAW_FS_DOMAIN "$(msg domain.fs_prompt)" "fs-local.hiclaw.io" || return 0
+    prompt HICLAW_CONSOLE_DOMAIN "$(msg domain.console_prompt)" "console-local.hiclaw.io" || return 0
+    log ""
+}
+
+step_github() {
+    log "$(msg github.title)"
+    prompt_optional HICLAW_GITHUB_TOKEN "$(msg github.token_prompt)" "true" || return 0
+}
+
+step_skills() {
+    log ""
+    log "$(msg skills.title)"
+    prompt_optional HICLAW_SKILLS_API_URL "$(msg skills.url_prompt)" || return 0
+    log ""
+}
+
+step_volume() {
+    log "$(msg data.title)"
+    if [ -z "${HICLAW_DATA_DIR+x}" ]; then
+        local _input
+        read -e -p "$(msg data.volume_prompt): " _input
+        if [ "${_input}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        HICLAW_DATA_DIR="${_input:-hiclaw-data}"
+        export HICLAW_DATA_DIR
+    fi
+    HICLAW_DATA_DIR="${HICLAW_DATA_DIR:-hiclaw-data}"
+    log "$(msg data.volume_using "${HICLAW_DATA_DIR}")"
+}
+
+step_workspace() {
+    log "$(msg workspace.title)"
+    if [ -z "${HICLAW_WORKSPACE_DIR+x}" ]; then
+        local _input
+        read -e -p "$(msg workspace.dir_prompt "${HOME}/hiclaw-manager"): " _input
+        if [ "${_input}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        HICLAW_WORKSPACE_DIR="${_input:-${HOME}/hiclaw-manager}"
+        export HICLAW_WORKSPACE_DIR
+    fi
+    HICLAW_WORKSPACE_DIR="$(cd "${HICLAW_WORKSPACE_DIR}" 2>/dev/null && pwd || echo "${HICLAW_WORKSPACE_DIR}")"
+    mkdir -p "${HICLAW_WORKSPACE_DIR}"
+    log "$(msg workspace.dir_label "${HICLAW_WORKSPACE_DIR}")"
+}
+
+step_runtime() {
+    log "$(msg worker_runtime.title)"
+    echo ""
+    echo "  1) $(msg worker_runtime.openclaw)"
+    echo "  2) $(msg worker_runtime.copaw)"
+    echo ""
+    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
+        HICLAW_DEFAULT_WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"
+    elif [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_DEFAULT_WORKER_RUNTIME}" ]; then
+        log "$(msg prompt.upgrade_keep "HICLAW_DEFAULT_WORKER_RUNTIME" "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
+        local _runtime_choice
+        read -e -p "$(msg worker_runtime.choice): " _runtime_choice
+        if [ "${_runtime_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        if [ -n "${_runtime_choice}" ]; then
+            case "${_runtime_choice}" in
+                2) HICLAW_DEFAULT_WORKER_RUNTIME="copaw" ;;
+                *) HICLAW_DEFAULT_WORKER_RUNTIME="openclaw" ;;
+            esac
+        fi
+    elif [ -z "${HICLAW_DEFAULT_WORKER_RUNTIME+x}" ]; then
+        local _runtime_choice
+        read -e -p "$(msg worker_runtime.choice): " _runtime_choice
+        if [ "${_runtime_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        _runtime_choice="${_runtime_choice:-1}"
+        case "${_runtime_choice}" in
+            2) HICLAW_DEFAULT_WORKER_RUNTIME="copaw" ;;
+            *) HICLAW_DEFAULT_WORKER_RUNTIME="openclaw" ;;
+        esac
+    fi
+    export HICLAW_DEFAULT_WORKER_RUNTIME
+    log "$(msg worker_runtime.selected "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
+}
+
+step_e2ee() {
+    log ""
+    log "$(msg matrix_e2ee.title)"
+    echo ""
+    echo -e "  $(msg matrix_e2ee.desc)"
+    echo ""
+    echo "  1) $(msg matrix_e2ee.disable)"
+    echo "  2) $(msg matrix_e2ee.enable)"
+    echo ""
+    if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_MATRIX_E2EE}" ]; then
+        log "$(msg prompt.upgrade_keep "HICLAW_MATRIX_E2EE" "${HICLAW_MATRIX_E2EE}")"
+        local _e2ee_choice
+        read -e -p "$(msg matrix_e2ee.choice): " _e2ee_choice
+        if [ "${_e2ee_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        if [ -n "${_e2ee_choice}" ]; then
+            case "${_e2ee_choice}" in
+                2) HICLAW_MATRIX_E2EE="1" ;;
+                *) HICLAW_MATRIX_E2EE="0" ;;
+            esac
+        fi
+    elif [ -z "${HICLAW_MATRIX_E2EE+x}" ]; then
+        local _e2ee_choice
+        read -e -p "$(msg matrix_e2ee.choice): " _e2ee_choice
+        if [ "${_e2ee_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        _e2ee_choice="${_e2ee_choice:-1}"
+        case "${_e2ee_choice}" in
+            2) HICLAW_MATRIX_E2EE="1" ;;
+            *) HICLAW_MATRIX_E2EE="0" ;;
+        esac
+    fi
+    HICLAW_MATRIX_E2EE="${HICLAW_MATRIX_E2EE:-0}"
+    export HICLAW_MATRIX_E2EE
+    if [ "${HICLAW_MATRIX_E2EE}" = "1" ]; then
+        log "$(msg matrix_e2ee.selected_enabled)"
+    else
+        log "$(msg matrix_e2ee.selected_disabled)"
+    fi
+}
+
+step_idle() {
+    if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_WORKER_IDLE_TIMEOUT}" ]; then
+        log "$(msg prompt.upgrade_keep "HICLAW_WORKER_IDLE_TIMEOUT" "${HICLAW_WORKER_IDLE_TIMEOUT}")"
+        local _idle_timeout
+        read -e -p "$(msg idle_timeout.prompt): " _idle_timeout
+        if [ "${_idle_timeout}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        [ -n "${_idle_timeout}" ] && HICLAW_WORKER_IDLE_TIMEOUT="${_idle_timeout}"
+    elif [ -z "${HICLAW_WORKER_IDLE_TIMEOUT+x}" ]; then
+        local _idle_timeout
+        read -e -p "$(msg idle_timeout.prompt): " _idle_timeout
+        if [ "${_idle_timeout}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        HICLAW_WORKER_IDLE_TIMEOUT="${_idle_timeout:-720}"
+    fi
+    HICLAW_WORKER_IDLE_TIMEOUT="${HICLAW_WORKER_IDLE_TIMEOUT:-720}"
+    export HICLAW_WORKER_IDLE_TIMEOUT
+    log "$(msg idle_timeout.selected "${HICLAW_WORKER_IDLE_TIMEOUT}")"
+}
+
+step_hostshare() {
+    local _share_dir
+    read -e -p "$(msg host_share.prompt "$HOME"): " _share_dir
+    if [ "${_share_dir}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+    HICLAW_HOST_SHARE_DIR="${_share_dir:-$HOME}"
+    export HICLAW_HOST_SHARE_DIR
+}
+
+# ============================================================
 # Manager Installation (Interactive)
 # ============================================================
 
@@ -1234,213 +1829,22 @@ install_manager() {
     log "$(msg install.dir_hint2)"
     log ""
 
-    # Language switch interaction (skip in non-interactive mode)
-    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
-        # Determine default choice based on current detected language
-        local lang_default_choice="2"
-        if [ "${HICLAW_LANGUAGE}" = "zh" ]; then
-            lang_default_choice="1"
-        fi
-
-        log "$(msg lang.detected)"
-        log "$(msg lang.switch_title)"
-        echo "$(msg lang.option_zh)"
-        echo "$(msg lang.option_en)"
-        echo ""
-        read -e -p "$(msg lang.prompt) [${lang_default_choice}]: " LANG_CHOICE
-        LANG_CHOICE="${LANG_CHOICE:-${lang_default_choice}}"
-
-        case "${LANG_CHOICE}" in
-            1)
-                HICLAW_LANGUAGE="zh"
-                ;;
-            2)
-                HICLAW_LANGUAGE="en"
-                ;;
-            *)
-                # Invalid input — keep current detected language
-                ;;
-        esac
-        export HICLAW_LANGUAGE
-        log ""
-    fi
-
-    # Onboarding mode selection (skip if already in non-interactive mode)
-    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
-        log "$(msg install.mode.title)"
-        echo ""
-        echo "$(msg install.mode.choose)"
-        echo "$(msg install.mode.quickstart)"
-        echo "$(msg install.mode.manual)"
-        echo ""
-        read -e -p "$(msg install.mode.prompt): " ONBOARDING_CHOICE
-        ONBOARDING_CHOICE="${ONBOARDING_CHOICE:-1}"
-
-        case "${ONBOARDING_CHOICE}" in
-            1|quick|quickstart)
-                log "$(msg install.mode.quickstart_selected)"
-                HICLAW_QUICKSTART=1
-                ;;
-            2|manual)
-                log "$(msg install.mode.manual_selected)"
-                ;;
-            *)
-                log "$(msg install.mode.invalid)"
-                HICLAW_QUICKSTART=1
-                ;;
-        esac
-        log ""
-    fi
-
-    # Check if Manager is already installed (by env file existence)
+    # Migrate legacy env file location before checks
     local existing_env="${HICLAW_ENV_FILE:-${HOME}/hiclaw-manager.env}"
-    # Migrate from legacy location (current directory) if needed
     if [ ! -f "${existing_env}" ] && [ -f "./hiclaw-manager.env" ]; then
         log "Migrating hiclaw-manager.env from current directory to ${existing_env}..."
         mv "./hiclaw-manager.env" "${existing_env}"
     fi
-    if [ -f "${existing_env}" ]; then
-        log "$(msg install.existing.detected "${existing_env}")"
 
-        # Check for running containers
-        local running_manager=""
-        local running_workers=""
-        local existing_workers=""
-        if ${DOCKER_CMD} ps --format '{{.Names}}' | grep -q "^hiclaw-manager$"; then
-            running_manager="hiclaw-manager"
-        fi
-        running_workers=$(${DOCKER_CMD} ps --format '{{.Names}}' | grep "^hiclaw-worker-" || true)
-        existing_workers=$(${DOCKER_CMD} ps -a --format '{{.Names}}' | grep "^hiclaw-worker-" || true)
-
-        # Non-interactive mode: default to upgrade without rebuilding workers
-        if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
-            log "$(msg install.existing.upgrade_noninteractive)"
-            UPGRADE_CHOICE="upgrade"
-            REBUILD_WORKERS="no"
-        else
-            echo ""
-            echo "$(msg install.existing.choose)"
-            echo "$(msg install.existing.upgrade)"
-            echo "$(msg install.existing.reinstall)"
-            echo "$(msg install.existing.cancel)"
-            echo ""
-            read -e -p "$(msg install.existing.prompt): " UPGRADE_CHOICE
-            UPGRADE_CHOICE="${UPGRADE_CHOICE:-1}"
-        fi
-
-        case "${UPGRADE_CHOICE}" in
-            1|upgrade)
-                HICLAW_UPGRADE=1
-                log "$(msg install.existing.upgrading)"
-
-                # Warn about running containers (actual stop is deferred until
-                # all configuration is collected and images are pulled)
-                if [ -n "${running_manager}" ] || [ -n "${running_workers}" ]; then
-                    echo ""
-                    echo -e "\033[33m$(msg install.existing.warn_manager_stop)\033[0m"
-                    if [ -n "${existing_workers}" ]; then
-                        echo -e "\033[33m$(msg install.existing.warn_worker_recreate)\033[0m"
-                    fi
-                    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
-                        echo ""
-                        read -e -p "$(msg install.existing.continue_prompt): " CONFIRM_STOP
-                        if [ "${CONFIRM_STOP}" != "y" ] && [ "${CONFIRM_STOP}" != "Y" ]; then
-                            log "$(msg install.existing.cancelled)"
-                            exit 0
-                        fi
-                    fi
-                fi
-
-                # Remember workers to stop later (after config + image pull)
-                UPGRADE_EXISTING_WORKERS="${existing_workers}"
-                # Continue with installation using existing config
-                ;;
-            2|reinstall)
-                log "$(msg install.reinstall.performing)"
-
-                # Get existing workspace directory from env file
-                local existing_workspace=""
-                if [ -f "${existing_env}" ]; then
-                    existing_workspace=$(grep '^HICLAW_WORKSPACE_DIR=' "${existing_env}" 2>/dev/null | cut -d= -f2-)
-                fi
-                if [ -z "${existing_workspace}" ]; then
-                    existing_workspace="${HOME}/hiclaw-manager"
-                fi
-
-                # Warn about running containers
-                echo ""
-                echo -e "\033[33m$(msg install.reinstall.warn_stop)\033[0m"
-                [ -n "${running_manager}" ] && echo -e "\033[33m   - ${running_manager} (manager)\033[0m"
-                for w in ${running_workers}; do
-                    echo -e "\033[33m   - ${w} (worker)\033[0m"
-                done
-                echo ""
-                echo -e "\033[31m$(msg install.reinstall.warn_delete)\033[0m"
-                echo -e "\033[31m$(msg install.reinstall.warn_volume)\033[0m"
-                echo -e "\033[31m$(msg install.reinstall.warn_env "${existing_env}")\033[0m"
-                echo -e "\033[31m$(msg install.reinstall.warn_workspace "${existing_workspace}")\033[0m"
-                echo -e "\033[31m$(msg install.reinstall.warn_workers)\033[0m"
-                echo ""
-                echo -e "\033[31m$(msg install.reinstall.confirm_type)\033[0m"
-                echo -e "\033[31m  ${existing_workspace}\033[0m"
-                echo ""
-                read -e -p "$(msg install.reinstall.confirm_path): " CONFIRM_PATH
-
-                if [ "${CONFIRM_PATH}" != "${existing_workspace}" ]; then
-                    error "$(msg install.reinstall.path_mismatch "${CONFIRM_PATH}" "${existing_workspace}")"
-                fi
-
-                log "$(msg install.reinstall.confirmed)"
-
-                # Stop and remove manager container
-                ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
-                ${DOCKER_CMD} rm hiclaw-manager 2>/dev/null || true
-
-                # Stop and remove all worker containers
-                for w in $(${DOCKER_CMD} ps -a --format '{{.Names}}' | grep "^hiclaw-worker-" || true); do
-                    ${DOCKER_CMD} stop "${w}" 2>/dev/null || true
-                    ${DOCKER_CMD} rm "${w}" 2>/dev/null || true
-                    log "$(msg install.reinstall.removed_worker "${w}")"
-                done
-
-                # Remove Docker volume
-                if ${DOCKER_CMD} volume ls -q | grep -q "^hiclaw-data$"; then
-                    log "$(msg install.reinstall.removing_volume)"
-                    ${DOCKER_CMD} volume rm hiclaw-data 2>/dev/null || log "$(msg install.reinstall.warn_volume_fail)"
-                fi
-
-                # Remove workspace directory
-                if [ -d "${existing_workspace}" ]; then
-                    log "$(msg install.reinstall.removing_workspace "${existing_workspace}")"
-                    rm -rf "${existing_workspace}" || error "$(msg install.reinstall.failed_rm_workspace)"
-                fi
-
-                # Remove env file
-                if [ -f "${existing_env}" ]; then
-                    log "$(msg install.reinstall.removing_env "${existing_env}")"
-                    rm -f "${existing_env}"
-                fi
-
-                log "$(msg install.reinstall.cleanup_done)"
-                # Clear any loaded environment variables to start fresh
-                unset HICLAW_WORKSPACE_DIR
-                ;;
-            3|cancel|*)
-                log "$(msg install.existing.cancelled)"
-                exit 0
-                ;;
-        esac
-    else
-        # --- Orphan volume detection (env file gone but volume remains) ---
+    # Orphan volume detection (only when no env file — step_existing handles the env-file case)
+    if [ ! -f "${existing_env}" ]; then
         local data_vol="${HICLAW_DATA_DIR:-hiclaw-data}"
         if ${DOCKER_CMD} volume ls -q | grep -q "^${data_vol}$"; then
             echo ""
             log "$(msg install.orphan_volume.detected "${data_vol}")"
             log "$(msg install.orphan_volume.warn)"
-
             if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
                 log "$(msg install.orphan_volume.clean_noninteractive)"
-                # Stop containers that may reference the volume
                 ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
                 ${DOCKER_CMD} rm hiclaw-manager 2>/dev/null || true
                 for w in $(${DOCKER_CMD} ps -a --format '{{.Names}}' | grep "^hiclaw-worker-" || true); do
@@ -1456,12 +1860,11 @@ install_manager() {
                 echo "$(msg install.orphan_volume.clean)"
                 echo "$(msg install.orphan_volume.keep)"
                 echo ""
+                local ORPHAN_CHOICE
                 read -e -p "$(msg install.orphan_volume.prompt): " ORPHAN_CHOICE
                 ORPHAN_CHOICE="${ORPHAN_CHOICE:-1}"
-
                 case "${ORPHAN_CHOICE}" in
                     1|clean)
-                        # Stop containers that may reference the volume
                         ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
                         ${DOCKER_CMD} rm hiclaw-manager 2>/dev/null || true
                         for w in $(${DOCKER_CMD} ps -a --format '{{.Names}}' | grep "^hiclaw-worker-" || true); do
@@ -1480,396 +1883,53 @@ install_manager() {
         fi
     fi
 
-    # Load existing env file as fallback (shell env vars take priority)
-    if [ -f "${existing_env}" ]; then
-        log "$(msg install.loading_config "${existing_env}")"
-        while IFS='=' read -r key value; do
-            # Skip comments and empty lines
-            case "${key}" in
-                \#*|"") continue ;;
-            esac
-            # Strip inline comments and surrounding whitespace from value
-            value="${value%%#*}"
-            value="${value#"${value%%[![:space:]]*}"}"
-            value="${value%"${value##*[![:space:]]}"}"
-            # Only set if not already set in the shell environment
-            eval "_existing_val=\"\${${key}+x}\""
-            if [ -z "${_existing_val}" ]; then
-                export "${key}=${value}"
+    # ── State machine ─────────────────────────────────────────────────────────
+    local _STEPS=( step_lang step_mode step_existing step_llm step_admin step_network \
+                   step_ports step_domains step_github step_skills step_volume \
+                   step_workspace step_runtime step_e2ee step_idle step_hostshare )
+    local _STEP_HISTORY=()
+    local _step_idx=0
+    while [ "${_step_idx}" -lt "${#_STEPS[@]}" ]; do
+        local _step_fn="${_STEPS[$_step_idx]}"
+        if should_skip_step "${_step_fn}"; then
+            _step_idx=$((_step_idx + 1))
+            continue
+        fi
+        if [ "${#_STEP_HISTORY[@]}" -gt 0 ]; then
+            log "$(msg nav.back_hint)"
+        fi
+        STEP_RESULT=""
+        "${_step_fn}"
+        if [ "${STEP_RESULT}" = "back" ]; then
+            if [ "${#_STEP_HISTORY[@]}" -gt 0 ]; then
+                local _last=$(( ${#_STEP_HISTORY[@]} - 1 ))
+                _step_idx="${_STEP_HISTORY[$_last]}"
+                _STEP_HISTORY=("${_STEP_HISTORY[@]:0:${_last}}")
+                clear_step_vars "${_STEPS[$_step_idx]}"
             fi
-        done < "${existing_env}"
-    fi
-
-    # LLM Configuration
-    log "$(msg llm.title)"
-
-    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
-        # Non-interactive mode: use defaults
-        HICLAW_LLM_PROVIDER="${HICLAW_LLM_PROVIDER:-qwen}"
-        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
-        log "$(msg llm.provider.qwen_default "${HICLAW_LLM_PROVIDER}")"
-        log "$(msg llm.model.default "${HICLAW_DEFAULT_MODEL}")"
-        prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true"
-    else
-        # Both Quick Start and Manual mode: show provider selection menu
-        # Quick Start defaults to option 1 (Alibaba Cloud → CodingPlan); Manual requires explicit choice
-        echo ""
-        echo "$(msg llm.providers_title)"
-        echo "$(msg llm.provider.alibaba)"
-        echo "$(msg llm.provider.openai_compat)"
-        echo ""
-        if [ "${HICLAW_QUICKSTART}" = "1" ]; then
-            read -e -p "$(msg llm.provider.select) [1]: " PROVIDER_CHOICE
-            PROVIDER_CHOICE="${PROVIDER_CHOICE:-1}"
+            # else: first step, ignore 'b'
         else
-            read -e -p "$(msg llm.provider.select): " PROVIDER_CHOICE
-            PROVIDER_CHOICE="${PROVIDER_CHOICE:-1}"
+            _STEP_HISTORY+=("${_step_idx}")
+            _step_idx=$((_step_idx + 1))
         fi
+    done
+    # ── End state machine ──────────────────────────────────────────────────────
 
-        case "${PROVIDER_CHOICE}" in
-            1|alibaba-cloud)
-                if [ "${HICLAW_LANGUAGE}" = "en" ]; then
-                    # English: only expose international CodingPlan
-                    HICLAW_LLM_PROVIDER="openai-compat"
-                    HICLAW_OPENAI_BASE_URL="https://coding-intl.dashscope.aliyuncs.com/v1"
-                    ALIBABA_MODEL_CHOICE="codingplan"
-
-                    # Sub-menu: Select CodingPlan model
-                    echo ""
-                    echo "$(msg llm.codingplan.models_title)"
-                    echo "$(msg llm.codingplan.model.qwen35plus)"
-                    echo "$(msg llm.codingplan.model.glm5)"
-                    echo "$(msg llm.codingplan.model.kimi)"
-                    echo "$(msg llm.codingplan.model.minimax)"
-                    echo ""
-                    if [ "${HICLAW_QUICKSTART}" = "1" ]; then
-                        read -e -p "$(msg llm.codingplan.model.select) [1]: " CODINGPLAN_MODEL_CHOICE
-                        CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
-                    else
-                        read -e -p "$(msg llm.codingplan.model.select): " CODINGPLAN_MODEL_CHOICE
-                        CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
-                    fi
-
-                    case "${CODINGPLAN_MODEL_CHOICE}" in
-                        1|qwen3.5-plus)
-                            HICLAW_DEFAULT_MODEL="qwen3.5-plus"
-                            ;;
-                        2|glm-5)
-                            HICLAW_DEFAULT_MODEL="glm-5"
-                            ;;
-                        3|kimi-k2.5)
-                            HICLAW_DEFAULT_MODEL="kimi-k2.5"
-                            ;;
-                        4|MiniMax-M2.5)
-                            HICLAW_DEFAULT_MODEL="MiniMax-M2.5"
-                            ;;
-                        *)
-                            HICLAW_DEFAULT_MODEL="qwen3.5-plus"
-                            ;;
-                    esac
-
-                    log "$(msg llm.provider.selected_codingplan)"
-                    log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
-                else
-                    # Chinese: show CodingPlan vs qwen general sub-menu
-                    echo ""
-                    echo "$(msg llm.alibaba.models_title)"
-                    echo "$(msg llm.alibaba.model.codingplan)"
-                    echo "$(msg llm.alibaba.model.qwen)"
-                    echo ""
-                    if [ "${HICLAW_QUICKSTART}" = "1" ]; then
-                        read -e -p "$(msg llm.alibaba.model.select) [1]: " ALIBABA_MODEL_CHOICE
-                        ALIBABA_MODEL_CHOICE="${ALIBABA_MODEL_CHOICE:-1}"
-                    else
-                        read -e -p "$(msg llm.alibaba.model.select): " ALIBABA_MODEL_CHOICE
-                        ALIBABA_MODEL_CHOICE="${ALIBABA_MODEL_CHOICE:-1}"
-                    fi
-
-                    case "${ALIBABA_MODEL_CHOICE}" in
-                        2|qwen)
-                            HICLAW_LLM_PROVIDER="qwen"
-                            HICLAW_OPENAI_BASE_URL=""
-                            echo ""
-                            read -e -p "$(msg llm.qwen.model_prompt): " HICLAW_DEFAULT_MODEL
-                            HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
-                            log "$(msg llm.provider.selected_qwen)"
-                            log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
-                            prompt_custom_model_params "${HICLAW_DEFAULT_MODEL}"
-                            ;;
-                        *)
-                            HICLAW_LLM_PROVIDER="openai-compat"
-                            HICLAW_OPENAI_BASE_URL="https://coding.dashscope.aliyuncs.com/v1"
-
-                            # Sub-menu: Select CodingPlan model
-                            echo ""
-                            echo "$(msg llm.codingplan.models_title)"
-                            echo "$(msg llm.codingplan.model.qwen35plus)"
-                            echo "$(msg llm.codingplan.model.glm5)"
-                            echo "$(msg llm.codingplan.model.kimi)"
-                            echo "$(msg llm.codingplan.model.minimax)"
-                            echo ""
-                            if [ "${HICLAW_QUICKSTART}" = "1" ]; then
-                                read -e -p "$(msg llm.codingplan.model.select) [1]: " CODINGPLAN_MODEL_CHOICE
-                                CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
-                            else
-                                read -e -p "$(msg llm.codingplan.model.select): " CODINGPLAN_MODEL_CHOICE
-                                CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
-                            fi
-
-                            case "${CODINGPLAN_MODEL_CHOICE}" in
-                                1|qwen3.5-plus)
-                                    HICLAW_DEFAULT_MODEL="qwen3.5-plus"
-                                    ;;
-                                2|glm-5)
-                                    HICLAW_DEFAULT_MODEL="glm-5"
-                                    ;;
-                                3|kimi-k2.5)
-                                    HICLAW_DEFAULT_MODEL="kimi-k2.5"
-                                    ;;
-                                4|MiniMax-M2.5)
-                                    HICLAW_DEFAULT_MODEL="MiniMax-M2.5"
-                                    ;;
-                                *)
-                                    HICLAW_DEFAULT_MODEL="qwen3.5-plus"
-                                    ;;
-                            esac
-
-                            log "$(msg llm.provider.selected_codingplan)"
-                            log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
-                            ;;
-                    esac
-                fi
-                log ""
-                log "$(msg llm.apikey_hint)"
-                log "$(msg llm.apikey_url)"
-                log ""
-                prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true"
-                # Connectivity test
-                if [ "${ALIBABA_MODEL_CHOICE}" = "2" ] || [ "${ALIBABA_MODEL_CHOICE}" = "qwen" ]; then
-                    test_llm_connectivity "https://dashscope.aliyuncs.com/compatible-mode/v1" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}"
-                else
-                    test_llm_connectivity "${HICLAW_OPENAI_BASE_URL}" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}" "$(msg llm.openai.test.fail.codingplan)"
-                fi
-                ;;
-            2|openai-compat)
-                HICLAW_LLM_PROVIDER="openai-compat"
-                log "$(msg llm.provider.selected_openai "${HICLAW_LLM_PROVIDER}")"
-                echo ""
-                read -e -p "$(msg llm.openai.base_url_prompt): " HICLAW_OPENAI_BASE_URL
-                read -e -p "$(msg llm.openai.model_prompt): " HICLAW_DEFAULT_MODEL
-                HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-gpt-5.4}"
-                log "$(msg llm.openai.base_url_label "${HICLAW_OPENAI_BASE_URL}")"
-                log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
-                prompt_custom_model_params "${HICLAW_DEFAULT_MODEL}"
-                log ""
-                prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true"
-                test_llm_connectivity "${HICLAW_OPENAI_BASE_URL}" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}"
-                ;;
-            *)
-                error "$(msg llm.provider.invalid "${PROVIDER_CHOICE}")"
-                ;;
-        esac
-    fi
-
-    log ""
-
-    # Admin Credentials (password auto-generated if not provided)
-    log "$(msg admin.title)"
-    prompt HICLAW_ADMIN_USER "$(msg admin.username_prompt)" "admin"
-    if [ -z "${HICLAW_ADMIN_PASSWORD}" ]; then
-        prompt_optional HICLAW_ADMIN_PASSWORD "$(msg admin.password_prompt)" "true"
-        if [ -z "${HICLAW_ADMIN_PASSWORD}" ]; then
-            HICLAW_ADMIN_PASSWORD="admin$(openssl rand -hex 6)"
-            log "$(msg admin.password_generated)"
-        fi
-    else
-        log "  $(msg prompt.preset "HICLAW_ADMIN_PASSWORD")"
-    fi
-
-    # Validate password length (MinIO requires at least 8 characters)
-    if [ ${#HICLAW_ADMIN_PASSWORD} -lt 8 ]; then
-        error "$(msg admin.password_too_short "${#HICLAW_ADMIN_PASSWORD}")"
-    fi
-
-    log ""
-
-    # Port Configuration (must come before Domain so MATRIX_DOMAIN default uses the correct port)
-    log "$(msg port.local_only.title)"
-    echo ""
-    echo "  1) $(msg port.local_only.hint_yes)"
-    echo "  2) $(msg port.local_only.hint_no)"
-    echo ""
-    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
-        HICLAW_LOCAL_ONLY="${HICLAW_LOCAL_ONLY:-1}"
-    elif [ -z "${HICLAW_LOCAL_ONLY+x}" ]; then
-        read -e -p "$(msg port.local_only.choice): " _local_choice
-        _local_choice="${_local_choice:-1}"
-        case "${_local_choice}" in
-            2|n|N|no|NO) HICLAW_LOCAL_ONLY="0" ;;
-            *)            HICLAW_LOCAL_ONLY="1" ;;
-        esac
-        unset _local_choice
-    fi
-    export HICLAW_LOCAL_ONLY
-
-    if [ "${HICLAW_LOCAL_ONLY}" = "1" ]; then
-        log "$(msg port.local_only.selected_local)"
-    else
-        log "$(msg port.local_only.selected_external)"
-        echo ""
-        echo -e "\033[33m$(msg port.local_only.https_hint)\033[0m"
-    fi
-
-    log "$(msg port.title)"
-    prompt HICLAW_PORT_GATEWAY "$(msg port.gateway_prompt)" "18080"
-    prompt HICLAW_PORT_CONSOLE "$(msg port.console_prompt)" "18001"
-    prompt HICLAW_PORT_ELEMENT_WEB "$(msg port.element_prompt)" "18088"
-    prompt HICLAW_PORT_OPENCLAW_CONSOLE "$(msg port.openclaw_console_prompt)" "18888"
-
-    log ""
-
-    # Domain Configuration
-    log "$(msg domain.title)"
-    log "$(msg domain.hint)"
-    prompt HICLAW_MATRIX_DOMAIN "$(msg domain.matrix_prompt)" "matrix-local.hiclaw.io:${HICLAW_PORT_GATEWAY}"
-    prompt HICLAW_MATRIX_CLIENT_DOMAIN "$(msg domain.element_prompt)" "matrix-client-local.hiclaw.io"
-    prompt HICLAW_AI_GATEWAY_DOMAIN "$(msg domain.gateway_prompt)" "aigw-local.hiclaw.io"
-    prompt HICLAW_FS_DOMAIN "$(msg domain.fs_prompt)" "fs-local.hiclaw.io"
-    prompt HICLAW_CONSOLE_DOMAIN "$(msg domain.console_prompt)" "console-local.hiclaw.io"
-
-    log ""
-
-    # Optional: GitHub PAT
-    log "$(msg github.title)"
-    prompt_optional HICLAW_GITHUB_TOKEN "$(msg github.token_prompt)" "true"
-
-    # Optional: Skills Registry URL
-    log ""
-    log "$(msg skills.title)"
-    prompt_optional HICLAW_SKILLS_API_URL "$(msg skills.url_prompt)"
-
-    log ""
-
-    # Data persistence
-    log "$(msg data.title)"
-    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ] && [ "${HICLAW_QUICKSTART}" != "1" ] && [ -z "${HICLAW_DATA_DIR+x}" ]; then
-        read -e -p "$(msg data.volume_prompt): " HICLAW_DATA_DIR
-        HICLAW_DATA_DIR="${HICLAW_DATA_DIR:-hiclaw-data}"
-        export HICLAW_DATA_DIR
-    fi
+    # Post-machine defaults for any steps that were skipped
     HICLAW_DATA_DIR="${HICLAW_DATA_DIR:-hiclaw-data}"
-    log "$(msg data.volume_using "${HICLAW_DATA_DIR}")"
-
-    # Manager workspace directory (skills, memory, state — host-editable)
-    log "$(msg workspace.title)"
-    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ] && [ "${HICLAW_QUICKSTART}" != "1" ] && [ -z "${HICLAW_WORKSPACE_DIR+x}" ]; then
-        read -e -p "$(msg workspace.dir_prompt "${HOME}/hiclaw-manager"): " HICLAW_WORKSPACE_DIR
-        HICLAW_WORKSPACE_DIR="${HICLAW_WORKSPACE_DIR:-${HOME}/hiclaw-manager}"
-        export HICLAW_WORKSPACE_DIR
-    elif [ -z "${HICLAW_WORKSPACE_DIR+x}" ]; then
+    if [ -z "${HICLAW_WORKSPACE_DIR+x}" ] || [ -z "${HICLAW_WORKSPACE_DIR}" ]; then
         HICLAW_WORKSPACE_DIR="${HOME}/hiclaw-manager"
         export HICLAW_WORKSPACE_DIR
     fi
     HICLAW_WORKSPACE_DIR="$(cd "${HICLAW_WORKSPACE_DIR}" 2>/dev/null && pwd || echo "${HICLAW_WORKSPACE_DIR}")"
     mkdir -p "${HICLAW_WORKSPACE_DIR}"
-    log "$(msg workspace.dir_label "${HICLAW_WORKSPACE_DIR}")"
-
-    # Default Worker Runtime
-    log "$(msg worker_runtime.title)"
-    echo ""
-    echo "  1) $(msg worker_runtime.openclaw)"
-    echo "  2) $(msg worker_runtime.copaw)"
-    echo ""
-    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
-        HICLAW_DEFAULT_WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"
-    elif [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_DEFAULT_WORKER_RUNTIME}" ]; then
-        log "$(msg prompt.upgrade_keep "HICLAW_DEFAULT_WORKER_RUNTIME" "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
-        read -e -p "$(msg worker_runtime.choice): " _runtime_choice
-        if [ -n "${_runtime_choice}" ]; then
-            case "${_runtime_choice}" in
-                2) HICLAW_DEFAULT_WORKER_RUNTIME="copaw" ;;
-                *) HICLAW_DEFAULT_WORKER_RUNTIME="openclaw" ;;
-            esac
-        fi
-        unset _runtime_choice
-    elif [ -z "${HICLAW_DEFAULT_WORKER_RUNTIME+x}" ]; then
-        read -e -p "$(msg worker_runtime.choice): " _runtime_choice
-        _runtime_choice="${_runtime_choice:-1}"
-        case "${_runtime_choice}" in
-            2) HICLAW_DEFAULT_WORKER_RUNTIME="copaw" ;;
-            *) HICLAW_DEFAULT_WORKER_RUNTIME="openclaw" ;;
-        esac
-        unset _runtime_choice
-    fi
-    export HICLAW_DEFAULT_WORKER_RUNTIME
-    log "$(msg worker_runtime.selected "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
-
-    # Matrix E2EE (shown in manual mode for fresh install; always shown during upgrade)
-    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ] && { [ "${HICLAW_QUICKSTART}" != "1" ] || [ "${HICLAW_UPGRADE}" = "1" ]; }; then
-        log ""
-        log "$(msg matrix_e2ee.title)"
-        echo ""
-        echo -e "  $(msg matrix_e2ee.desc)"
-        echo ""
-        echo "  1) $(msg matrix_e2ee.disable)"
-        echo "  2) $(msg matrix_e2ee.enable)"
-        echo ""
-        if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_MATRIX_E2EE}" ]; then
-            log "$(msg prompt.upgrade_keep "HICLAW_MATRIX_E2EE" "${HICLAW_MATRIX_E2EE}")"
-            read -e -p "$(msg matrix_e2ee.choice): " _e2ee_choice
-            if [ -n "${_e2ee_choice}" ]; then
-                case "${_e2ee_choice}" in
-                    2) HICLAW_MATRIX_E2EE="1" ;;
-                    *) HICLAW_MATRIX_E2EE="0" ;;
-                esac
-            fi
-            unset _e2ee_choice
-        elif [ -z "${HICLAW_MATRIX_E2EE+x}" ]; then
-            read -e -p "$(msg matrix_e2ee.choice): " _e2ee_choice
-            _e2ee_choice="${_e2ee_choice:-1}"
-            case "${_e2ee_choice}" in
-                2) HICLAW_MATRIX_E2EE="1" ;;
-                *) HICLAW_MATRIX_E2EE="0" ;;
-            esac
-            unset _e2ee_choice
-        fi
-    fi
+    HICLAW_DEFAULT_WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"
     HICLAW_MATRIX_E2EE="${HICLAW_MATRIX_E2EE:-0}"
     export HICLAW_MATRIX_E2EE
-    if [ "${HICLAW_MATRIX_E2EE}" = "1" ]; then
-        log "$(msg matrix_e2ee.selected_enabled)"
-    else
-        log "$(msg matrix_e2ee.selected_disabled)"
-    fi
-
-    # Worker idle timeout (shown during upgrade or manual mode)
-    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ] && { [ "${HICLAW_QUICKSTART}" != "1" ] || [ "${HICLAW_UPGRADE}" = "1" ]; }; then
-        if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_WORKER_IDLE_TIMEOUT}" ]; then
-            log "$(msg prompt.upgrade_keep "HICLAW_WORKER_IDLE_TIMEOUT" "${HICLAW_WORKER_IDLE_TIMEOUT}")"
-            read -e -p "$(msg idle_timeout.prompt): " _idle_timeout
-            if [ -n "${_idle_timeout}" ]; then
-                HICLAW_WORKER_IDLE_TIMEOUT="${_idle_timeout}"
-            fi
-            unset _idle_timeout
-        elif [ -z "${HICLAW_WORKER_IDLE_TIMEOUT+x}" ]; then
-            read -e -p "$(msg idle_timeout.prompt): " _idle_timeout
-            HICLAW_WORKER_IDLE_TIMEOUT="${_idle_timeout:-720}"
-            unset _idle_timeout
-        fi
-    fi
     HICLAW_WORKER_IDLE_TIMEOUT="${HICLAW_WORKER_IDLE_TIMEOUT:-720}"
     export HICLAW_WORKER_IDLE_TIMEOUT
-    log "$(msg idle_timeout.selected "${HICLAW_WORKER_IDLE_TIMEOUT}")"
-
-    # Host directory sharing: for file sharing with agents (defaults to user's home)
-    if [ "${HICLAW_NON_INTERACTIVE}" != "1" ] && [ -z "${HICLAW_HOST_SHARE_DIR}" ]; then
-        read -e -p "$(msg host_share.prompt "$HOME"): " HICLAW_HOST_SHARE_DIR
-        HICLAW_HOST_SHARE_DIR="${HICLAW_HOST_SHARE_DIR:-$HOME}"
-        export HICLAW_HOST_SHARE_DIR
-    elif [ -z "${HICLAW_HOST_SHARE_DIR}" ]; then
-        HICLAW_HOST_SHARE_DIR="$HOME"
-        export HICLAW_HOST_SHARE_DIR
-    fi
+    HICLAW_HOST_SHARE_DIR="${HICLAW_HOST_SHARE_DIR:-$HOME}"
+    export HICLAW_HOST_SHARE_DIR
 
     log ""
 
@@ -2299,6 +2359,10 @@ test_llm_connectivity() {
         if [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
             local _confirm
             read -e -p "$(msg llm.openai.test.confirm)" _confirm
+            if [ "${_confirm}" = "b" ]; then
+                STEP_RESULT="back"
+                return 1
+            fi
             if [ "${_confirm}" != "y" ] && [ "${_confirm}" != "Y" ]; then
                 log "$(msg llm.openai.test.aborted)"
                 exit 1
