@@ -82,7 +82,16 @@ This is the most important step and requires your intelligence — it cannot be 
 Read your current AGENTS.md (at `~/.openclaw/workspace/AGENTS.md` or your configured workspace). Then produce a new version that:
 
 1. **KEEP**: Your role definition, domain expertise, behavioral guidelines, custom workflows, tool usage patterns
-2. **REMOVE**: Communication protocol rules (HiClaw has its own Matrix-based protocol), file sync instructions, session management rules, channel-specific configuration (Discord/Slack mentions, channel IDs, etc.)
+2. **REMOVE or DO NOT DUPLICATE**: The following topics are already covered in HiClaw's builtin section (injected automatically by the import script). If your AGENTS.md has similar content, **remove it** to avoid conflicts and redundancy:
+   - **Every Session** — session startup routine (read SOUL.md, read memory)
+   - **Memory** — daily notes (`memory/YYYY-MM-DD.md`), long-term memory (`MEMORY.md`), "write it down" rules
+   - **Skills** — builtin skills (`skills/`) vs custom skills (`custom-skills/`), MCP tools via mcporter
+   - **Communication** — Matrix room structure, @mention protocol, when to speak, NO_REPLY usage, file sync via `hiclaw-sync`
+   - **Task Execution** — task workflow (sync → read spec → create plan → execute → write results → push to MinIO → @mention Manager)
+   - **Task Directory Rules** — `spec.md`, `plan.md`, `result.md`, intermediate artifacts, `base/` directory
+   - **Project Participation** — project rooms, project plan, git commit conventions
+   - **Task Progress & History** — progress logs, task-history.json, resume flow
+   - **Safety** — credential protection, destructive operation rules, MCP scope
 3. **REMOVE**: Any references to Discord, Slack, or other non-Matrix channels
 4. **ADAPT**: If you reference specific file paths, note that your workspace will be at `~/` (which maps to `/root/hiclaw-fs/agents/<worker-name>/`) and shared files at `/root/hiclaw-fs/shared/`
 5. **ADD**: A note listing the custom tools installed in your image (from Step 1), so future-you knows what's available
