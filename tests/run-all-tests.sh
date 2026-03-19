@@ -170,6 +170,72 @@ else
 fi
 
 # ============================================================
+# Step 3.5: Configure Manager identity (English, for test consistency)
+# ============================================================
+# The welcome message triggers onboarding Q&A. Send identity setup
+# so Manager uses English regardless of host timezone/locale.
+
+source "${SCRIPT_DIR}/lib/matrix-client.sh"
+
+_setup_manager_identity() {
+    log "Configuring Manager identity (English)..."
+
+    local admin_login admin_token dm_room manager_user
+    admin_login=$(matrix_login "${TEST_ADMIN_USER}" "${TEST_ADMIN_PASSWORD}" 2>/dev/null) || {
+        log "WARNING: Could not login as admin for identity setup"
+        return 0
+    }
+    admin_token=$(echo "${admin_login}" | jq -r '.access_token')
+    manager_user="@manager:${TEST_MATRIX_DOMAIN}"
+
+    dm_room=$(matrix_find_dm_room "${admin_token}" "${manager_user}" 2>/dev/null || true)
+    if [ -z "${dm_room}" ]; then
+        log "WARNING: No DM room found for identity setup"
+        return 0
+    fi
+
+    # Check if identity is already configured
+    if docker exec "${TEST_MANAGER_CONTAINER}" test -f /root/manager-workspace/soul-configured 2>/dev/null; then
+        log "Manager identity already configured, skipping"
+        return 0
+    fi
+
+    # Wait for Manager Agent to be ready
+    wait_for_manager_agent_ready 300 "${dm_room}" "${admin_token}" || {
+        log "WARNING: Manager not ready for identity setup"
+        return 0
+    }
+
+    # Send identity setup message
+    matrix_send_message "${admin_token}" "${dm_room}" \
+        "Here is my identity configuration for you:
+- Name: Manager
+- Language: English (always respond in English)
+- Style: concise and professional
+- No special constraints
+
+Please update your SOUL.md with these preferences and confirm."
+
+    log "Waiting for Manager to configure identity..."
+
+    # Wait for Manager to process and touch soul-configured (up to 120s)
+    local elapsed=0
+    while [ "${elapsed}" -lt 120 ]; do
+        if docker exec "${TEST_MANAGER_CONTAINER}" test -f /root/manager-workspace/soul-configured 2>/dev/null; then
+            log "Manager identity configured successfully"
+            return 0
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+
+    log "WARNING: Manager did not complete identity setup within 120s (tests will continue)"
+    return 0
+}
+
+_setup_manager_identity
+
+# ============================================================
 # Step 4: Run test cases
 # ============================================================
 
