@@ -108,14 +108,6 @@ if [ -d "${WORKER_AGENT_SRC}" ] && mc alias ls hiclaw > /dev/null 2>&1; then
         && log "  Published: shared/builtins/worker/AGENTS.md" \
         || log "  WARNING: Failed to publish AGENTS.md to MinIO (MinIO may not be ready yet)"
 
-    # Publish TOOLS.md
-    if [ -f "${WORKER_AGENT_SRC}/TOOLS.md" ]; then
-        mc cp "${WORKER_AGENT_SRC}/TOOLS.md" \
-            "${HICLAW_STORAGE_PREFIX}/shared/builtins/worker/TOOLS.md" 2>/dev/null \
-            && log "  Published: shared/builtins/worker/TOOLS.md" \
-            || log "  WARNING: Failed to publish TOOLS.md to MinIO"
-    fi
-
     # Publish all builtin skills from worker-agent/skills/
     if [ -d "${WORKER_AGENT_SRC}/skills" ]; then
         for _skill_dir in "${WORKER_AGENT_SRC}/skills"/*/; do
@@ -175,14 +167,6 @@ if [ -d "${WORKER_AGENT_SRC}" ] && mc alias ls hiclaw > /dev/null 2>&1; then
                 && log "    Merged AGENTS.md" \
                 || log "    WARNING: Failed to merge AGENTS.md"
 
-            # Push TOOLS.md
-            if [ -f "${WORKER_AGENT_SRC}/TOOLS.md" ]; then
-                mc cp "${WORKER_AGENT_SRC}/TOOLS.md" \
-                    "${HICLAW_STORAGE_PREFIX}/agents/${_worker_name}/TOOLS.md" 2>/dev/null \
-                    && log "    Updated TOOLS.md" \
-                    || log "    WARNING: Failed to sync TOOLS.md"
-            fi
-
             # Push all builtin skills from runtime-specific agent dir
             if [ -d "${_worker_agent_src}/skills" ]; then
                 for _skill_dir in "${_worker_agent_src}/skills"/*/; do
@@ -200,7 +184,7 @@ if [ -d "${WORKER_AGENT_SRC}" ] && mc alias ls hiclaw > /dev/null 2>&1; then
                 '.workers[$w].skills // [] | .[]' "${REGISTRY}" 2>/dev/null); do
                 [ -z "${_skill_name}" ] && continue
 
-                _skill_src="${AGENT_SRC}/worker-skills/${_skill_name}"
+                _skill_src="${WORKSPACE}/worker-skills/${_skill_name}"
                 if [ -d "${_skill_src}" ]; then
                     mc mirror "${_skill_src}/" \
                         "${HICLAW_STORAGE_PREFIX}/agents/${_worker_name}/skills/${_skill_name}/" --overwrite 2>/dev/null \

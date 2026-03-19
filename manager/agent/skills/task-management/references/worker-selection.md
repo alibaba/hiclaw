@@ -22,7 +22,7 @@ Output includes `summary` (idle/busy/stopped/unavailable counts) and `workers` a
 
 Options:
 - **Option A** (preferred) — Assign to idle Worker
-- **Option B** — Create a new Worker (suggest name/role/skills/model; ask about find-skills)
+- **Option B** — Create a new Worker (suggest name/role/skills/model)
 - **Option C** (last resort) — Handle yourself. Only when admin explicitly says "do it yourself" or task is within your management skills (worker-management, mcp-server-management, model-switch)
 
 Act on choice: A → ensure container ready then assign; B → create Worker then assign; C → work directly (no task directory needed).
@@ -39,8 +39,8 @@ The `find-worker.sh` output already includes `container_status` and `availabilit
 
 If you already ran `find-worker.sh`, do NOT run a separate container check. Only run standalone check when assigning to an explicitly named Worker (Step 0 was skipped).
 
-## Find-Skills (only when creating a new Worker)
+## Skills API URL (only when creating a new Worker)
 
 Check default: `echo "${HICLAW_SKILLS_API_URL}"`
 
-Ask admin: enable find-skills (recommended) or disable; optionally provide custom registry URL. Pass to `create-worker.sh` via `--find-skills` / `--skills-api-url`.
+`find-skills` is a builtin skill (always available). Optionally ask admin for a custom registry URL and pass to `create-worker.sh` via `--skills-api-url`.

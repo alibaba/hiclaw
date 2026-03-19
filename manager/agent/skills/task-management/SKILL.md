@@ -7,6 +7,7 @@ description: Use when admin gives a task to delegate to a Worker, when a Worker 
 
 ## Gotchas
 
+- **Don't let Workers hallucinate on unfamiliar domains** — when a task involves niche frameworks, complex APIs, or domain-specific workflows that the Worker likely lacks knowledge about, include a suggestion to use `find-skills` to search for relevant skills first. Skipping this leads to hallucinated code and wasted iterations
 - **Delegation-first** — always prefer assigning to a Worker over doing it yourself. Only self-execute when admin explicitly says "do it yourself" or the task is within your management skills
 - **Never @mention a Worker after recording infinite task execution** — this creates a rapid-fire loop (execute → report → trigger → execute → ...) that burns tokens continuously. Triggering happens only during heartbeat
 - **Always use `manage-state.sh` to modify state.json** — never edit manually with jq. The script handles atomicity, deduplication, and initialization

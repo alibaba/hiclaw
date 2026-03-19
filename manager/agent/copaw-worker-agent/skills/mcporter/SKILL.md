@@ -31,10 +31,10 @@ When Manager @mentions you saying a new MCP server has been configured, follow t
 
 ### Step 1: Pull the updated config
 
-Run your file-sync skill to get the latest config:
+Run your file-sync skill to pull the latest files from MinIO:
 
 ```bash
-hiclaw-sync
+# Use the file-sync skill to sync
 ```
 
 ### Step 2: Discover the new server and its tools
@@ -103,8 +103,8 @@ After generating the skill, reply to Manager confirming:
 
 ## Important Notes
 
-- **mcporter not installed?** CoPaw workers may not have `mcporter` pre-installed. If `mcporter` is not found, tell the user and ask whether to install it. Install command: `pnpm add -g mcporter`
+- **Not installed?** If `mcporter` command is not found, install it: `npm install -g mcporter`
 - **Transport**: MCP Servers use HTTP transport (configured in config/mcporter.json)
 - **Auth**: Authorization header with Bearer token is auto-configured — you don't need to manage credentials
 - **Permissions**: Your MCP access is controlled by Manager. If you get 403 from the MCP Server, ask Manager to re-authorize your access
-- **Config not found**: If `./config/mcporter.json` doesn't exist yet, run `hiclaw-sync` first — Manager pushes the config to MinIO after setting up MCP servers
+- **Config not found**: If `./config/mcporter.json` doesn't exist yet, use your file-sync skill first — Manager pushes the config to MinIO after setting up MCP servers

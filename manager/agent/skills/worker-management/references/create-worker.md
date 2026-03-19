@@ -12,7 +12,7 @@ When in doubt, ask: "Should this be a copaw (Python, ~150MB RAM) worker or an op
 
 ## Step 0.5: Receive configuration from AGENTS.md
 
-By the time you reach this skill, the admin has already confirmed worker name, role, model/MCP preferences, `enable_find_skills`, and `skills_api_url`. Do not re-ask.
+By the time you reach this skill, the admin has already confirmed worker name, role, model/MCP preferences, and `skills_api_url`. Do not re-ask.
 
 ## Step 1: Write SOUL.md
 
@@ -56,18 +56,18 @@ EOF
 
 Quick lookup:
 
-| Worker Type | Skills | Flags |
-|-------------|--------|-------|
-| Development (coding, DevOps, review) | `github-operations,git-delegation` | `--find-skills` |
-| Data / Analysis | _(default)_ | `--find-skills` |
-| General Purpose | _(default)_ | `--find-skills` |
+| Worker Type | Skills |
+|-------------|--------|
+| Development (coding, DevOps, review) | `github-operations,git-delegation` |
+| Data / Analysis | _(default)_ |
+| General Purpose | _(default)_ |
 
 ## Step 2: Run create-worker.sh
 
 ```bash
 bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
   --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] \
-  [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] \
+  [--skills s1,s2] [--skills-api-url <URL>] \
   [--remote] [--runtime openclaw|copaw] [--console-port <PORT>]
 ```
 

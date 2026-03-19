@@ -53,6 +53,17 @@ RUN JEMALLOC=$(find /usr/lib -name 'libjemalloc.so.2' -print -quit) \
 # mc (MinIO Client)
 COPY --from=mc /usr/bin/mc /usr/local/bin/mc
 
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+
+# Install Node.js 22 for mcporter and skills CLI
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN npm config set registry ${NPM_REGISTRY} && \
+    npm install -g mcporter skills && \
+    rm -rf /root/.npm
+
 # Download lite CoPaw source archive from GitHub
 RUN curl -fsSL "${LITE_COPAW_REPO}/archive/${LITE_COPAW_COMMIT}.tar.gz" \
         | tar xz -C /tmp \

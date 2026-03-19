@@ -194,6 +194,13 @@ if [ -n "${ADD_SKILL}" ] && [ -n "${WORKER_NAME}" ]; then
         exit 1
     fi
 
+    # Verify skill source exists before updating registry
+    _add_skill_src="${WORKER_SKILLS_DIR}/${ADD_SKILL}"
+    if [ ! -d "${_add_skill_src}" ]; then
+        log "ERROR: Skill source not found: ${_add_skill_src}"
+        exit 1
+    fi
+
     ALREADY=$(echo "${REGISTRY}" | jq -r --arg w "${WORKER_NAME}" --arg s "${ADD_SKILL}" \
         '.workers[$w].skills // [] | map(select(. == $s)) | length')
     if [ "${ALREADY}" -gt 0 ]; then
@@ -213,10 +220,15 @@ if [ -n "${REMOVE_SKILL}" ] && [ -n "${WORKER_NAME}" ]; then
         exit 1
     fi
 
-    if [ "${REMOVE_SKILL}" = "file-sync" ]; then
-        log "ERROR: Cannot remove bootstrap skill 'file-sync'"
-        exit 1
-    fi
+    # Builtin skills are always present (pushed from worker-agent/skills/ or
+    # copaw-worker-agent/skills/) and must not be removed from the registry.
+    BUILTIN_SKILLS=("file-sync" "task-progress" "project-participation" "mcporter" "find-skills")
+    for _bs in "${BUILTIN_SKILLS[@]}"; do
+        if [ "${REMOVE_SKILL}" = "${_bs}" ]; then
+            log "ERROR: Cannot remove builtin skill '${_bs}'"
+            exit 1
+        fi
+    done
 
     REGISTRY=$(echo "${REGISTRY}" | jq --arg w "${WORKER_NAME}" --arg s "${REMOVE_SKILL}" \
         '.workers[$w].skills = [.workers[$w].skills // [] | .[] | select(. != $s)]')

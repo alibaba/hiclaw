@@ -56,6 +56,13 @@ else
     FS_BUCKET="hiclaw-storage"
 fi
 
+# Set up skills CLI symlink: ~/.agents/skills -> worker's skills directory
+# This makes `skills add -g` install skills into the worker's MinIO-synced skills/ dir
+WORKER_SKILLS_DIR="${INSTALL_DIR}/${WORKER_NAME}/skills"
+mkdir -p "${WORKER_SKILLS_DIR}"
+mkdir -p "${HOME}/.agents"
+ln -sfn "${WORKER_SKILLS_DIR}" "${HOME}/.agents/skills"
+
 if [ -n "${CONSOLE_PORT}" ]; then
     # ---------- Standard mode: copaw-worker (PyPI CoPaw venv, with console) ----------
     VENV="/opt/venv/standard"

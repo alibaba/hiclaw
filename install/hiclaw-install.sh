@@ -2252,7 +2252,6 @@ install_worker() {
     local FS_KEY=""
     local FS_SECRET=""
     local RESET=false
-    local ENABLE_FIND_SKILLS=false
     local SKILLS_API_URL=""
 
     # Parse arguments
@@ -2262,7 +2261,6 @@ install_worker() {
             --fs)         FS="$2"; shift 2 ;;
             --fs-key)     FS_KEY="$2"; shift 2 ;;
             --fs-secret)  FS_SECRET="$2"; shift 2 ;;
-            --find-skills) ENABLE_FIND_SKILLS=true; shift ;;
             --skills-api-url) SKILLS_API_URL="$2"; shift 2 ;;
             --reset)      RESET=true; shift ;;
             *)            error "$(msg error.unknown_option "$1")" ;;
@@ -2300,8 +2298,8 @@ install_worker() {
     DOCKER_ENV="${DOCKER_ENV} -e HICLAW_FS_ACCESS_KEY=${FS_KEY}"
     DOCKER_ENV="${DOCKER_ENV} -e HICLAW_FS_SECRET_KEY=${FS_SECRET}"
 
-    # Add SKILLS_API_URL if find-skills is enabled and URL is specified
-    if [ "${ENABLE_FIND_SKILLS}" = true ] && [ -n "${SKILLS_API_URL}" ]; then
+    # Add SKILLS_API_URL if specified
+    if [ -n "${SKILLS_API_URL}" ]; then
         DOCKER_ENV="${DOCKER_ENV} -e SKILLS_API_URL=${SKILLS_API_URL}"
         log "$(msg worker.skills_url "${SKILLS_API_URL}")"
     fi
