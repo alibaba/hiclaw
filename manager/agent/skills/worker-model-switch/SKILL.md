@@ -35,12 +35,12 @@ bash /opt/hiclaw/agent/skills/worker-model-switch/scripts/update-worker-model.sh
 5. If the model is new: adds it to the `models` array and switches primary
 6. Pushes the updated `openclaw.json` back to MinIO
 7. Updates `workers-registry.json` with the new model name
-8. Sends a Matrix @mention to the Worker asking it to file-sync and reload
-9. Outputs success confirmation
+8. Sends a Matrix @mention to the Worker asking it to file-sync and restart
+9. Always outputs `RESTART_REQUIRED`
 
 ## After running the script
 
-The config is updated in MinIO and the Worker is notified to file-sync. Once the Worker pulls the new config, it auto-reloads within a few seconds — no container restart needed. Tell the human admin the switch is complete.
+The script always outputs `RESTART_REQUIRED`. You must recreate the Worker container for the change to take effect. Ask the human admin: **"The model config has been updated. Would you like me to recreate the Worker now?"**
 
 ## Reasoning control
 
@@ -64,7 +64,7 @@ After the admin confirms the provider and route are configured, you can retry th
 
 ## Important
 
-This skill switches the Worker's **primary model** (persisted in `openclaw.json` in MinIO). After file-sync, the Worker auto-reloads the new config — no container restart is needed. The human admin can also use `@worker /model <model>` to switch the current session's model instantly, but that is non-persistent and only supports pre-configured models.
+This skill switches the Worker's **primary model** (persisted in `openclaw.json` in MinIO). After running the script, the Worker container must be restarted (recreated) for the change to take effect. The human admin can also use `@worker /model <model>` to switch the current session's model instantly without restart, but that is non-persistent and only supports pre-configured models.
 
 ## Switching to an unknown model
 

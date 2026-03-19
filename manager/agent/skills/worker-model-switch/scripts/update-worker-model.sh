@@ -239,7 +239,7 @@ update_worker_model() {
 
     _log "Model update complete for ${worker}: ${new_model} (ctx=${CTX}, max=${MAX}, reasoning=${REASONING}, input=${INPUT})"
     echo ""
-    echo "Model switch complete for worker '${worker}'. The worker will auto-reload after file-sync pulls the new config."
+    echo "RESTART_REQUIRED: Worker '${worker}' needs a restart for the model switch to '${new_model}' to take effect."
 }
 
 # ─── Argument parsing ─────────────────────────────────────────────────────────

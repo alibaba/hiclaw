@@ -15,4 +15,3 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - refactor(manager): unify AI Gateway URL into `HICLAW_AI_GATEWAY_SERVER` in hiclaw-env.sh, removing duplicated cloud/local branching from create-worker, generate-worker-config, and model-switch scripts
 - fix(manager): add worker name validation in create-worker.sh to reject invalid characters before Matrix registration
 - fix(manager): remove unnecessary `openclaw gateway restart` from model-switch — OpenClaw auto-detects config changes and hot-reloads
-- fix(manager): remove unnecessary container restart from worker-model-switch — Worker auto-reloads after file-sync
