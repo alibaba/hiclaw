@@ -116,16 +116,16 @@ if [ -d "${WORKER_AGENT_SRC}" ] && mc alias ls hiclaw > /dev/null 2>&1; then
             || log "  WARNING: Failed to publish TOOLS.md to MinIO"
     fi
 
-    # Publish file-sync skill (builtin, lives in worker-agent/)
-    if [ -f "${WORKER_AGENT_SRC}/skills/file-sync/SKILL.md" ]; then
-        mc cp "${WORKER_AGENT_SRC}/skills/file-sync/SKILL.md" \
-            "${HICLAW_STORAGE_PREFIX}/shared/builtins/worker/skills/file-sync/SKILL.md" 2>/dev/null || true
-    fi
-    if [ -d "${WORKER_AGENT_SRC}/skills/file-sync/scripts" ]; then
-        mc mirror "${WORKER_AGENT_SRC}/skills/file-sync/scripts/" \
-            "${HICLAW_STORAGE_PREFIX}/shared/builtins/worker/skills/file-sync/scripts/" --overwrite 2>/dev/null \
-            && log "  Published: shared/builtins/worker/skills/file-sync/scripts/" \
-            || log "  WARNING: Failed to publish file-sync scripts to MinIO"
+    # Publish all builtin skills from worker-agent/skills/
+    if [ -d "${WORKER_AGENT_SRC}/skills" ]; then
+        for _skill_dir in "${WORKER_AGENT_SRC}/skills"/*/; do
+            [ ! -d "${_skill_dir}" ] && continue
+            _skill_name=$(basename "${_skill_dir}")
+            mc mirror "${_skill_dir}" \
+                "${HICLAW_STORAGE_PREFIX}/shared/builtins/worker/skills/${_skill_name}/" --overwrite 2>/dev/null \
+                && log "  Published: shared/builtins/worker/skills/${_skill_name}/" \
+                || log "  WARNING: Failed to publish builtin skill ${_skill_name} to MinIO"
+        done
     fi
 
     # Publish all worker-skills directories to builtins so Workers can refresh assigned skills

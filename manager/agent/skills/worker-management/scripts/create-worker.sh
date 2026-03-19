@@ -414,14 +414,12 @@ rm -f "${_tmp_pw}"
 
 log "  MinIO sync verified"
 
-# Push Worker agent files from Manager image (AGENTS.md + file-sync skill)
-# Use runtime-specific file-sync skill for copaw workers
+# Push Worker agent files from Manager image (AGENTS.md + default skills)
+# Use runtime-specific skills for copaw workers
 if [ "${WORKER_RUNTIME}" = "copaw" ]; then
     WORKER_AGENT_SRC="/opt/hiclaw/agent/copaw-worker-agent"
-    FILESYNC_SRC="${WORKER_AGENT_SRC}/skills/file-sync"
 else
     WORKER_AGENT_SRC="/opt/hiclaw/agent/worker-agent"
-    FILESYNC_SRC="${WORKER_AGENT_SRC}/skills/file-sync"
 fi
 
 if [ -d "${WORKER_AGENT_SRC}" ]; then
@@ -431,16 +429,19 @@ if [ -d "${WORKER_AGENT_SRC}" ]; then
         "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/AGENTS.md" \
         "${WORKER_AGENT_SRC}/AGENTS.md" \
         || log "  WARNING: Failed to merge AGENTS.md"
-    
-    if [ -d "${FILESYNC_SRC}" ]; then
-        log "  Pushing file-sync skill (${WORKER_RUNTIME}) to worker MinIO..."
-        mc mirror "${FILESYNC_SRC}/" \
-            "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/skills/file-sync/" --overwrite \
-            || log "  WARNING: Failed to push file-sync skill"
-        log "  Worker agent files pushed"
-    else
-        log "  WARNING: file-sync skill not found at ${FILESYNC_SRC}"
+
+    # Push all builtin skills from runtime-specific agent dir
+    if [ -d "${WORKER_AGENT_SRC}/skills" ]; then
+        for _skill_dir in "${WORKER_AGENT_SRC}/skills"/*/; do
+            [ ! -d "${_skill_dir}" ] && continue
+            _skill_name=$(basename "${_skill_dir}")
+            log "  Pushing ${_skill_name} skill (${WORKER_RUNTIME}) to worker MinIO..."
+            mc mirror "${_skill_dir}" \
+                "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/skills/${_skill_name}/" --overwrite \
+                || log "  WARNING: Failed to push ${_skill_name} skill"
+        done
     fi
+    log "  Worker agent files pushed"
 else
     log "  WARNING: worker-agent directory not found at ${WORKER_AGENT_SRC}"
 fi
@@ -464,12 +465,18 @@ fi
 # Build skills JSON array from WORKER_SKILLS (comma-separated)
 SKILLS_JSON="["
 FIRST_SKILL=true
-# Ensure file-sync is always included
-SKILLS_WITH_FILESYNC="${WORKER_SKILLS}"
-if ! echo "${SKILLS_WITH_FILESYNC}" | grep -q '\bfile-sync\b'; then
-    SKILLS_WITH_FILESYNC="file-sync,${SKILLS_WITH_FILESYNC}"
+# Ensure all builtin skills from worker-agent are included
+SKILLS_MERGED="${WORKER_SKILLS}"
+if [ -d "${WORKER_AGENT_SRC}/skills" ]; then
+    for _skill_dir in "${WORKER_AGENT_SRC}/skills"/*/; do
+        [ ! -d "${_skill_dir}" ] && continue
+        _default_skill=$(basename "${_skill_dir}")
+        if ! echo "${SKILLS_MERGED}" | grep -q "\b${_default_skill}\b"; then
+            SKILLS_MERGED="${_default_skill},${SKILLS_MERGED}"
+        fi
+    done
 fi
-IFS=',' read -ra SKILL_ARR <<< "${SKILLS_WITH_FILESYNC}"
+IFS=',' read -ra SKILL_ARR <<< "${SKILLS_MERGED}"
 for skill in "${SKILL_ARR[@]}"; do
     skill=$(echo "${skill}" | tr -d ' ')
     [ -z "${skill}" ] && continue

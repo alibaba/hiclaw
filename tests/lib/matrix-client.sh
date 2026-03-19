@@ -252,12 +252,14 @@ matrix_find_dm_room() {
     rooms=$(matrix_joined_rooms "${token}" | jq -r '.joined_rooms[]')
 
     for room_id in ${rooms}; do
-        local room_enc members
+        local room_enc members member_count
         room_enc="$(_encode_room_id "${room_id}")"
         members=$(exec_in_manager curl -sf "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_enc}/members" \
             -H "Authorization: Bearer ${token}" 2>/dev/null | jq -r '.chunk[].state_key' 2>/dev/null)
 
-        if echo "${members}" | grep -q "${other_user}"; then
+        # DM rooms have exactly 2 members; skip group rooms (3+ members)
+        member_count=$(echo "${members}" | grep -c '.' 2>/dev/null || echo 0)
+        if [ "${member_count}" -eq 2 ] && echo "${members}" | grep -q "${other_user}"; then
             echo "${room_id}"
             return 0
         fi
