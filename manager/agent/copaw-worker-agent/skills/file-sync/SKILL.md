@@ -21,42 +21,40 @@ This pulls `openclaw.json`, `SOUL.md`, `AGENTS.md`, and skills from MinIO and re
 
 ## Sync task / shared files
 
-There is no `~/hiclaw-fs/` directory. Access shared files directly via `mc`. The MinIO path the Manager gives you maps to a local path you choose — by convention use `~/tasks/`:
+The `shared/` directory is automatically mirrored from MinIO at startup and every sync cycle to `~/.copaw-worker/<your-name>/shared/`. No manual pull is needed.
 
-| MinIO path | Local path (convention) |
-|---|---|
-| `${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/` | `~/tasks/{task-id}/` |
-| `${HICLAW_STORAGE_PREFIX}/shared/projects/{project-id}/` | `~/projects/{project-id}/` |
+Task and project files are at:
+
+| Local path (auto-synced) |
+|---|
+| `~/.copaw-worker/<your-name>/shared/tasks/{task-id}/` |
+| `~/.copaw-worker/<your-name>/shared/projects/{project-id}/` |
 
 ```bash
-# Pull a task directory from MinIO
-mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ ~/tasks/{task-id}/
+# Read the spec (already synced locally)
+cat ~/.copaw-worker/<your-name>/shared/tasks/{task-id}/spec.md
 
-# Read the spec
-cat ~/tasks/{task-id}/spec.md
-
-# Push your results back to MinIO
-mc mirror ~/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ \
+# Push your results back to MinIO (push is still manual)
+mc mirror ~/.copaw-worker/<your-name>/shared/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ \
   --overwrite --exclude "spec.md" --exclude "base/"
 ```
 
 **When to use:**
-- When assigned a task: pull the task spec from MinIO before reading it
-- When told files have been updated: pull the relevant path
 - When you finish work: push results back to MinIO
+- When told files have been updated urgently: run `copaw-sync` to trigger an immediate pull
 
-Always confirm to the sender after sync completes.
+Always confirm to the sender after push completes.
 
 **Example workflow:**
 ```bash
 # Manager assigns task: "New task [task-20260309-120000]. Pull spec from MinIO."
-mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/task-20260309-120000/ ~/tasks/task-20260309-120000/
-cat ~/tasks/task-20260309-120000/spec.md
+# shared/ is already synced — just read the spec
+cat ~/.copaw-worker/<your-name>/shared/tasks/task-20260309-120000/spec.md
 
 # ... do the work ...
 
 # Push results
-mc mirror ~/tasks/task-20260309-120000/ \
+mc mirror ~/.copaw-worker/<your-name>/shared/tasks/task-20260309-120000/ \
   ${HICLAW_STORAGE_PREFIX}/shared/tasks/task-20260309-120000/ \
   --overwrite --exclude "spec.md" --exclude "base/"
 

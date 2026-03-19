@@ -159,6 +159,15 @@ class FileSync:
             logger.warning("mirror_all: mc mirror failed: %s", exc.stderr)
             raise
 
+        # Also mirror shared/ from bucket root
+        shared_remote = f"{_MC_ALIAS}/{self.bucket}/shared/"
+        shared_local = str(self.local_dir / "shared") + "/"
+        try:
+            _mc("mirror", shared_remote, shared_local, "--overwrite", check=True)
+            logger.info("mirror_all: shared/ mirror completed")
+        except subprocess.CalledProcessError as exc:
+            logger.warning("mirror_all: shared/ mirror failed (non-fatal): %s", exc.stderr)
+
 
     # ------------------------------------------------------------------
     # Public API
@@ -256,6 +265,27 @@ class FileSync:
             except Exception as exc:
                 logger.warning("Failed to mirror skill %s: %s", skill_name, exc)
 
+        # Manager-managed: shared/
+        # Mirror the shared directory from MinIO bucket root to local_dir/shared/
+        # (shared/ lives at bucket root, not under agents/{worker_name}/)
+        shared_remote = f"{_MC_ALIAS}/{self.bucket}/shared/"
+        shared_local = self.local_dir / "shared"
+        shared_local.mkdir(parents=True, exist_ok=True)
+        try:
+            result = _mc(
+                "mirror",
+                shared_remote,
+                str(shared_local) + "/",
+                "--overwrite",
+                check=False,
+            )
+            if result.returncode == 0:
+                changed.append("shared/")
+            else:
+                logger.warning("mc mirror failed for shared/: %s", result.stderr)
+        except Exception as exc:
+            logger.warning("Failed to mirror shared/: %s", exc)
+
         # Clean up local skill dirs removed from MinIO
         local_skills_dir = self.local_dir / "skills"
         if local_skills_dir.is_dir():
@@ -320,6 +350,8 @@ def push_local(sync: FileSync, since: float = 0) -> list[str]:
         "custom_channels",
         "active_skills",
         "__pycache__",
+        # Manager-managed shared directory (pulled from bucket root)
+        "shared",
     }
     # File extensions to skip (transient runtime files)
     _EXCLUDE_EXTENSIONS = {".lock"}

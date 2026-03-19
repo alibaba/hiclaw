@@ -7,16 +7,16 @@ description: Use when you are invited to a Project Room or assigned a task withi
 
 ## Gotchas
 
-- **Always pull project plan from MinIO before reading** — `mc cp` first, then read `plan.md`
+- **Project plan is auto-synced** — read directly from `~/.copaw-worker/<your-name>/shared/projects/{project-id}/plan.md`
 - **Git author must be your worker name** — set `git config user.name` and `user.email` before any commits
 - **Report completion via @mention to Manager** — this is what advances the project to the next task
 
 ## Project Context
 
-When invited to a Project Room, pull the project plan:
+When invited to a Project Room, the project plan is already available locally (auto-synced):
 
 ```bash
-mc cp ${HICLAW_STORAGE_PREFIX}/shared/projects/{project-id}/plan.md ~/projects/{project-id}/plan.md
+cat ~/.copaw-worker/<your-name>/shared/projects/{project-id}/plan.md
 ```
 
 The plan.md shows:

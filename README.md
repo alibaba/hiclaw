@@ -216,6 +216,21 @@ docker exec -it hiclaw-manager cat /var/log/hiclaw/manager-agent.log
 
 See [docs/zh-cn/faq.md](docs/zh-cn/faq.md) for common issues.
 
+### Reporting Bugs
+
+Export your Matrix message logs and let an AI tool analyze them against the codebase before filing an issue — this helps us fix bugs much faster.
+
+```bash
+# Export debug logs (Matrix messages + agent sessions, PII auto-redacted)
+python scripts/export-debug-log.py --range 1h
+```
+
+Then open the HiClaw repo in Cursor, Claude Code, or similar AI tool and ask:
+
+> "Read the JSONL files in debug-log/. Analyze the Matrix message logs and agent session logs together. Cross-reference with the HiClaw codebase to identify the root cause of [describe your bug]."
+
+Include the AI's analysis in your [bug report](https://github.com/higress-group/hiclaw/issues/new?template=bug_report.yml).
+
 ## Build & Test
 
 ```bash

@@ -5,22 +5,20 @@ You are a **CoPaw Worker** — a Python-based agent. You may be running inside a
 ## Workspace Layout
 
 - **Your agent files:** `~/.copaw-worker/<your-name>/.copaw/` (config.json, providers.json, SOUL.md, AGENTS.md, active_skills/)
-- **Shared space:** accessible via MinIO using `mc` CLI (tasks, knowledge, collaboration data)
+- **Shared space:** `~/.copaw-worker/<your-name>/shared/` — auto-synced from MinIO every 5 minutes
 - **MinIO alias:** `hiclaw` (pre-configured at startup)
 
-There is **no** `~/hiclaw-fs/` directory. All shared files must be accessed via `mc` commands.
+The `shared/` directory is automatically mirrored from MinIO at startup and every sync cycle. Tasks and projects are available locally without manual `mc mirror` pulls.
 
 ## Accessing Shared Files
 
+Task and project files are at:
+- `~/.copaw-worker/<your-name>/shared/tasks/{task-id}/`
+- `~/.copaw-worker/<your-name>/shared/projects/{project-id}/`
+
 ```bash
-# Pull a task directory
-mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ ~/tasks/{task-id}/
-
-# Pull a single file
-mc cp ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/spec.md ~/tasks/{task-id}/spec.md
-
-# Push your results back
-mc mirror ~/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
+# Push your results back (push is still manual)
+mc mirror ~/.copaw-worker/<your-name>/shared/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
 ```
 
 ## Every Session
@@ -42,8 +40,7 @@ Don't ask permission. Just do it.
 - **Mirror loop safeguard** — if 2+ rounds of @mentions exchanged with no new task/question/decision, stop replying immediately
 - **Farewell = conversation closed** — if message is only "回见", "bye", "good work", "standing by" etc., do not reply at all
 - **`base/` directory is read-only** — never push to it. Use `--exclude "base/"` in mc mirror
-- **No `~/hiclaw-fs/`** — all shared files via `mc` commands only
-- **Push results to MinIO immediately** — `mc mirror` or `mc cp` after every meaningful update
+- **`shared/` is auto-synced** — no need to manually pull; push results back after every meaningful update
 
 ## Memory
 
@@ -141,18 +138,17 @@ History messages are context only. Always identify the sender from the Current m
 
 When you receive a task from the Manager:
 
-1. Pull the task directory: `mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ ~/tasks/{task-id}/`
-2. Read the task spec (`~/tasks/{task-id}/spec.md`)
-3. Register the task in `task-history.json` with status `in_progress` (see task-progress skill)
-4. Create `plan.md` in the task directory before starting work
-5. Execute the task. After every meaningful sub-step, append to the progress log (see task-progress skill)
-6. Push the task directory after each sub-step:
+1. Read the task spec (`~/.copaw-worker/<your-name>/shared/tasks/{task-id}/spec.md`) — the shared directory is auto-synced
+2. Register the task in `task-history.json` with status `in_progress` (see task-progress skill)
+3. Create `plan.md` in the task directory before starting work
+4. Execute the task. After every meaningful sub-step, append to the progress log (see task-progress skill)
+5. Push the task directory after each sub-step:
    ```bash
-   mc mirror ~/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
+   mc mirror ~/.copaw-worker/<your-name>/shared/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
    ```
-7. Write `result.md` (finite tasks only), final push, update `task-history.json` to `completed`
-8. @mention Manager with a completion report
-9. Log key decisions and outcomes to `memory/YYYY-MM-DD.md`
+6. Write `result.md` (finite tasks only), final push, update `task-history.json` to `completed`
+7. @mention Manager with a completion report
+8. Log key decisions and outcomes to `memory/YYYY-MM-DD.md`
 
 If blocked, @mention Manager immediately — don't wait to be asked.
 
@@ -161,7 +157,7 @@ If blocked, @mention Manager immediately — don't wait to be asked.
 ### Task Directory Structure
 
 ```
-~/tasks/{task-id}/
+~/.copaw-worker/<your-name>/shared/tasks/{task-id}/
 ├── spec.md       # Written by Manager (read-only for you)
 ├── base/         # Reference files from Manager (read-only)
 ├── plan.md       # Your execution plan (create before starting)

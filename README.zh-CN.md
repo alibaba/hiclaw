@@ -214,6 +214,21 @@ docker exec -it hiclaw-manager cat /var/log/hiclaw/manager-agent.log
 
 更多常见问题（启动超时、局域网访问等）参见 [docs/zh-cn/faq.md](docs/zh-cn/faq.md)。
 
+### 提交 Bug
+
+提交 Issue 前，建议先导出 Matrix 消息记录，用 AI 工具结合代码库分析问题根因，这能大幅加快修复速度。
+
+```bash
+# 导出调试日志（Matrix 消息 + Agent 会话日志，PII 自动脱敏）
+python scripts/export-debug-log.py --range 1h
+```
+
+然后在 Cursor、Claude Code 等 AI 工具中打开 HiClaw 仓库，让它分析：
+
+> "读取 debug-log/ 下的 JSONL 文件，同时分析 Matrix 消息日志和 Agent 会话日志。结合 HiClaw 代码库，定位 [描述你的 bug] 的根因。重点关注 Agent 交互流程、工具调用失败和错误模式。"
+
+将 AI 的分析结果贴到 [Bug Report](https://github.com/higress-group/hiclaw/issues/new?template=bug_report.yml) 中。
+
 欢迎[提交 Issue](https://github.com/higress-group/hiclaw/issues)，或在 [Discord](https://discord.gg/n6mV8xEYUF) / 钉钉群里随时提问。
 
 ## Roadmap

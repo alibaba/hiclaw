@@ -16,7 +16,7 @@ description: Use when executing a task (progress logging, plan updates), when re
 After every meaningful action (completing a sub-step, hitting a problem, making a decision), append to:
 
 ```
-~/tasks/{task-id}/progress/YYYY-MM-DD.md
+~/.copaw-worker/<your-name>/shared/tasks/{task-id}/progress/YYYY-MM-DD.md
 ```
 
 Format (append, don't overwrite):
@@ -32,7 +32,7 @@ Format (append, don't overwrite):
 
 Push the task directory after each update:
 ```bash
-mc mirror ~/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
+mc mirror ~/.copaw-worker/<your-name>/shared/tasks/{task-id}/ ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ --overwrite --exclude "spec.md" --exclude "base/"
 ```
 
 ## Task History (LRU Top 10)
@@ -47,7 +47,7 @@ File: `~/.copaw-worker/<your-name>/.copaw/task-history.json`
       "task_id": "task-20260221-100000",
       "brief": "One-line description of the task",
       "status": "in_progress",
-      "task_dir": "~/tasks/task-20260221-100000",
+      "task_dir": "~/.copaw-worker/<your-name>/shared/tasks/task-20260221-100000",
       "last_worked_on": "2026-02-21T15:00:00Z"
     }
   ]
@@ -65,6 +65,6 @@ When Manager or admin asks you to resume a task after session reset:
 
 1. Read `task-history.json`; if not there, check `history-tasks/{task-id}.json`
 2. Get `task_dir` from the entry
-3. Pull from MinIO: `mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ ~/tasks/{task-id}/`
+3. Task files are already in `~/.copaw-worker/<your-name>/shared/tasks/{task-id}/` (auto-synced). If you need the very latest, run `copaw-sync`
 4. Read `{task_dir}/spec.md`, `{task_dir}/plan.md`, and recent `{task_dir}/progress/` files (latest first)
 5. Continue work and append to today's `progress/YYYY-MM-DD.md`
