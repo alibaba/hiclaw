@@ -2267,6 +2267,15 @@ EOF
     # Covers both fresh install (room just created) and upgrade (room exists but state.json missing it)
     ensure_admin_dm_room "hiclaw-manager"
 
+    # Post-install verification (non-fatal: warnings only)
+    local _verify_script
+    _verify_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/hiclaw-verify.sh"
+    if [ -f "${_verify_script}" ]; then
+        bash "${_verify_script}" "hiclaw-manager" || {
+            log "WARNING: Some post-install checks failed. Re-run: bash install/hiclaw-verify.sh"
+        }
+    fi
+
     log ""
     log "$(msg success.title)"
     log ""
