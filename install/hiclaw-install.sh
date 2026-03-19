@@ -1015,7 +1015,90 @@ INNER_SCRIPT
     esac
 }
 
-# Prompt for a value interactively, but skip if env var is already set.
+# ============================================================
+# Ensure admin DM room ID is persisted in state.json
+# Works for both fresh install and upgrade scenarios.
+# ============================================================
+
+ensure_admin_dm_room() {
+    local container="$1"
+    local admin_user="${HICLAW_ADMIN_USER:-admin}"
+    local matrix_domain="${HICLAW_MATRIX_DOMAIN}"
+
+    local inner_script
+    inner_script=$(cat <<'INNER_SCRIPT'
+MATRIX_URL="http://127.0.0.1:6167"
+STATE_SCRIPT="/opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh"
+ADMIN_FULL_ID="@${ADMIN_USER}:${MATRIX_DOMAIN}"
+
+# Check if admin_dm_room_id is already set in state.json
+if [ -f ~/state.json ]; then
+    existing=$(jq -r '.admin_dm_room_id // empty' ~/state.json 2>/dev/null)
+    if [ -n "${existing}" ] && [ "${existing}" != "null" ]; then
+        echo "ALREADY_SET:${existing}"
+        exit 0
+    fi
+fi
+
+# Login as manager to discover rooms
+login_resp=$(curl -sf -X POST "${MATRIX_URL}/_matrix/client/v3/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"type\":\"m.login.password\",\"identifier\":{\"type\":\"m.id.user\",\"user\":\"manager\"},\"password\":\"${MANAGER_PASSWORD}\"}" 2>/dev/null) || true
+token=$(echo "${login_resp}" | jq -r '.access_token // empty' 2>/dev/null)
+if [ -z "${token}" ]; then
+    echo "LOGIN_FAILED"; exit 0
+fi
+
+# Find DM room: exactly 2 members, one is admin
+dm_room=""
+rooms=$(curl -sf "${MATRIX_URL}/_matrix/client/v3/joined_rooms" \
+    -H "Authorization: Bearer ${token}" 2>/dev/null | jq -r '.joined_rooms[]' 2>/dev/null) || true
+for rid in ${rooms}; do
+    members=$(curl -sf "${MATRIX_URL}/_matrix/client/v3/rooms/${rid}/members" \
+        -H "Authorization: Bearer ${token}" 2>/dev/null | jq -r '.chunk[].state_key' 2>/dev/null) || continue
+    count=$(echo "${members}" | grep -c '.' 2>/dev/null || echo 0)
+    if [ "${count}" -eq 2 ] && echo "${members}" | grep -q "${ADMIN_FULL_ID}"; then
+        dm_room="${rid}"
+        break
+    fi
+done
+
+if [ -z "${dm_room}" ]; then
+    echo "NO_DM_ROOM"; exit 0
+fi
+
+# Persist to state.json
+if [ -f "${STATE_SCRIPT}" ]; then
+    bash "${STATE_SCRIPT}" --action init 2>/dev/null || true
+    bash "${STATE_SCRIPT}" --action set-admin-dm --room-id "${dm_room}" 2>/dev/null || true
+fi
+echo "OK:${dm_room}"
+INNER_SCRIPT
+)
+
+    local mgr_password
+    mgr_password=$(${DOCKER_CMD} exec "${container}" bash -c 'source /data/hiclaw-secrets.env 2>/dev/null && echo "${HICLAW_MANAGER_PASSWORD}"' 2>/dev/null)
+
+    local result
+    result=$(${DOCKER_CMD} exec \
+        -e ADMIN_USER="${admin_user}" \
+        -e MATRIX_DOMAIN="${matrix_domain}" \
+        -e MANAGER_PASSWORD="${mgr_password}" \
+        "${container}" bash -c "${inner_script}" 2>/dev/null) || true
+
+    case "${result}" in
+        ALREADY_SET*)
+            log "Admin DM room already in state.json: ${result#ALREADY_SET:}" ;;
+        OK*)
+            log "Admin DM room persisted to state.json: ${result#OK:}" ;;
+        NO_DM_ROOM)
+            log "WARNING: Admin DM room not found (will be discovered during heartbeat)" ;;
+        LOGIN_FAILED)
+            log "WARNING: Could not login as manager to discover DM room" ;;
+        *)
+            log "WARNING: ensure_admin_dm_room unexpected result: ${result}" ;;
+    esac
+}
 # In non-interactive mode, uses default or errors if required and no default.
 # Usage: prompt VAR_NAME "Prompt text" "default" [true=secret]
 prompt() {
@@ -2179,6 +2262,10 @@ EOF
 
     # Send welcome message to Manager (skipped automatically if soul-configured marker exists)
     send_welcome_message
+
+    # Ensure admin DM room ID is persisted in state.json
+    # Covers both fresh install (room just created) and upgrade (room exists but state.json missing it)
+    ensure_admin_dm_room "hiclaw-manager"
 
     log ""
     log "$(msg success.title)"
