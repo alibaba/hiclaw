@@ -13,7 +13,7 @@
 #   update-manager-model.sh deepseek-chat --no-reasoning
 
 set -e
-source /opt/hiclaw/scripts/lib/base.sh
+source /opt/hiclaw/scripts/lib/hiclaw-env.sh
 
 _get_max_tokens_param() {
     local model="$1"
@@ -103,7 +103,7 @@ esac
 log "Updating Manager model: ${MODEL_NAME} (ctx=${CTX}, max=${MAX}, reasoning=${REASONING}, input=${INPUT})"
 
 # ── Pre-flight: verify the model is reachable via AI Gateway ──────────────────
-GATEWAY_URL="http://${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}:8080/v1/chat/completions"
+GATEWAY_URL="${HICLAW_AI_GATEWAY_SERVER}/v1/chat/completions"
 GATEWAY_KEY="${HICLAW_MANAGER_GATEWAY_KEY:-}"
 if [ -z "${GATEWAY_KEY}" ] && [ -f "/data/hiclaw-secrets.env" ]; then
     source /data/hiclaw-secrets.env

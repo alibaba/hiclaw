@@ -33,6 +33,9 @@ fi
 # Matrix server: cloud mode uses external NLB address, local uses localhost
 HICLAW_MATRIX_SERVER="${HICLAW_MATRIX_URL:-http://127.0.0.1:6167}"
 
+# AI Gateway: cloud mode uses env endpoint (HICLAW_AI_GATEWAY_URL), local uses domain:8080
+HICLAW_AI_GATEWAY_SERVER="${HICLAW_AI_GATEWAY_URL:-http://${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}:8080}"
+
 # Storage: cloud mode uses OSS bucket name, local uses MinIO default
 HICLAW_STORAGE_BUCKET="${HICLAW_OSS_BUCKET:-hiclaw-storage}"
 HICLAW_STORAGE_PREFIX="hiclaw/${HICLAW_STORAGE_BUCKET}"
@@ -42,4 +45,4 @@ HICLAW_STORAGE_PREFIX="hiclaw/${HICLAW_STORAGE_BUCKET}"
 # In local mode, ensure_mc_credentials() is a no-op.
 source /opt/hiclaw/scripts/lib/oss-credentials.sh 2>/dev/null || true
 
-export HICLAW_RUNTIME HICLAW_MATRIX_SERVER HICLAW_STORAGE_BUCKET HICLAW_STORAGE_PREFIX
+export HICLAW_RUNTIME HICLAW_MATRIX_SERVER HICLAW_AI_GATEWAY_SERVER HICLAW_STORAGE_BUCKET HICLAW_STORAGE_PREFIX

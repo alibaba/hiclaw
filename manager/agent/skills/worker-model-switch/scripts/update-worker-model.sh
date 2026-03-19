@@ -100,7 +100,7 @@ update_worker_model() {
     _log "Updating worker $worker model to ${new_model} (ctx=${CTX}, max=${MAX}, reasoning=${REASONING}, input=${INPUT})"
 
     # ── Pre-flight: verify the model is reachable via AI Gateway ─────────────
-    local gateway_url="http://${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}:8080/v1/chat/completions"
+    local gateway_url="${HICLAW_AI_GATEWAY_SERVER}/v1/chat/completions"
     local gateway_key="${HICLAW_MANAGER_GATEWAY_KEY:-}"
     if [ -z "${gateway_key}" ] && [ -f "/data/hiclaw-secrets.env" ]; then
         source /data/hiclaw-secrets.env

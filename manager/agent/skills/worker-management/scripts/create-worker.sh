@@ -71,6 +71,15 @@ fi
 # consistency to avoid issues when inviting workers to rooms.
 WORKER_NAME=$(echo "${WORKER_NAME}" | tr 'A-Z' 'a-z')
 
+# Validate worker name: restrict to safe subset of Matrix localpart charset
+if ! echo "${WORKER_NAME}" | grep -qE '^[a-z0-9][a-z0-9-]*$'; then
+    echo "ERROR: INVALID_WORKER_NAME"
+    echo "Worker name '${WORKER_NAME}' contains invalid characters."
+    echo "Worker names must start with a letter or digit and contain only lowercase letters (a-z), digits (0-9), and hyphens (-)."
+    echo "Examples: alice, dev-01, travel-assistant"
+    exit 1
+fi
+
 # copaw runtime supports both container and pip-installed modes
 # (previously forced REMOTE_MODE=true; now containers are supported)
 
@@ -342,8 +351,6 @@ bash /opt/hiclaw/agent/skills/worker-management/scripts/generate-worker-config.s
 # Generate mcporter-servers.json if MCP servers are authorized
 if [ -n "${TARGET_MCP_LIST}" ]; then
     log "  Generating mcporter-servers.json..."
-    # MCP servers are hosted on the AI Gateway domain
-    AIGW_DOMAIN="${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}"
     MCPORTER_JSON='{"mcpServers":{'
     FIRST=true
     IFS=',' read -ra MCP_ARR2 <<< "${TARGET_MCP_LIST}"
@@ -351,7 +358,7 @@ if [ -n "${TARGET_MCP_LIST}" ]; then
         mcp_name=$(echo "${mcp_name}" | tr -d ' ')
         [ -z "${mcp_name}" ] && continue
         if [ "${FIRST}" = true ]; then FIRST=false; else MCPORTER_JSON="${MCPORTER_JSON},"; fi
-        MCPORTER_JSON="${MCPORTER_JSON}\"${mcp_name}\":{\"url\":\"http://${AIGW_DOMAIN}:8080/mcp-servers/${mcp_name}/mcp\",\"transport\":\"http\",\"headers\":{\"Authorization\":\"Bearer ${WORKER_KEY}\"}}"
+        MCPORTER_JSON="${MCPORTER_JSON}\"${mcp_name}\":{\"url\":\"${HICLAW_AI_GATEWAY_SERVER}/mcp-servers/${mcp_name}/mcp\",\"transport\":\"http\",\"headers\":{\"Authorization\":\"Bearer ${WORKER_KEY}\"}}"
     done
     MCPORTER_JSON="${MCPORTER_JSON}}}"
     echo "${MCPORTER_JSON}" | jq . > "/root/hiclaw-fs/agents/${WORKER_NAME}/mcporter-servers.json"

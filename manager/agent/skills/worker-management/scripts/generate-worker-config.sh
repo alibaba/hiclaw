@@ -84,14 +84,8 @@ else
 fi
 # Matrix Domain for user IDs keeps original port (e.g., :9080)
 export HICLAW_MATRIX_DOMAIN="${MATRIX_DOMAIN_FOR_ID}"
-# AI Gateway URL:
-#   Cloud mode: Worker connects via external NLB (HICLAW_AI_GATEWAY_URL)
-#   Local mode: Worker connects via Higress internal network (domain:8080)
-if [ "${HICLAW_RUNTIME}" = "aliyun" ] && [ -n "${HICLAW_AI_GATEWAY_URL:-}" ]; then
-    export HICLAW_AI_GATEWAY="${HICLAW_AI_GATEWAY_URL}"
-else
-    export HICLAW_AI_GATEWAY="http://${AI_GATEWAY_DOMAIN}:8080"
-fi
+# AI Gateway URL: unified by hiclaw-env.sh (cloud: HICLAW_AI_GATEWAY_URL, local: domain:8080)
+export HICLAW_AI_GATEWAY="${HICLAW_AI_GATEWAY_SERVER}"
 export HICLAW_ADMIN_USER="${ADMIN_USER}"
 export HICLAW_DEFAULT_MODEL="${MODEL_NAME}"
 export MODEL_REASONING=true
