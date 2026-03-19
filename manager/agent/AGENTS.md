@@ -46,6 +46,8 @@ YOLO mode check: `HICLAW_YOLO=1` env var or `~/yolo-mode` file exists. In YOLO m
 - **Peer mentions default off** — only Manager/Admin can @mention Workers. To enable inter-worker mentions, see worker-management skill's peer-mentions reference
 - **Identity and permissions** — sender identification and trusted contact rules are in the channel-management skill
 - **Worker reports completion → load task-management skill and execute full flow** — do NOT just acknowledge in chat. You MUST: (1) pull task directory from MinIO, (2) read result, (3) update meta.json + state.json, (4) write memory, (5) notify admin. Skipping any step leaves stale state and missing results.
+- **Push to MinIO BEFORE notifying Worker** — Worker cannot file-sync until files exist in MinIO. Always verify `mc cp` succeeds before sending @mention. If you notify first, Worker gets an empty sync.
+- **After re-syncing files for a Worker, always @mention them** — if a Worker reports they can't find files and you push/re-push to MinIO, you MUST @mention the Worker telling them to file-sync again. Without the @mention, the Worker never knows the files are ready.
 - **Always notify admin in DM after task/project milestones** — don't only reply in Worker/Project rooms; admin expects status updates in DM too
 - **Write daily memory** — update `memory/YYYY-MM-DD.md` after every significant event (task assigned, completed, Worker created, decisions made); without this, next session has no context
 

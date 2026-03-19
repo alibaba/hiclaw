@@ -16,11 +16,12 @@
    ```
    Write `meta.json` (type: "finite", status: "assigned") and `spec.md` (requirements, acceptance criteria, context).
 
-3. Push to MinIO:
+3. Push to MinIO **immediately** — Worker cannot file-sync until files are in MinIO:
    ```bash
    mc cp /root/hiclaw-fs/shared/tasks/{task-id}/meta.json ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/meta.json
    mc cp /root/hiclaw-fs/shared/tasks/{task-id}/spec.md ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/spec.md
    ```
+   **Verify the push succeeded** (non-zero exit = retry). Do NOT proceed to step 4 until files are confirmed in MinIO.
 
 4. Notify Worker in their Room:
    ```
@@ -54,7 +55,12 @@
    bash /opt/hiclaw/agent/skills/task-management/scripts/resolve-notify-channel.sh
    ```
    - If `channel` is not `"none"`: send `[Task Completed] {task-id}: {title} — assigned to {worker}. {summary}` to resolved target.
-   - If `channel` is `"none"`: skip (heartbeat will catch up).
+   - If `channel` is `"none"`: the admin DM room is not yet cached. Discover it now — list joined rooms, find the DM room with exactly 2 members (you and admin), then persist:
+     ```bash
+     bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
+       --action set-admin-dm --room-id "<discovered-room-id>"
+     ```
+     After persisting, retry `resolve-notify-channel.sh` and send the notification. If discovery fails, log a warning and move on — heartbeat will catch up.
 
 ## Task directory layout
 

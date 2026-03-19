@@ -731,6 +731,46 @@ if [ -f /root/manager-workspace/.upgrade-pending-worker-notify ]; then
 fi
 
 # ============================================================
+# Discover and persist admin DM room ID into state.json
+# This ensures task completion notifications work from the first task,
+# without waiting for heartbeat to discover the room.
+# ============================================================
+log "Discovering admin DM room..."
+_ADMIN_FULL_ID="@${HICLAW_ADMIN_USER}:${MATRIX_DOMAIN}"
+_MANAGER_FULL_ID="@manager:${MATRIX_DOMAIN}"
+_DM_ROOM_ID=""
+
+_JOINED=$(curl -sf "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/joined_rooms" \
+    -H "Authorization: Bearer ${MANAGER_TOKEN}" 2>/dev/null \
+    | jq -r '.joined_rooms[]' 2>/dev/null) || true
+
+for _rid in ${_JOINED}; do
+    _rid_enc=$(echo "${_rid}" | sed 's/!/%21/g;s/:/%3A/g')
+    _members=$(curl -sf "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${_rid_enc}/members" \
+        -H "Authorization: Bearer ${MANAGER_TOKEN}" 2>/dev/null \
+        | jq -r '.chunk[].state_key' 2>/dev/null) || continue
+    _count=$(echo "${_members}" | grep -c '.' 2>/dev/null || echo 0)
+    if [ "${_count}" -eq 2 ] && echo "${_members}" | grep -q "${_ADMIN_FULL_ID}"; then
+        _DM_ROOM_ID="${_rid}"
+        break
+    fi
+done
+
+if [ -n "${_DM_ROOM_ID}" ]; then
+    log "Admin DM room found: ${_DM_ROOM_ID}"
+    # Persist to state.json
+    STATE_SCRIPT="/opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh"
+    if [ -f "${STATE_SCRIPT}" ]; then
+        HOME=/root/manager-workspace bash "${STATE_SCRIPT}" --action init 2>/dev/null || true
+        HOME=/root/manager-workspace bash "${STATE_SCRIPT}" --action set-admin-dm --room-id "${_DM_ROOM_ID}" 2>/dev/null \
+            && log "Admin DM room persisted to state.json" \
+            || log "WARNING: Failed to persist admin DM room to state.json"
+    fi
+else
+    log "WARNING: Admin DM room not found (will be discovered during heartbeat)"
+fi
+
+# ============================================================
 # Start OpenClaw Manager Agent
 # ============================================================
 log "Starting Manager Agent (OpenClaw)..."
