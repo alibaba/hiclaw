@@ -73,6 +73,15 @@ fi
 
 log_section "Verify Infrastructure"
 
+# Check Worker openclaw.json has memorySearch config
+minio_setup
+ALICE_OPENCLAW=$(minio_read_file "agents/alice/openclaw.json" 2>/dev/null || echo "{}")
+MEMORY_SEARCH_MODEL=$(echo "${ALICE_OPENCLAW}" | jq -r '.agents.defaults.memorySearch.model // empty' 2>/dev/null)
+if [ -n "${ALICE_OPENCLAW}" ] && [ "${ALICE_OPENCLAW}" != "{}" ]; then
+    assert_not_empty "${MEMORY_SEARCH_MODEL}" "Worker openclaw.json has memorySearch.model configured"
+    log_info "Worker embedding model: ${MEMORY_SEARCH_MODEL}"
+fi
+
 # Check Matrix user exists
 ALICE_LOGIN=$(matrix_login "alice" "" 2>/dev/null || echo "{}")
 # Note: We don't know Alice's password, but we can check if the user was registered

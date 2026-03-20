@@ -45,4 +45,7 @@ HICLAW_STORAGE_PREFIX="hiclaw/${HICLAW_STORAGE_BUCKET}"
 # In local mode, ensure_mc_credentials() is a no-op.
 source /opt/hiclaw/scripts/lib/oss-credentials.sh 2>/dev/null || true
 
-export HICLAW_RUNTIME HICLAW_MATRIX_SERVER HICLAW_AI_GATEWAY_SERVER HICLAW_STORAGE_BUCKET HICLAW_STORAGE_PREFIX
+# Embedding model: default to Qwen3-Embedding (text-embedding-v4), overridable via env
+HICLAW_EMBEDDING_MODEL="${HICLAW_EMBEDDING_MODEL:-text-embedding-v4}"
+
+export HICLAW_RUNTIME HICLAW_MATRIX_SERVER HICLAW_AI_GATEWAY_SERVER HICLAW_STORAGE_BUCKET HICLAW_STORAGE_PREFIX HICLAW_EMBEDDING_MODEL

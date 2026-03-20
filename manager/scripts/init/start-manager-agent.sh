@@ -456,6 +456,8 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
     jq --arg token "${MANAGER_TOKEN}" \
        --arg key "${HICLAW_MANAGER_GATEWAY_KEY}" \
        --arg model "${MODEL_NAME}" \
+       --arg emb_model "${HICLAW_EMBEDDING_MODEL}" \
+       --arg aigw_domain "${AI_GATEWAY_DOMAIN}" \
        --argjson e2ee "${MATRIX_E2EE_ENABLED}" \
        --argjson known_models "${KNOWN_MODELS}" \
        --argjson ctx "${MODEL_CONTEXT_WINDOW}" \
@@ -480,6 +482,8 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
         | .commands.restart = true
         | .gateway.controlUi.dangerouslyDisableDeviceAuth = true
         | .channels.matrix.encryption = $e2ee
+        # Ensure memorySearch config exists (embedding model for memory)
+        | .agents.defaults.memorySearch //= {"provider":"openai","model":$emb_model,"remote":{"baseUrl":("http://" + $aigw_domain + ":8080/v1"),"apiKey":$key}}
        ' \
        /root/manager-workspace/openclaw.json > /tmp/openclaw.json.tmp && \
         mv /tmp/openclaw.json.tmp /root/manager-workspace/openclaw.json
@@ -521,7 +525,8 @@ if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
         | .models.providers["hiclaw-gateway"].baseUrl = $gateway
         | .models.providers["hiclaw-gateway"].apiKey = $key
         | .hooks.token = ($key + "-hooks" | @base64)
-        | .commands.restart = false' \
+        | .commands.restart = false
+        | if .agents.defaults.memorySearch then .agents.defaults.memorySearch.remote.baseUrl = $gateway | .agents.defaults.memorySearch.remote.apiKey = $key else . end' \
        /root/manager-workspace/openclaw.json > /tmp/openclaw-cloud.json && \
         mv /tmp/openclaw-cloud.json /root/manager-workspace/openclaw.json
     log "Cloud overlay applied"
