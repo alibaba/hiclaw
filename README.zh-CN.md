@@ -229,6 +229,8 @@ python scripts/export-debug-log.py --range 1h
 
 将 AI 的分析结果贴到 [Bug Report](https://github.com/higress-group/hiclaw/issues/new?template=bug_report.yml) 中。
 
+你也可以让 AI 工具直接提交 Issue 或 PR。先安装 [GitHub CLI](https://cli.github.com/)，执行 `gh auth login` 在浏览器中完成登录，然后将 [OpenClaw GitHub skill](https://github.com/openclaw/openclaw/blob/main/skills/github/SKILL.md) 配置到你的 AI 编程工具（Cursor、Claude Code 等）中。之后直接让它根据分析结果提交 Issue 或 PR 即可。
+
 欢迎[提交 Issue](https://github.com/higress-group/hiclaw/issues)，或在 [Discord](https://discord.gg/n6mV8xEYUF) / 钉钉群里随时提问。
 
 ## Roadmap
