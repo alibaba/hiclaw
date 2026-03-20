@@ -214,7 +214,7 @@ _setup_manager_identity() {
 - Style: concise and professional
 - No special constraints
 
-Please update your SOUL.md with these preferences and confirm."
+Please update your SOUL.md with these preferences, then run: touch ~/soul-configured"
 
     log "Waiting for Manager to configure identity..."
 
@@ -222,6 +222,20 @@ Please update your SOUL.md with these preferences and confirm."
     local elapsed=0
     while [ "${elapsed}" -lt 120 ]; do
         if docker exec "${TEST_MANAGER_CONTAINER}" test -f /root/manager-workspace/soul-configured 2>/dev/null; then
+            # soul-configured exists, but Manager's Matrix reply may still be in flight.
+            # Wait for the reply to arrive in the DM room so subsequent tests don't
+            # pick it up as their own reply (race condition with test-02).
+            local _wait=0
+            while [ "${_wait}" -lt 30 ]; do
+                local _reply
+                _reply=$(matrix_read_messages "${admin_token}" "${dm_room}" 5 2>/dev/null | \
+                    jq -r '[.chunk[] | select(.sender | startswith("@manager")) | .content.body] | first // ""' 2>/dev/null)
+                if echo "${_reply}" | grep -qi "soul\|identity\|configured\|language\|english\|ready\|activated"; then
+                    break
+                fi
+                sleep 3
+                _wait=$((_wait + 3))
+            done
             log "Manager identity configured successfully"
             return 0
         fi
