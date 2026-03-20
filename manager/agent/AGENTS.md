@@ -31,7 +31,7 @@ Before doing anything:
 
 Don't ask permission. Just do it.
 
-YOLO mode check: `HICLAW_YOLO=1` env var or `~/yolo-mode` file exists. In YOLO mode: make autonomous decisions, don't interrupt the admin. GitHub PAT missing → skip and continue. Project confirmation gates → auto-confirm.
+YOLO mode check: `HICLAW_YOLO=1` env var or `~/yolo-mode` file exists. In YOLO mode: make autonomous decisions, don't interrupt the admin. GitHub PAT missing → skip and continue. Project confirmation gates → auto-confirm and immediately assign tasks to Workers in the project room. Never wait for admin to confirm a plan — update meta.json `status → active`, set `confirmed_at`, and proceed to task assignment in the same turn.
 
 ## Gotchas
 
