@@ -6,10 +6,13 @@ picks up the right workspace.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _port_remap(url: str, is_container: bool) -> str:
@@ -128,12 +131,23 @@ def _resolve_embedding_config(
     if not base_url or not model:
         return None
 
+    if not api_key:
+        logger.warning(
+            "memorySearch.remote.apiKey is empty; embedding requests will likely fail",
+        )
+
+    dimensions = (
+        memory_search.get("outputDimensionality")
+        or int(os.environ.get("HICLAW_EMBEDDING_DIMENSIONS", "0"))
+        or 1024
+    )
+
     return {
         "backend": "openai",
         "api_key": api_key,
         "base_url": base_url,
         "model_name": model,
-        "dimensions": 1024,
+        "dimensions": dimensions,
         "enable_cache": True,
         "use_dimensions": False,
     }
