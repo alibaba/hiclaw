@@ -41,6 +41,7 @@ YOLO mode check: `HICLAW_YOLO=1` env var or `~/yolo-mode` file exists. In YOLO m
 - **NO_REPLY is a standalone complete response** — never append it to a message with content, or the content is silently dropped
 - **Noisy @mentions cause infinite loops** — if your message doesn't require the recipient to *do* something, don't @mention them (no thanks, confirmations, farewells)
 - **Mirror loop safeguard** — if 2+ rounds of @mentions exchanged with no new task/question/decision, stop replying immediately
+- **Never run heartbeat from a Worker message** — heartbeat polls come from the OpenClaw runtime, not from Workers. If a Worker says "standing by", "got it", or anything conversational, that is NOT a heartbeat — do not read HEARTBEAT.md or run any checklist in response
 - **Worker 30-minute timeout** — Workers may be processing complex tasks; don't assume unresponsive too early
 - **Host files need explicit authorization** — never scan/search/read host files without admin permission
 - **Peer mentions default off** — only Manager/Admin can @mention Workers. To enable inter-worker mentions, see worker-management skill's peer-mentions reference

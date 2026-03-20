@@ -19,7 +19,7 @@ This allows git operations to use the correct author name, email, and authentica
 
 ## Handling `git-request:` Messages
 
-When a Worker sends a message containing `git-request:`:
+When a Worker sends a message containing a **properly formatted** `git-request:` block (with `workspace:` and `operations:` fields), execute the requested operations.
 
 ```
 task-{task-id} git-request:
@@ -154,3 +154,10 @@ Common issues:
 
 Always use the `.processing` marker to prevent conflicts when both Worker and Manager might modify the workspace.
 
+---
+
+## Gotchas
+
+- **Wait for the actual `git-request:` block** — if a Worker says "Let me prepare the git-request" or "I'll delegate git operations", that is a preview, not a request. Do NOT execute any git operations until you receive a message with the structured `workspace:` + `operations:` fields.
+- **Duplicate git-request after you already executed** — if you already completed the git operations for a task and the Worker sends a `git-request:` for the same operations, reply with `git-result:` confirming the operations were already completed. Do not re-execute or re-verify the repo state.
+- **Never delete or overwrite the remote repo** — the remote URL (bare repo or GitHub) is shared across phases and Workers. Never `rm -rf` a remote path, never `git init --bare` over an existing repo.

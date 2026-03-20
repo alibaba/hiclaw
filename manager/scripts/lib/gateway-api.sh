@@ -240,11 +240,22 @@ _gateway_higress_authorize_mcp() {
         return 0
     fi
 
+    # Build a set of existing MCP server names for quick lookup
+    local existing_names
+    existing_names=$(echo "${all_mcp}" | jq -r '.[].name // empty' 2>/dev/null || true)
+
     local mcp_arr mcp_name
     IFS=',' read -ra mcp_arr <<< "${TARGET_MCP_LIST}"
+    local resolved_list=""
     for mcp_name in "${mcp_arr[@]}"; do
         mcp_name=$(echo "${mcp_name}" | tr -d ' ')
         [ -z "${mcp_name}" ] && continue
+
+        # Check if the MCP server actually exists before trying to authorize
+        if ! echo "${existing_names}" | grep -qx "${mcp_name}"; then
+            echo "[gateway-api] SKIPPED: MCP server '${mcp_name}' does not exist — create it first via mcp-server-management skill, then authorize this worker" >&2
+            continue
+        fi
 
         local existing_consumers consumer_list ec
         existing_consumers=$(echo "${all_mcp}" | jq -r --arg n "${mcp_name}" \
@@ -262,5 +273,10 @@ _gateway_higress_authorize_mcp() {
             -H 'Content-Type: application/json' \
             -d '{"mcpServerName":"'"${mcp_name}"'","consumers":'"${consumer_list}"'}' > /dev/null 2>&1 \
             || echo "[gateway-api] WARNING: Failed to authorize MCP server ${mcp_name}" >&2
+
+        resolved_list="${resolved_list:+${resolved_list},}${mcp_name}"
     done
+
+    # Update TARGET_MCP_LIST to only include servers that actually exist
+    TARGET_MCP_LIST="${resolved_list}"
 }

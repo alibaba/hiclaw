@@ -244,22 +244,31 @@ def export_matrix_messages(out_dir: Path, since_epoch: float, redact: bool,
                            homeserver: str, token: str,
                            messages_only: bool) -> tuple[int, int]:
     """Export Matrix messages. Returns (rooms_exported, message_count)."""
-    if not homeserver or not token:
-        env_path = env_file or os.path.expanduser("~/hiclaw-manager.env")
-        hiclaw_env = load_env_file(env_path)
+    env_path = env_file or os.path.expanduser("~/hiclaw-manager.env")
+    hiclaw_env = load_env_file(env_path)
+
+    if not homeserver:
         if not hiclaw_env:
             print(f"  [matrix] Cannot find {env_path}, skipping Matrix export")
             return 0, 0
+        port = hiclaw_env.get("HICLAW_PORT_GATEWAY", "18080")
+        homeserver = f"http://127.0.0.1:{port}"
 
-        if not homeserver:
-            port = hiclaw_env.get("HICLAW_PORT_GATEWAY", "18080")
-            homeserver = f"http://127.0.0.1:{port}"
+    if not token:
+        # Use Manager token — Manager is in every room (DM, Worker, Project)
+        manager_password = hiclaw_env.get("HICLAW_MANAGER_PASSWORD", "")
+        if manager_password:
+            try:
+                token = matrix_login(homeserver, "manager", manager_password)
+            except Exception:
+                pass
 
+        # Fallback to admin token if Manager login failed
         if not token:
             admin_user = hiclaw_env.get("HICLAW_ADMIN_USER", "admin")
             admin_password = hiclaw_env.get("HICLAW_ADMIN_PASSWORD", "")
             if not admin_password:
-                print(f"  [matrix] HICLAW_ADMIN_PASSWORD not found, skipping Matrix export")
+                print(f"  [matrix] No usable credentials found, skipping Matrix export")
                 return 0, 0
             try:
                 token = matrix_login(homeserver, admin_user, admin_password)
