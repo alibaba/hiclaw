@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Export HiClaw debug logs: Matrix messages + agent session logs.
 
