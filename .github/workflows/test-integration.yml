@@ -342,6 +342,19 @@ jobs:
           echo "Baseline generated for version ${VERSION}"
           cat metrics-baseline.json | jq '{totals: .totals, by_role: .by_role}'
 
+      - name: Export debug logs
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 scripts/export-debug-log.py --range 2h --no-redact
+          DEBUG_DIR=$(ls -td debug-log/*/ 2>/dev/null | head -1)
+          if [ -n "$DEBUG_DIR" ]; then
+            cd debug-log && zip -r ../debug-log.zip . && cd ..
+            echo "Debug log exported: $(du -sh debug-log.zip | cut -f1)"
+          else
+            echo "No debug logs generated"
+          fi
+
       - name: Upload baseline to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -349,7 +362,13 @@ jobs:
           VERSION=${{ steps.version.outputs.version }}
           gh release upload "${VERSION}" metrics-baseline.json \
             --repo "${{ github.repository }}" --clobber
-          echo "✅ Baseline uploaded to release ${VERSION}"
+          if [ -f debug-log.zip ]; then
+            gh release upload "${VERSION}" debug-log.zip \
+              --repo "${{ github.repository }}" --clobber
+            echo "✅ Baseline + debug log uploaded to release ${VERSION}"
+          else
+            echo "✅ Baseline uploaded to release ${VERSION} (no debug log)"
+          fi
 
       - name: Cleanup
         if: always()
