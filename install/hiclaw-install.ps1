@@ -391,6 +391,17 @@ $script:Messages = @{
     "matrix_e2ee.selected_enabled" = @{ zh = "Matrix E2EE: 已启用"; en = "Matrix E2EE: enabled" }
     "matrix_e2ee.selected_disabled" = @{ zh = "Matrix E2EE: 已禁用（默认）"; en = "Matrix E2EE: disabled (default)" }
 
+    # --- Docker API proxy ---
+    "docker_proxy.title" = @{ zh = "--- Docker API 安全代理 ---"; en = "--- Docker API Security Proxy ---" }
+    "docker_proxy.desc" = @{ zh = "Docker API 代理可防止 AI Agent 通过 Docker API 越狱访问宿主机。`n  启用后，Manager 不再直接持有 Docker socket，所有容器操作经过安全校验。"; en = "Docker API proxy prevents AI Agents from escaping via Docker API to access the host.`n  When enabled, Manager no longer has direct Docker socket access; all container operations go through security validation." }
+    "docker_proxy.enable" = @{ zh = "启用（推荐）"; en = "Enable (recommended)" }
+    "docker_proxy.disable" = @{ zh = "禁用（直接挂载 Docker socket）"; en = "Disable (mount Docker socket directly)" }
+    "docker_proxy.choice" = @{ zh = "请选择 [1/2]"; en = "Enter choice [1/2]" }
+    "docker_proxy.selected_enabled" = @{ zh = "Docker API 代理: 已启用"; en = "Docker API proxy: enabled" }
+    "docker_proxy.selected_disabled" = @{ zh = "Docker API 代理: 已禁用"; en = "Docker API proxy: disabled" }
+    "docker_proxy.registries_desc" = @{ zh = "默认放行的镜像来源：本地镜像、localhost、Higress 仓库（所有 region）。`n  如需放行其他镜像仓库，请输入逗号分隔的地址前缀。`n  示例: ghcr.io/myorg,registry.example.com/team"; en = "Default allowed image sources: local images, localhost, Higress registries (all regions).`n  To allow additional image sources, enter comma-separated address prefixes.`n  Example: ghcr.io/myorg,registry.example.com/team" }
+    "docker_proxy.registries_prompt" = @{ zh = "额外放行的镜像来源（按回车跳过）"; en = "Additional allowed image sources (press Enter to skip)" }
+
     # --- Worker idle timeout ---
     "idle_timeout.prompt" = @{ zh = "Worker 空闲自动停止超时（分钟）[720]"; en = "Worker idle auto-stop timeout in minutes [720]" }
     "idle_timeout.selected" = @{ zh = "Worker 空闲超时: {0} 分钟"; en = "Worker idle timeout: {0} minutes" }
@@ -781,6 +792,12 @@ HICLAW_DEFAULT_WORKER_RUNTIME=$($Config.DEFAULT_WORKER_RUNTIME)
 
 # Matrix E2EE (0=disabled, 1=enabled; default: 0)
 HICLAW_MATRIX_E2EE=$($Config.MATRIX_E2EE)
+
+# Docker API proxy (0=disabled, 1=enabled; default: 1)
+HICLAW_DOCKER_PROXY=$($Config.DOCKER_PROXY)
+
+# Docker API proxy: additional allowed image sources (comma-separated)
+HICLAW_PROXY_ALLOWED_REGISTRIES=$($Config.PROXY_ALLOWED_REGISTRIES)
 
 # Worker idle timeout in minutes (default: 720 = 12 hours)
 HICLAW_WORKER_IDLE_TIMEOUT=$($Config.WORKER_IDLE_TIMEOUT)
@@ -1308,7 +1325,7 @@ function Test-ShouldSkipStep {
             if ($script:HICLAW_QUICKSTART) { return $true }
             return $false
         }
-        { $_ -in @("Step-E2ee", "Step-Idle") } {
+        { $_ -in @("Step-E2ee", "Step-Idle", "Step-DockerProxy") } {
             if ($script:HICLAW_NON_INTERACTIVE) { return $true }
             if ($script:HICLAW_QUICKSTART -and -not $script:HICLAW_UPGRADE) { return $true }
             return $false
@@ -1371,6 +1388,10 @@ function Clear-StepVars {
         }
         "Step-E2ee" {
             [Environment]::SetEnvironmentVariable("HICLAW_MATRIX_E2EE", $null, "Process")
+        }
+        "Step-DockerProxy" {
+            [Environment]::SetEnvironmentVariable("HICLAW_DOCKER_PROXY", $null, "Process")
+            [Environment]::SetEnvironmentVariable("HICLAW_PROXY_ALLOWED_REGISTRIES", $null, "Process")
         }
         "Step-Idle" {
             [Environment]::SetEnvironmentVariable("HICLAW_WORKER_IDLE_TIMEOUT", $null, "Process")
@@ -1877,6 +1898,63 @@ function Step-E2ee {
     }
 }
 
+function Step-DockerProxy {
+    if (-not $script:HICLAW_MOUNT_SOCKET) {
+        $script:config.DOCKER_PROXY = "0"
+        return
+    }
+
+    Write-Host ""
+    Write-Log (Get-Msg "docker_proxy.title")
+    Write-Host ""
+    Write-Host "  $(Get-Msg 'docker_proxy.desc')"
+    Write-Host ""
+    Write-Host "  1) $(Get-Msg 'docker_proxy.enable')"
+    Write-Host "  2) $(Get-Msg 'docker_proxy.disable')"
+    Write-Host ""
+
+    if ($script:HICLAW_UPGRADE -and $env:HICLAW_DOCKER_PROXY) {
+        Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_DOCKER_PROXY", $env:HICLAW_DOCKER_PROXY)
+        $proxyChoice = Read-Host (Get-Msg "docker_proxy.choice")
+        if ($proxyChoice -eq "b") { $script:StepResult = "back"; return }
+        if ($proxyChoice) {
+            $script:config.DOCKER_PROXY = if ($proxyChoice -eq "2") { "0" } else { "1" }
+        } else {
+            $script:config.DOCKER_PROXY = $env:HICLAW_DOCKER_PROXY
+        }
+    } elseif (-not $env:HICLAW_DOCKER_PROXY) {
+        $proxyChoice = Read-Host (Get-Msg "docker_proxy.choice")
+        if ($proxyChoice -eq "b") { $script:StepResult = "back"; return }
+        $proxyChoice = if ($proxyChoice) { $proxyChoice } else { "1" }
+        $script:config.DOCKER_PROXY = if ($proxyChoice -eq "2") { "0" } else { "1" }
+    } else {
+        $script:config.DOCKER_PROXY = $env:HICLAW_DOCKER_PROXY
+    }
+
+    if ($script:config.DOCKER_PROXY -eq "1") {
+        Write-Log (Get-Msg "docker_proxy.selected_enabled")
+
+        # Prompt for additional allowed image sources
+        Write-Host ""
+        Write-Host "  $(Get-Msg 'docker_proxy.registries_desc')"
+        Write-Host ""
+        if ($script:HICLAW_UPGRADE -and $env:HICLAW_PROXY_ALLOWED_REGISTRIES) {
+            Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_PROXY_ALLOWED_REGISTRIES", $env:HICLAW_PROXY_ALLOWED_REGISTRIES)
+            $regInput = Read-Host (Get-Msg "docker_proxy.registries_prompt")
+            if ($regInput -eq "b") { $script:StepResult = "back"; return }
+            $script:config.PROXY_ALLOWED_REGISTRIES = if ($regInput) { $regInput } else { $env:HICLAW_PROXY_ALLOWED_REGISTRIES }
+        } elseif (-not $env:HICLAW_PROXY_ALLOWED_REGISTRIES) {
+            $regInput = Read-Host (Get-Msg "docker_proxy.registries_prompt")
+            if ($regInput -eq "b") { $script:StepResult = "back"; return }
+            $script:config.PROXY_ALLOWED_REGISTRIES = if ($regInput) { $regInput } else { "" }
+        } else {
+            $script:config.PROXY_ALLOWED_REGISTRIES = $env:HICLAW_PROXY_ALLOWED_REGISTRIES
+        }
+    } else {
+        Write-Log (Get-Msg "docker_proxy.selected_disabled")
+    }
+}
+
 function Step-Idle {
     if ($script:HICLAW_UPGRADE -and $env:HICLAW_WORKER_IDLE_TIMEOUT) {
         Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_WORKER_IDLE_TIMEOUT", $env:HICLAW_WORKER_IDLE_TIMEOUT)
@@ -1958,6 +2036,12 @@ function Install-Manager {
         "$($script:HICLAW_REGISTRY)/higress/hiclaw-copaw-worker:$($script:HICLAW_VERSION)"
     }
 
+    $script:DOCKER_PROXY_IMAGE = if ($env:HICLAW_INSTALL_DOCKER_PROXY_IMAGE) {
+        $env:HICLAW_INSTALL_DOCKER_PROXY_IMAGE
+    } else {
+        "$($script:HICLAW_REGISTRY)/higress/hiclaw-docker-proxy:$($script:HICLAW_VERSION)"
+    }
+
     Write-Log (Get-Msg "install.registry" -f $script:HICLAW_REGISTRY)
     Write-Log ""
     Write-Log (Get-Msg "install.dir" -f (Get-Location))
@@ -2031,7 +2115,7 @@ function Install-Manager {
     # ── State machine ─────────────────────────────────────────────────────────
     $_steps = @("Step-Lang", "Step-Mode", "Step-Existing", "Step-Llm", "Step-Admin",
                 "Step-Network", "Step-Ports", "Step-Domains", "Step-Github", "Step-Skills",
-                "Step-Volume", "Step-Workspace", "Step-Runtime", "Step-E2ee", "Step-Idle",
+                "Step-Volume", "Step-Workspace", "Step-Runtime", "Step-E2ee", "Step-DockerProxy", "Step-Idle",
                 "Step-Hostshare")
     $_stepHistory = [System.Collections.Generic.List[int]]::new()
     $_stepIdx = 0
@@ -2137,11 +2221,32 @@ function Install-Manager {
 
     # Docker socket mount (Windows uses named pipe)
     # On Windows, we test socket availability by running docker commands
+    $socketMounted = $false
     if ($script:HICLAW_MOUNT_SOCKET) {
         $socketAvailable = Test-DockerRunning
         if ($socketAvailable) {
-            $dockerArgs += @("-v", "//var/run/docker.sock:/var/run/docker.sock")
-            Write-Log (Get-Msg "install.socket_detected" -f "//var/run/docker.sock")
+            # Start Docker API proxy if enabled
+            if ($config.DOCKER_PROXY -eq "1") {
+                $proxyImage = $script:DOCKER_PROXY_IMAGE
+                # Ensure Docker network exists (reuse if already present)
+                docker network inspect hiclaw-net *>$null
+                if ($LASTEXITCODE -ne 0) { docker network create hiclaw-net *>$null }
+                Write-Log "Starting Docker API proxy..."
+                docker rm -f hiclaw-docker-proxy *>$null
+                docker run -d --name hiclaw-docker-proxy `
+                    --network hiclaw-net `
+                    -v "//var/run/docker.sock:/var/run/docker.sock" `
+                    --security-opt label=disable `
+                    $(if ($config.PROXY_ALLOWED_REGISTRIES) { @("-e", "HICLAW_PROXY_ALLOWED_REGISTRIES=$($config.PROXY_ALLOWED_REGISTRIES)") }) `
+                    --restart unless-stopped `
+                    $proxyImage
+                $dockerArgs += @("-e", "HICLAW_CONTAINER_API=http://hiclaw-docker-proxy:2375")
+                $dockerArgs += @("--network", "hiclaw-net")
+                Write-Log (Get-Msg "docker_proxy.selected_enabled")
+            } else {
+                $dockerArgs += @("-v", "//var/run/docker.sock:/var/run/docker.sock")
+                Write-Log (Get-Msg "install.socket_detected" -f "//var/run/docker.sock")
+            }
         } else {
             Write-Log (Get-Msg "install.socket_not_found")
             # Interactive confirmation when socket not found
@@ -2245,6 +2350,11 @@ function Install-Manager {
 
     # Stop and remove existing containers (deferred until after all
     # configuration is collected and images are pulled successfully)
+    $existingProxy = docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-docker-proxy$"
+    if ($existingProxy) {
+        docker stop hiclaw-docker-proxy *>$null
+        docker rm hiclaw-docker-proxy *>$null
+    }
     $existingContainer = docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-manager$"
     if ($existingContainer) {
         Write-Log (Get-Msg "install.removing_existing")

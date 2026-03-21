@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'manager/**'
+      - 'docker-proxy/**'
       - 'tests/**'
       - '.github/workflows/test-integration.yml'
   push:
@@ -15,6 +16,7 @@ on:
       - 'v*'
     paths:
       - 'manager/**'
+      - 'docker-proxy/**'
       - 'tests/**'
   workflow_dispatch:
     inputs:
@@ -43,6 +45,7 @@ env:
   MANAGER_IMAGE: hiclaw/manager-agent:ci-test
   WORKER_IMAGE: hiclaw/worker-agent:ci-test
   COPAW_WORKER_IMAGE: hiclaw/copaw-worker:ci-test
+  DOCKER_PROXY_IMAGE: hiclaw/docker-proxy:ci-test
   # Tests that do not require a GitHub token
   NON_GITHUB_TESTS: "01 02 03 04 05 06 14"
 
@@ -82,10 +85,10 @@ jobs:
         run: |
           RUNTIME="${{ inputs.worker_runtime || 'openclaw' }}"
           if [ "$RUNTIME" = "copaw" ]; then
-            make build-manager build-copaw-worker VERSION=ci-test HIGRESS_REGISTRY=higress-registry.us-west-1.cr.aliyuncs.com \
+            make build-manager build-copaw-worker build-docker-proxy VERSION=ci-test HIGRESS_REGISTRY=higress-registry.us-west-1.cr.aliyuncs.com \
               DOCKER_BUILD_ARGS="--build-arg APT_MIRROR= --build-arg PIP_INDEX_URL=https://pypi.org/simple/"
           else
-            make build-manager build-worker VERSION=ci-test HIGRESS_REGISTRY=higress-registry.us-west-1.cr.aliyuncs.com
+            make build-manager build-worker build-docker-proxy VERSION=ci-test HIGRESS_REGISTRY=higress-registry.us-west-1.cr.aliyuncs.com
           fi
 
       - name: Install dependencies
@@ -111,6 +114,7 @@ jobs:
           HICLAW_DEFAULT_MODEL="$MODEL" \
           HICLAW_INSTALL_MANAGER_IMAGE=${{ env.MANAGER_IMAGE }} \
           HICLAW_INSTALL_WORKER_IMAGE="$WORKER_IMG" \
+          HICLAW_INSTALL_DOCKER_PROXY_IMAGE=${{ env.DOCKER_PROXY_IMAGE }} \
           bash ./install/hiclaw-install.sh manager
 
       - name: Wait for Manager to be ready

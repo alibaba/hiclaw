@@ -36,6 +36,7 @@ set -e
 HICLAW_VERSION="${HICLAW_VERSION:-latest}"
 HICLAW_NON_INTERACTIVE="${HICLAW_NON_INTERACTIVE:-0}"
 HICLAW_MOUNT_SOCKET="${HICLAW_MOUNT_SOCKET:-1}"
+HICLAW_DOCKER_PROXY="${HICLAW_DOCKER_PROXY:-1}"
 STEP_RESULT=""  # Used by state machine to signal "back" navigation
 
 # ============================================================
@@ -504,6 +505,25 @@ msg() {
         "matrix_e2ee.selected_enabled.en") text="Matrix E2EE: enabled" ;;
         "matrix_e2ee.selected_disabled.zh") text="Matrix E2EE: 已禁用（默认）" ;;
         "matrix_e2ee.selected_disabled.en") text="Matrix E2EE: disabled (default)" ;;
+        # --- Docker API proxy ---
+        "docker_proxy.title.zh") text="--- Docker API 安全代理 ---" ;;
+        "docker_proxy.title.en") text="--- Docker API Security Proxy ---" ;;
+        "docker_proxy.desc.zh") text="Docker API 代理可防止 AI Agent 通过 Docker API 越狱访问宿主机。\n  启用后，Manager 不再直接持有 Docker socket，所有容器操作经过安全校验。" ;;
+        "docker_proxy.desc.en") text="Docker API proxy prevents AI Agents from escaping via Docker API to access the host.\n  When enabled, Manager no longer has direct Docker socket access; all container operations go through security validation." ;;
+        "docker_proxy.enable.zh") text="启用（推荐）" ;;
+        "docker_proxy.enable.en") text="Enable (recommended)" ;;
+        "docker_proxy.disable.zh") text="禁用（直接挂载 Docker socket）" ;;
+        "docker_proxy.disable.en") text="Disable (mount Docker socket directly)" ;;
+        "docker_proxy.choice.zh") text="请选择 [1/2]" ;;
+        "docker_proxy.choice.en") text="Enter choice [1/2]" ;;
+        "docker_proxy.selected_enabled.zh") text="Docker API 代理: 已启用" ;;
+        "docker_proxy.selected_enabled.en") text="Docker API proxy: enabled" ;;
+        "docker_proxy.selected_disabled.zh") text="Docker API 代理: 已禁用" ;;
+        "docker_proxy.selected_disabled.en") text="Docker API proxy: disabled" ;;
+        "docker_proxy.registries_desc.zh") text="默认放行的镜像来源：本地镜像、localhost、Higress 仓库（所有 region）。\n  如需放行其他镜像仓库，请输入逗号分隔的地址前缀。\n  示例: ghcr.io/myorg,registry.example.com/team" ;;
+        "docker_proxy.registries_desc.en") text="Default allowed image sources: local images, localhost, Higress registries (all regions).\n  To allow additional image sources, enter comma-separated address prefixes.\n  Example: ghcr.io/myorg,registry.example.com/team" ;;
+        "docker_proxy.registries_prompt.zh") text="额外放行的镜像来源（按回车跳过）" ;;
+        "docker_proxy.registries_prompt.en") text="Additional allowed image sources (press Enter to skip)" ;;
         # --- Worker idle timeout ---
         "idle_timeout.prompt.zh") text="Worker 空闲自动停止超时（分钟）[720]" ;;
         "idle_timeout.prompt.en") text="Worker idle auto-stop timeout in minutes [720]" ;;
@@ -756,6 +776,7 @@ HICLAW_REGISTRY="${HICLAW_REGISTRY:-$(detect_registry)}"
 MANAGER_IMAGE="${HICLAW_INSTALL_MANAGER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-manager:${HICLAW_VERSION}}"
 WORKER_IMAGE="${HICLAW_INSTALL_WORKER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-worker:${HICLAW_VERSION}}"
 COPAW_WORKER_IMAGE="${HICLAW_INSTALL_COPAW_WORKER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-copaw-worker:${HICLAW_VERSION}}"
+DOCKER_PROXY_IMAGE="${HICLAW_INSTALL_DOCKER_PROXY_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-docker-proxy:${HICLAW_VERSION}}"
 
 # ============================================================
 # Known models list — used to detect custom models during install
@@ -1334,7 +1355,7 @@ should_skip_step() {
             [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
             [ "${HICLAW_QUICKSTART}" = "1" ] && return 0
             ;;
-        step_e2ee|step_idle)
+        step_e2ee|step_idle|step_docker_proxy)
             [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
             [ "${HICLAW_QUICKSTART}" = "1" ] && [ "${HICLAW_UPGRADE}" != "1" ] && return 0
             ;;
@@ -1373,6 +1394,7 @@ clear_step_vars() {
         step_workspace) unset HICLAW_WORKSPACE_DIR ;;
         step_runtime)   unset HICLAW_DEFAULT_WORKER_RUNTIME ;;
         step_e2ee)      unset HICLAW_MATRIX_E2EE ;;
+        step_docker_proxy) unset HICLAW_DOCKER_PROXY; unset HICLAW_PROXY_ALLOWED_REGISTRIES ;;
         step_idle)      unset HICLAW_WORKER_IDLE_TIMEOUT ;;
         step_hostshare) unset HICLAW_HOST_SHARE_DIR ;;
     esac
@@ -1873,6 +1895,70 @@ step_e2ee() {
     fi
 }
 
+step_docker_proxy() {
+    # Only relevant when socket mounting is enabled
+    if [ "${HICLAW_MOUNT_SOCKET}" != "1" ]; then
+        HICLAW_DOCKER_PROXY="0"
+        return 0
+    fi
+
+    echo ""
+    echo -e "  \033[1m$(msg docker_proxy.title)\033[0m"
+    echo ""
+    echo -e "  $(msg docker_proxy.desc)"
+    echo ""
+    echo "  1) $(msg docker_proxy.enable)"
+    echo "  2) $(msg docker_proxy.disable)"
+    echo ""
+
+    if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_DOCKER_PROXY}" ]; then
+        log "$(msg prompt.upgrade_keep "HICLAW_DOCKER_PROXY" "${HICLAW_DOCKER_PROXY}")"
+        local _choice
+        read -e -p "$(msg docker_proxy.choice): " _choice
+        if [ "${_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        if [ -n "${_choice}" ]; then
+            case "${_choice}" in
+                2) HICLAW_DOCKER_PROXY="0" ;;
+                *) HICLAW_DOCKER_PROXY="1" ;;
+            esac
+        fi
+    elif [ -z "${HICLAW_DOCKER_PROXY+x}" ]; then
+        local _choice
+        read -e -p "$(msg docker_proxy.choice): " _choice
+        if [ "${_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+        _choice="${_choice:-1}"
+        case "${_choice}" in
+            2) HICLAW_DOCKER_PROXY="0" ;;
+            *) HICLAW_DOCKER_PROXY="1" ;;
+        esac
+    fi
+    HICLAW_DOCKER_PROXY="${HICLAW_DOCKER_PROXY:-1}"
+    export HICLAW_DOCKER_PROXY
+    if [ "${HICLAW_DOCKER_PROXY}" = "1" ]; then
+        log "$(msg docker_proxy.selected_enabled)"
+
+        # Prompt for additional allowed image sources
+        echo ""
+        echo -e "  $(msg docker_proxy.registries_desc)"
+        echo ""
+        if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_PROXY_ALLOWED_REGISTRIES}" ]; then
+            log "$(msg prompt.upgrade_keep "HICLAW_PROXY_ALLOWED_REGISTRIES" "${HICLAW_PROXY_ALLOWED_REGISTRIES}")"
+            local _reg_input
+            read -e -p "$(msg docker_proxy.registries_prompt): " _reg_input
+            if [ "${_reg_input}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+            [ -n "${_reg_input}" ] && HICLAW_PROXY_ALLOWED_REGISTRIES="${_reg_input}"
+        elif [ -z "${HICLAW_PROXY_ALLOWED_REGISTRIES+x}" ]; then
+            local _reg_input
+            read -e -p "$(msg docker_proxy.registries_prompt): " _reg_input
+            if [ "${_reg_input}" = "b" ]; then STEP_RESULT="back"; return 0; fi
+            HICLAW_PROXY_ALLOWED_REGISTRIES="${_reg_input:-}"
+        fi
+        export HICLAW_PROXY_ALLOWED_REGISTRIES
+    else
+        log "$(msg docker_proxy.selected_disabled)"
+    fi
+}
+
 step_idle() {
     if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_WORKER_IDLE_TIMEOUT}" ]; then
         log "$(msg prompt.upgrade_keep "HICLAW_WORKER_IDLE_TIMEOUT" "${HICLAW_WORKER_IDLE_TIMEOUT}")"
@@ -1969,7 +2055,7 @@ install_manager() {
     # ── State machine ─────────────────────────────────────────────────────────
     local _STEPS=( step_lang step_mode step_existing step_llm step_admin step_network \
                    step_ports step_domains step_github step_skills step_volume \
-                   step_workspace step_runtime step_e2ee step_idle step_hostshare )
+                   step_workspace step_runtime step_e2ee step_docker_proxy step_idle step_hostshare )
     local _STEP_HISTORY=()
     local _step_idx=0
     while [ "${_step_idx}" -lt "${#_STEPS[@]}" ]; do
@@ -2087,6 +2173,12 @@ HICLAW_DEFAULT_WORKER_RUNTIME=${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}
 
 # Matrix E2EE (0=disabled, 1=enabled; default: 0)
 HICLAW_MATRIX_E2EE=${HICLAW_MATRIX_E2EE:-0}
+
+# Docker API proxy (0=disabled, 1=enabled; default: 1)
+HICLAW_DOCKER_PROXY=${HICLAW_DOCKER_PROXY:-1}
+
+# Docker API proxy: additional allowed image sources (comma-separated)
+HICLAW_PROXY_ALLOWED_REGISTRIES=${HICLAW_PROXY_ALLOWED_REGISTRIES:-}
 
 # Worker idle timeout in minutes (default: 720 = 12 hours)
 HICLAW_WORKER_IDLE_TIMEOUT=${HICLAW_WORKER_IDLE_TIMEOUT:-720}
@@ -2208,6 +2300,10 @@ EOF
 
     # Stop and remove existing containers (deferred from upgrade detection
     # so that all configuration is collected and images are pulled first)
+    if ${DOCKER_CMD} ps -a --format '{{.Names}}' | grep -q "^hiclaw-docker-proxy$"; then
+        ${DOCKER_CMD} stop hiclaw-docker-proxy 2>/dev/null || true
+        ${DOCKER_CMD} rm hiclaw-docker-proxy 2>/dev/null || true
+    fi
     if ${DOCKER_CMD} ps -a --format '{{.Names}}' | grep -q "^hiclaw-manager$"; then
         log "$(msg install.removing_existing)"
         ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
@@ -2227,6 +2323,26 @@ EOF
 
     # Run Manager container
     log "$(msg install.starting_manager)"
+
+    # Start Docker API proxy if enabled (security layer between Manager and Docker daemon)
+    PROXY_ARGS=""
+    if [ "${HICLAW_DOCKER_PROXY:-0}" = "1" ] && [ -n "${CONTAINER_SOCK:-}" ]; then
+        local _proxy_image="${DOCKER_PROXY_IMAGE}"
+        # Ensure Docker network exists (reuse if already present)
+        ${DOCKER_CMD} network inspect hiclaw-net >/dev/null 2>&1 || ${DOCKER_CMD} network create hiclaw-net
+        log "Starting Docker API proxy..."
+        ${DOCKER_CMD} run -d \
+            --name hiclaw-docker-proxy \
+            --network hiclaw-net \
+            -v "${CONTAINER_SOCK}:/var/run/docker.sock" \
+            --security-opt label=disable \
+            ${HICLAW_PROXY_ALLOWED_REGISTRIES:+-e HICLAW_PROXY_ALLOWED_REGISTRIES="${HICLAW_PROXY_ALLOWED_REGISTRIES}"} \
+            --restart unless-stopped \
+            "${_proxy_image}"
+        PROXY_ARGS="-e HICLAW_CONTAINER_API=http://hiclaw-docker-proxy:2375 --network hiclaw-net"
+        SOCKET_MOUNT_ARGS=""  # Manager no longer needs direct socket access
+    fi
+
     # Build port binding args (127.0.0.1 prefix for local-only mode)
     if [ "${HICLAW_LOCAL_ONLY:-1}" = "1" ]; then
         _port_prefix="127.0.0.1:"
@@ -2243,6 +2359,7 @@ EOF
         ${YOLO_ARGS} \
         ${TZ_ARGS} \
         ${SOCKET_MOUNT_ARGS} \
+        ${PROXY_ARGS} \
         -p "${_port_prefix}${HICLAW_PORT_GATEWAY}:8080" \
         -p "${_port_prefix}${HICLAW_PORT_CONSOLE}:8001" \
         -p "${_port_prefix}${HICLAW_PORT_ELEMENT_WEB:-18088}:8088" \

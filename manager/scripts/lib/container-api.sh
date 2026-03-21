@@ -3,10 +3,9 @@
 # Provides functions to create/manage sibling containers via the host's
 # container runtime socket (Docker or Podman compatible).
 #
-# The Manager container must be started with:
-#   -v /var/run/docker.sock:/var/run/docker.sock --security-opt label=disable
-# or (Podman rootful):
-#   -v /run/podman/podman.sock:/var/run/docker.sock --security-opt label=disable
+# Supports two modes:
+#   1. HTTP proxy mode: set HICLAW_CONTAINER_API=http://hiclaw-docker-proxy:2375
+#   2. Unix socket mode (legacy): mount docker.sock into the container
 #
 # Usage:
 #   source /opt/hiclaw/scripts/lib/container-api.sh
@@ -17,7 +16,10 @@
 #   container_logs_worker "alice"     # get worker container logs
 
 CONTAINER_SOCKET="${HICLAW_CONTAINER_SOCKET:-/var/run/docker.sock}"
-CONTAINER_API_BASE="http://localhost"
+CONTAINER_API_BASE="${HICLAW_CONTAINER_API:-}"
+if [ -z "${CONTAINER_API_BASE}" ]; then
+    CONTAINER_API_BASE="http://localhost"
+fi
 WORKER_IMAGE="${HICLAW_WORKER_IMAGE:-hiclaw/worker-agent:latest}"
 COPAW_WORKER_IMAGE="${HICLAW_COPAW_WORKER_IMAGE:-hiclaw/copaw-worker:latest}"
 WORKER_CONTAINER_PREFIX="hiclaw-worker-"
@@ -30,16 +32,30 @@ _api() {
     local method="$1"
     local path="$2"
     local data="${3:-}"
-    if [ -n "${data}" ]; then
-        curl -s --unix-socket "${CONTAINER_SOCKET}" \
-            -X "${method}" \
-            -H 'Content-Type: application/json' \
-            -d "${data}" \
-            "${CONTAINER_API_BASE}${path}"
+    if [ -n "${HICLAW_CONTAINER_API}" ]; then
+        # HTTP proxy mode
+        if [ -n "${data}" ]; then
+            curl -s -X "${method}" \
+                -H 'Content-Type: application/json' \
+                -d "${data}" \
+                "${CONTAINER_API_BASE}${path}"
+        else
+            curl -s -X "${method}" \
+                "${CONTAINER_API_BASE}${path}"
+        fi
     else
-        curl -s --unix-socket "${CONTAINER_SOCKET}" \
-            -X "${method}" \
-            "${CONTAINER_API_BASE}${path}"
+        # Unix socket mode (legacy)
+        if [ -n "${data}" ]; then
+            curl -s --unix-socket "${CONTAINER_SOCKET}" \
+                -X "${method}" \
+                -H 'Content-Type: application/json' \
+                -d "${data}" \
+                "${CONTAINER_API_BASE}${path}"
+        else
+            curl -s --unix-socket "${CONTAINER_SOCKET}" \
+                -X "${method}" \
+                "${CONTAINER_API_BASE}${path}"
+        fi
     fi
 }
 
@@ -47,23 +63,48 @@ _api_code() {
     local method="$1"
     local path="$2"
     local data="${3:-}"
-    if [ -n "${data}" ]; then
-        curl -s -o /dev/null -w '%{http_code}' --unix-socket "${CONTAINER_SOCKET}" \
-            -X "${method}" \
-            -H 'Content-Type: application/json' \
-            -d "${data}" \
-            "${CONTAINER_API_BASE}${path}"
+    if [ -n "${HICLAW_CONTAINER_API}" ]; then
+        # HTTP proxy mode
+        if [ -n "${data}" ]; then
+            curl -s -o /dev/null -w '%{http_code}' -X "${method}" \
+                -H 'Content-Type: application/json' \
+                -d "${data}" \
+                "${CONTAINER_API_BASE}${path}"
+        else
+            curl -s -o /dev/null -w '%{http_code}' -X "${method}" \
+                "${CONTAINER_API_BASE}${path}"
+        fi
     else
-        curl -s -o /dev/null -w '%{http_code}' --unix-socket "${CONTAINER_SOCKET}" \
-            -X "${method}" \
-            "${CONTAINER_API_BASE}${path}"
+        # Unix socket mode (legacy)
+        if [ -n "${data}" ]; then
+            curl -s -o /dev/null -w '%{http_code}' --unix-socket "${CONTAINER_SOCKET}" \
+                -X "${method}" \
+                -H 'Content-Type: application/json' \
+                -d "${data}" \
+                "${CONTAINER_API_BASE}${path}"
+        else
+            curl -s -o /dev/null -w '%{http_code}' --unix-socket "${CONTAINER_SOCKET}" \
+                -X "${method}" \
+                "${CONTAINER_API_BASE}${path}"
+        fi
     fi
 }
 
-# Check if container runtime socket is available
+# Check if container runtime API is available
+# Supports both HTTP proxy mode (HICLAW_CONTAINER_API) and unix socket mode.
 # This function is designed to work correctly in both strict mode (set -euo pipefail)
 # and non-strict mode. It uses a subshell for the API check to prevent exit on errors.
 container_api_available() {
+    if [ -n "${HICLAW_CONTAINER_API}" ]; then
+        # HTTP proxy mode: check if proxy is reachable
+        local version
+        version=$(curl -s "${CONTAINER_API_BASE}/version" 2>/dev/null) || true
+        if echo "${version}" | grep -q '"ApiVersion"' 2>/dev/null; then
+            return 0
+        fi
+        return 1
+    fi
+    # Unix socket mode (legacy)
     if [ ! -S "${CONTAINER_SOCKET}" ]; then
         return 1
     fi
@@ -99,8 +140,12 @@ _ensure_image() {
     # POST /images/create?fromImage=<ref> streams progress JSON.
     # curl will block until the pull finishes (or fails).
     local pull_output
-    pull_output=$(curl -s --unix-socket "${CONTAINER_SOCKET}" \
-        -X POST "${CONTAINER_API_BASE}/images/create?fromImage=${image}" 2>&1)
+    if [ -n "${HICLAW_CONTAINER_API}" ]; then
+        pull_output=$(curl -s -X POST "${CONTAINER_API_BASE}/images/create?fromImage=${image}" 2>&1)
+    else
+        pull_output=$(curl -s --unix-socket "${CONTAINER_SOCKET}" \
+            -X POST "${CONTAINER_API_BASE}/images/create?fromImage=${image}" 2>&1)
+    fi
 
     # Verify the image is now available
     inspect=$(_api GET "/images/${image}/json" 2>/dev/null)
@@ -488,8 +533,13 @@ PAYLOAD
 
         # Start the container — capture both HTTP status code and response body
         local start_output
-        start_output=$(curl -s -w '\n%{http_code}' --unix-socket "${CONTAINER_SOCKET}" \
-            -X POST "${CONTAINER_API_BASE}/containers/${container_id}/start")
+        if [ -n "${HICLAW_CONTAINER_API}" ]; then
+            start_output=$(curl -s -w '\n%{http_code}' \
+                -X POST "${CONTAINER_API_BASE}/containers/${container_id}/start")
+        else
+            start_output=$(curl -s -w '\n%{http_code}' --unix-socket "${CONTAINER_SOCKET}" \
+                -X POST "${CONTAINER_API_BASE}/containers/${container_id}/start")
+        fi
         local start_code
         start_code=$(echo "${start_output}" | tail -1)
         local start_body
