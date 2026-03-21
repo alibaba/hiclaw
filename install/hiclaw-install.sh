@@ -2267,6 +2267,15 @@ EOF
     # Covers both fresh install (room just created) and upgrade (room exists but state.json missing it)
     ensure_admin_dm_room "hiclaw-manager"
 
+    # Post-install verification (non-fatal: warnings only)
+    local _verify_script
+    _verify_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/hiclaw-verify.sh"
+    if [ -f "${_verify_script}" ]; then
+        bash "${_verify_script}" "hiclaw-manager" || {
+            log "WARNING: Some post-install checks failed. Re-run: bash install/hiclaw-verify.sh"
+        }
+    fi
+
     log ""
     log "$(msg success.title)"
     log ""
@@ -2412,18 +2421,6 @@ install_worker() {
 # LLM API connectivity test
 # ============================================================
 
-# Helper: Get the correct max_tokens parameter name for a model
-# GPT-5 series models require 'max_completion_tokens' instead of 'max_tokens'
-_get_max_tokens_param() {
-    local model="$1"
-    # Match gpt-5, gpt-5.4, gpt-5-mini, gpt-5-nano, etc.
-    if [[ "${model}" =~ ^gpt-5(\.|-|[0-9]|$) ]]; then
-        echo "max_completion_tokens"
-    else
-        echo "max_tokens"
-    fi
-}
-
 test_llm_connectivity() {
     local base_url="$1"
     local api_key="$2"
@@ -2434,8 +2431,7 @@ test_llm_connectivity() {
         return
     fi
     log "$(msg llm.openai.test.testing)"
-    local _body _http_code _tmpfile _max_tokens_param
-    _max_tokens_param=$(_get_max_tokens_param "${model}")
+    local _body _http_code _tmpfile
     _tmpfile=$(mktemp)
     _http_code=$(curl -s -o "${_tmpfile}" -w "%{http_code}" \
         -X POST "${base_url%/}/chat/completions" \
@@ -2443,7 +2439,7 @@ test_llm_connectivity() {
         -H "Content-Type: application/json" \
         -H "User-Agent: HiClaw/${HICLAW_VERSION:-latest}" \
         --max-time 30 \
-        -d "{\"model\":\"${model}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"${_max_tokens_param}\":1}" \
+        -d "{\"model\":\"${model}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" \
         2>/dev/null)
     _body=$(cat "${_tmpfile}")
     rm -f "${_tmpfile}"

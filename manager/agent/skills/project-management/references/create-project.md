@@ -37,7 +37,7 @@ If you'd like changes, let me know. Otherwise, reply "confirm" to begin.
 
 Wait for confirmation before proceeding.
 
-> **YOLO mode**: Skip confirmation. Auto-confirm immediately — update meta.json `status → active`, set `confirmed_at`, proceed to Step 1d.
+> **YOLO mode**: The admin is unavailable and cannot be reached. Do NOT wait — auto-confirm immediately, update meta.json `status → active`, set `confirmed_at`, and proceed to Step 1d in the same turn.
 
 ## Step 1d: After confirmation
 

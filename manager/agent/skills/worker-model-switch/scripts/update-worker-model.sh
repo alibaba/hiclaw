@@ -15,15 +15,6 @@
 set -euo pipefail
 source /opt/hiclaw/scripts/lib/hiclaw-env.sh
 
-_get_max_tokens_param() {
-    local model="$1"
-    if [[ "${model}" =~ ^gpt-5(\.|-|[0-9]|$) ]]; then
-        echo "max_completion_tokens"
-    else
-        echo "max_tokens"
-    fi
-}
-
 REGISTRY_FILE="${HOME}/workers-registry.json"
 
 _ts() {
@@ -107,13 +98,12 @@ update_worker_model() {
         gateway_key="${HICLAW_MANAGER_GATEWAY_KEY:-}"
     fi
     _log "Testing model reachability: ${gateway_url} (model=${new_model})..."
-    local http_code max_tokens_param
-    max_tokens_param=$(_get_max_tokens_param "${new_model}")
+    local http_code
     http_code=$(curl -s -o /tmp/model-test-resp-${worker}.json -w '%{http_code}' \
         -X POST "${gateway_url}" \
         -H "Authorization: Bearer ${gateway_key}" \
         -H "Content-Type: application/json" \
-        -d "{\"model\":\"${new_model}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"${max_tokens_param}\":1}" \
+        -d "{\"model\":\"${new_model}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" \
         --connect-timeout 10 --max-time 30 2>/dev/null) || http_code="000"
     if [ "${http_code}" != "200" ]; then
         local resp_body

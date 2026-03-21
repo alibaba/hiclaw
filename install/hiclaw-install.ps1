@@ -909,18 +909,6 @@ function Read-Prompt {
 # OpenAI-Compatible Provider
 # ============================================================
 
-# Helper: Get the correct max_tokens parameter name for a model
-# GPT-5 series models require 'max_completion_tokens' instead of 'max_tokens'
-function Get-MaxTokensParam {
-    param([string]$Model)
-    # Match gpt-5, gpt-5.4, gpt-5-mini, gpt-5-nano, etc.
-    if ($Model -match '^gpt-5(\.|-|[0-9]|$)') {
-        return "max_completion_tokens"
-    } else {
-        return "max_tokens"
-    }
-}
-
 function Test-LlmConnectivity {
     param(
         [string]$BaseUrl,
@@ -930,12 +918,10 @@ function Test-LlmConnectivity {
     )
     Write-Log (Get-Msg "llm.openai.test.testing")
     $uri = ($BaseUrl.TrimEnd('/')) + "/chat/completions"
-    $maxTokensParam = Get-MaxTokensParam -Model $Model
     $bodyHash = @{
         model    = $Model
         messages = @(@{ role = "user"; content = "hi" })
     }
-    $bodyHash[$maxTokensParam] = 1
     $body = $bodyHash | ConvertTo-Json -Compress
     try {
         $response = Invoke-WebRequest -Uri $uri -Method POST `

@@ -95,6 +95,7 @@ LINES          ?= 50
         buildx-setup \
         test test-quick test-installed \
         install uninstall replay replay-log \
+        verify \
         status logs \
         mirror-images clean help
 
@@ -463,6 +464,11 @@ replay-log: ## View the latest replay conversation log
 		echo ""; \
 		cat "$$LATEST"; \
 	fi
+
+# ---------- Verify ----------
+
+verify: ## Run post-install verification against the running Manager container
+	@bash ./install/hiclaw-verify.sh $(or $(CONTAINER),hiclaw-manager)
 
 # ---------- Dev utils ----------
 

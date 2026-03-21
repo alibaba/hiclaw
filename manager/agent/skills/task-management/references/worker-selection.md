@@ -27,7 +27,7 @@ Options:
 
 Act on choice: A → ensure container ready then assign; B → create Worker then assign; C → work directly (no task directory needed).
 
-**Skip Step 0 when**: admin names a Worker, says "do it yourself", or it's a heartbeat-triggered infinite task. In YOLO mode, autonomously pick best Worker or create one.
+**Skip Step 0 when**: admin names a Worker, says "do it yourself", or it's a heartbeat-triggered infinite task. In YOLO mode, the admin is unavailable — autonomously pick the best Worker or create one without asking.
 
 ## Before assigning: container readiness
 
