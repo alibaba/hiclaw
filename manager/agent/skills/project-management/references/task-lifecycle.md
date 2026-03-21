@@ -2,7 +2,28 @@
 
 ## Assign a Task (Step 2)
 
-### 2a. Create task files
+### 2a. Determine if Multi-Phase Collaboration
+
+Before creating task files, check if this is a **multi-phase collaborative project**:
+- Does the project have multiple phases to be executed by different workers?
+- Is there a handoff pattern (Worker A → Worker B → Worker C)?
+
+If YES, you MUST include the following in every task spec:
+
+```markdown
+## ⚠️ Multi-Phase Collaboration Protocol
+
+This is a multi-phase collaborative project. When you complete your assigned phase, you MUST:
+1. Report completion with **@manager:{domain} PHASE{N}_DONE** (use your phase number)
+2. Include a brief summary of what was done
+3. Wait for Manager to assign the next phase to the next worker
+
+**DO NOT** post completion without @mentioning Manager — your phase completion triggers the next worker's assignment.
+```
+
+This ensures workers in collaborative projects @mention Manager on phase completion, preventing workflow stalls.
+
+### 2b. Create task files
 
 ```bash
 TASK_ID="task-$(date +%Y%m%d-%H%M%S)"
@@ -29,18 +50,18 @@ Write `spec.md` with: task title, project context, deliverables, constraints, an
 - Worker writes `result.md` when done
 - Worker pushes with: `mc mirror ... --overwrite --exclude "spec.md" --exclude "base/"` (spec.md and base/ are Manager-owned)
 
-### 2b. Sync to MinIO
+### 2c. Sync to MinIO
 
 ```bash
 mc cp /root/hiclaw-fs/shared/tasks/${TASK_ID}/meta.json ${HICLAW_STORAGE_PREFIX}/shared/tasks/${TASK_ID}/meta.json
 mc cp /root/hiclaw-fs/shared/tasks/${TASK_ID}/spec.md ${HICLAW_STORAGE_PREFIX}/shared/tasks/${TASK_ID}/spec.md
 ```
 
-### 2c. Update plan.md
+### 2d. Update plan.md
 
 Change `[ ]` to `[~]` for the task. Sync plan.md to MinIO.
 
-### 2d. @mention Worker in Project Room
+### 2e. @mention Worker in Project Room
 
 Adapt language to admin's preferred language:
 ```
