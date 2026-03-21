@@ -286,6 +286,84 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
 
     # Configure Higress routes, consumers, MCP servers
     /opt/hiclaw/scripts/init/setup-higress.sh
+
+    # Create DM room between admin and manager (idempotent)
+    # This ensures the manager is reachable via Matrix in local/Docker mode
+    MANAGER_FULL_ID="@manager:${MATRIX_DOMAIN}"
+    ADMIN_FULL_ID="@${HICLAW_ADMIN_USER}:${MATRIX_DOMAIN}"
+
+    log "Logging in as admin to create DM room with manager..."
+    _ADMIN_LOGIN=$(curl -sf -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/login" \
+        -H 'Content-Type: application/json' \
+        -d '{
+            "type": "m.login.password",
+            "identifier": {"type": "m.id.user", "user": "'"${HICLAW_ADMIN_USER}"'"},
+            "password": "'"${HICLAW_ADMIN_PASSWORD}"'"
+        }' 2>&1) || true
+
+    ADMIN_MATRIX_TOKEN=$(echo "${_ADMIN_LOGIN}" | jq -r '.access_token // empty' 2>/dev/null)
+    if [ -z "${ADMIN_MATRIX_TOKEN}" ]; then
+        log "WARNING: Failed to login as admin, skipping DM room creation"
+    else
+        # Search for existing DM room with Manager (idempotent)
+        DM_ROOM_ID=""
+        _JOINED_ROOMS=$(curl -sf "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/joined_rooms" \
+            -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" 2>/dev/null \
+            | jq -r '.joined_rooms[]' 2>/dev/null) || true
+        for _rid in ${_JOINED_ROOMS}; do
+            _members=$(curl -sf "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${_rid}/members" \
+                -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" 2>/dev/null \
+                | jq -r '.chunk[].state_key' 2>/dev/null) || continue
+            _count=$(echo "${_members}" | wc -l | xargs)
+            if [ "${_count}" = "2" ] && echo "${_members}" | grep -q "@manager:"; then
+                DM_ROOM_ID="${_rid}"
+                break
+            fi
+        done
+
+        if [ -n "${DM_ROOM_ID}" ]; then
+            log "Existing DM room found: ${DM_ROOM_ID}"
+        else
+            log "Creating DM room with Manager..."
+            _RAW=$(curl -s -w '\nHTTP_CODE:%{http_code}' -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom" \
+                -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" \
+                -H 'Content-Type: application/json' \
+                -d "{\"is_direct\":true,\"invite\":[\"${MANAGER_FULL_ID}\"],\"preset\":\"trusted_private_chat\"}" 2>&1) || true
+            _HTTP_CODE=$(echo "${_RAW}" | tail -1 | sed 's/HTTP_CODE://')
+            _CREATE_RESP=$(echo "${_RAW}" | sed '$d')
+            DM_ROOM_ID=$(echo "${_CREATE_RESP}" | jq -r '.room_id // empty' 2>/dev/null)
+            if [ -n "${DM_ROOM_ID}" ]; then
+                log "DM room created: ${DM_ROOM_ID}"
+            else
+                log "WARNING: Failed to create DM room (HTTP ${_HTTP_CODE}): ${_CREATE_RESP}"
+            fi
+        fi
+
+        # Schedule welcome message in background (only on first boot)
+        if [ -n "${DM_ROOM_ID}" ] && [ ! -f "/root/manager-workspace/soul-configured" ]; then
+            log "Scheduling welcome message (background, waiting for OpenClaw to start)..."
+            (
+                _HICLAW_LANGUAGE="${HICLAW_LANGUAGE:-zh}"
+                _HICLAW_TIMEZONE="${TZ:-Asia/Shanghai}"
+                _wait=0
+                _ready=false
+                while [ "${_wait}" -lt 300 ]; do
+                    if curl -sf http://127.0.0.1:18799/ > /dev/null 2>&1; then
+                        _ready=true
+                        break
+                    fi
+                    sleep 2
+                    _wait=$((_wait + 2))
+                done
+                if [ "${_ready}" = "true" ]; then
+                    /opt/hiclaw/scripts/lib/send-matrix-message.sh \
+                        --room-id "${DM_ROOM_ID}" \
+                        --message "欢迎使用 HiClaw！我是 Manager Agent，随时准备协助您管理任务和创建 Worker。请随时与我交流。" \
+                        --token "${ADMIN_MATRIX_TOKEN}"
+                fi
+            ) &
+        fi
+    fi
 else
     # Cloud mode: create admin DM room and schedule welcome message
     MANAGER_FULL_ID="@manager:${MATRIX_DOMAIN}"

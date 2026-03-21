@@ -4,3 +4,4 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 ---
 
+- fix(manager): auto-create DM room in local/Docker mode so manager is reachable immediately after setup
