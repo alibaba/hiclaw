@@ -469,6 +469,8 @@ msg() {
         "worker_runtime.choice.en") text="Enter choice [1/2]" ;;
         "worker_runtime.selected.zh") text="默认 Worker 运行时: %s" ;;
         "worker_runtime.selected.en") text="Default Worker runtime: %s" ;;
+        "worker_runtime.title_short.zh") text="默认 Worker 运行时" ;;
+        "worker_runtime.title_short.en") text="Default Worker Runtime" ;;
         # --- Secrets and config ---
         "install.generating_secrets.zh") text="正在生成密钥..." ;;
         "install.generating_secrets.en") text="Generating secrets..." ;;
@@ -505,6 +507,12 @@ msg() {
         "matrix_e2ee.selected_enabled.en") text="Matrix E2EE: enabled" ;;
         "matrix_e2ee.selected_disabled.zh") text="Matrix E2EE: 已禁用（默认）" ;;
         "matrix_e2ee.selected_disabled.en") text="Matrix E2EE: disabled (default)" ;;
+        "matrix_e2ee.title_short.zh") text="Matrix E2EE" ;;
+        "matrix_e2ee.title_short.en") text="Matrix E2EE" ;;
+        "matrix_e2ee.val_enabled.zh") text="已启用" ;;
+        "matrix_e2ee.val_enabled.en") text="enabled" ;;
+        "matrix_e2ee.val_disabled.zh") text="已禁用" ;;
+        "matrix_e2ee.val_disabled.en") text="disabled" ;;
         # --- Docker API proxy ---
         "docker_proxy.title.zh") text="--- Docker API 安全代理 ---" ;;
         "docker_proxy.title.en") text="--- Docker API Security Proxy ---" ;;
@@ -520,15 +528,25 @@ msg() {
         "docker_proxy.selected_enabled.en") text="Docker API proxy: enabled" ;;
         "docker_proxy.selected_disabled.zh") text="Docker API 代理: 已禁用" ;;
         "docker_proxy.selected_disabled.en") text="Docker API proxy: disabled" ;;
+        "docker_proxy.title_short.zh") text="Docker API 代理" ;;
+        "docker_proxy.title_short.en") text="Docker API Proxy" ;;
+        "docker_proxy.val_enabled.zh") text="已启用" ;;
+        "docker_proxy.val_enabled.en") text="enabled" ;;
+        "docker_proxy.val_disabled.zh") text="已禁用" ;;
+        "docker_proxy.val_disabled.en") text="disabled" ;;
         "docker_proxy.registries_desc.zh") text="默认放行的镜像来源：本地镜像、localhost、Higress 仓库（所有 region）。\n  如需放行其他镜像仓库，请输入逗号分隔的地址前缀。\n  示例: ghcr.io/myorg,registry.example.com/team" ;;
         "docker_proxy.registries_desc.en") text="Default allowed image sources: local images, localhost, Higress registries (all regions).\n  To allow additional image sources, enter comma-separated address prefixes.\n  Example: ghcr.io/myorg,registry.example.com/team" ;;
         "docker_proxy.registries_prompt.zh") text="额外放行的镜像来源（按回车跳过）" ;;
         "docker_proxy.registries_prompt.en") text="Additional allowed image sources (press Enter to skip)" ;;
+        "docker_proxy.registries_label.zh") text="额外放行的镜像来源" ;;
+        "docker_proxy.registries_label.en") text="Additional allowed image sources" ;;
         # --- Worker idle timeout ---
         "idle_timeout.prompt.zh") text="Worker 空闲自动停止超时（分钟）[720]" ;;
         "idle_timeout.prompt.en") text="Worker idle auto-stop timeout in minutes [720]" ;;
         "idle_timeout.selected.zh") text="Worker 空闲超时: %s 分钟" ;;
         "idle_timeout.selected.en") text="Worker idle timeout: %s minutes" ;;
+        "idle_timeout.label.zh") text="Worker 空闲超时（分钟）" ;;
+        "idle_timeout.label.en") text="Worker idle timeout (min)" ;;
         # --- YOLO mode ---
         "install.yolo.zh") text="YOLO 模式已启用（自主决策，无交互提示）" ;;
         "install.yolo.en") text="YOLO mode enabled (autonomous decisions, no interactive prompts)" ;;
@@ -1143,7 +1161,7 @@ prompt() {
                     display_value="${current_value:0:4}****${current_value: -4}"
                 fi
             fi
-            log "$(msg prompt.upgrade_keep "${var_name}" "${display_value}")"
+            log "$(msg prompt.upgrade_keep "${prompt_text}" "${display_value}")"
             local new_value=""
             if [ "${is_secret}" = "true" ]; then
                 read -s -e -p "${prompt_text}: " new_value
@@ -1157,7 +1175,7 @@ prompt() {
             fi
             return
         fi
-        log "$(msg prompt.preset "${var_name}")"
+        log "$(msg prompt.preset "${prompt_text}")"
         return
     fi
 
@@ -1165,11 +1183,11 @@ prompt() {
     if [ "${HICLAW_NON_INTERACTIVE}" = "1" ] || [ "${HICLAW_QUICKSTART}" = "1" ]; then
         if [ -n "${default_value}" ]; then
             eval "export ${var_name}='${default_value}'"
-            log "$(msg prompt.default "${var_name}" "${default_value}")"
+            log "$(msg prompt.default "${prompt_text}" "${default_value}")"
             return
         elif [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
             # Only hard-error in fully non-interactive mode, not quickstart
-            error "$(msg prompt.required "${var_name}")"
+            error "$(msg prompt.required "${prompt_text}")"
         fi
         # quickstart + no default: fall through to interactive prompt below
     fi
@@ -1189,7 +1207,7 @@ prompt() {
 
     value="${value:-${default_value}}"
     if [ -z "${value}" ]; then
-        error "$(msg prompt.required_empty "${var_name}")"
+        error "$(msg prompt.required_empty "${prompt_text}")"
     fi
 
     eval "export ${var_name}='${value}'"
@@ -1221,12 +1239,12 @@ prompt_optional() {
             fi
             if [ -n "${current_value}" ]; then
                 if [ "${is_secret}" = "true" ]; then
-                    log "$(msg prompt.upgrade_keep_secret "${var_name}" "${display_value}")"
+                    log "$(msg prompt.upgrade_keep_secret "${prompt_text}" "${display_value}")"
                 else
-                    log "$(msg prompt.upgrade_keep "${var_name}" "${display_value}")"
+                    log "$(msg prompt.upgrade_keep "${prompt_text}" "${display_value}")"
                 fi
             else
-                log "$(msg prompt.upgrade_empty "${var_name}")"
+                log "$(msg prompt.upgrade_empty "${prompt_text}")"
             fi
             local new_value=""
             if [ "${is_secret}" = "true" ]; then
@@ -1241,7 +1259,7 @@ prompt_optional() {
             fi
             return
         fi
-        log "$(msg prompt.preset "${var_name}")"
+        log "$(msg prompt.preset "${prompt_text}")"
         return
     fi
 
@@ -1728,7 +1746,7 @@ step_admin() {
             log "$(msg admin.password_generated)"
         fi
     else
-        log "  $(msg prompt.preset "HICLAW_ADMIN_PASSWORD")"
+        log "  $(msg prompt.preset "$(msg admin.password_prompt)")"
     fi
     if [ ${#HICLAW_ADMIN_PASSWORD} -lt 8 ]; then
         error "$(msg admin.password_too_short "${#HICLAW_ADMIN_PASSWORD}")"
@@ -1832,7 +1850,7 @@ step_runtime() {
     if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
         HICLAW_DEFAULT_WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"
     elif [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_DEFAULT_WORKER_RUNTIME}" ]; then
-        log "$(msg prompt.upgrade_keep "HICLAW_DEFAULT_WORKER_RUNTIME" "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
+        log "$(msg prompt.upgrade_keep "$(msg worker_runtime.title_short)" "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
         local _runtime_choice
         read -e -p "$(msg worker_runtime.choice): " _runtime_choice
         if [ "${_runtime_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
@@ -1866,7 +1884,8 @@ step_e2ee() {
     echo "  2) $(msg matrix_e2ee.enable)"
     echo ""
     if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_MATRIX_E2EE}" ]; then
-        log "$(msg prompt.upgrade_keep "HICLAW_MATRIX_E2EE" "${HICLAW_MATRIX_E2EE}")"
+        local _e2ee_display; if [ "${HICLAW_MATRIX_E2EE}" = "1" ]; then _e2ee_display="$(msg matrix_e2ee.val_enabled)"; else _e2ee_display="$(msg matrix_e2ee.val_disabled)"; fi
+        log "$(msg prompt.upgrade_keep "$(msg matrix_e2ee.title_short)" "${_e2ee_display}")"
         local _e2ee_choice
         read -e -p "$(msg matrix_e2ee.choice): " _e2ee_choice
         if [ "${_e2ee_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
@@ -1912,7 +1931,8 @@ step_docker_proxy() {
     echo ""
 
     if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_DOCKER_PROXY}" ]; then
-        log "$(msg prompt.upgrade_keep "HICLAW_DOCKER_PROXY" "${HICLAW_DOCKER_PROXY}")"
+        local _proxy_display; if [ "${HICLAW_DOCKER_PROXY}" = "1" ]; then _proxy_display="$(msg docker_proxy.val_enabled)"; else _proxy_display="$(msg docker_proxy.val_disabled)"; fi
+        log "$(msg prompt.upgrade_keep "$(msg docker_proxy.title_short)" "${_proxy_display}")"
         local _choice
         read -e -p "$(msg docker_proxy.choice): " _choice
         if [ "${_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
@@ -1942,7 +1962,7 @@ step_docker_proxy() {
         echo -e "  $(msg docker_proxy.registries_desc)"
         echo ""
         if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_PROXY_ALLOWED_REGISTRIES}" ]; then
-            log "$(msg prompt.upgrade_keep "HICLAW_PROXY_ALLOWED_REGISTRIES" "${HICLAW_PROXY_ALLOWED_REGISTRIES}")"
+            log "$(msg prompt.upgrade_keep "$(msg docker_proxy.registries_label)" "${HICLAW_PROXY_ALLOWED_REGISTRIES}")"
             local _reg_input
             read -e -p "$(msg docker_proxy.registries_prompt): " _reg_input
             if [ "${_reg_input}" = "b" ]; then STEP_RESULT="back"; return 0; fi
@@ -1961,7 +1981,7 @@ step_docker_proxy() {
 
 step_idle() {
     if [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_WORKER_IDLE_TIMEOUT}" ]; then
-        log "$(msg prompt.upgrade_keep "HICLAW_WORKER_IDLE_TIMEOUT" "${HICLAW_WORKER_IDLE_TIMEOUT}")"
+        log "$(msg prompt.upgrade_keep "$(msg idle_timeout.label)" "${HICLAW_WORKER_IDLE_TIMEOUT}")"
         local _idle_timeout
         read -e -p "$(msg idle_timeout.prompt): " _idle_timeout
         if [ "${_idle_timeout}" = "b" ]; then STEP_RESULT="back"; return 0; fi

@@ -378,6 +378,7 @@ $script:Messages = @{
     "worker_runtime.copaw" = @{ zh = "CoPaw（Python 容器，~150MB 内存，默认关闭控制台，可跟 Manager 对话按需开启）"; en = "CoPaw (Python container, ~150MB RAM, console off by default, enable on demand via Manager)" }
     "worker_runtime.choice" = @{ zh = "请选择 [1/2]"; en = "Enter choice [1/2]" }
     "worker_runtime.selected" = @{ zh = "默认 Worker 运行时: {0}"; en = "Default Worker runtime: {0}" }
+    "worker_runtime.title_short" = @{ zh = "默认 Worker 运行时"; en = "Default Worker Runtime" }
 
     # --- Matrix E2EE ---
     "matrix_e2ee.title" = @{ zh = "--- Matrix 端到端加密（E2EE）---"; en = "--- Matrix End-to-End Encryption (E2EE) ---" }
@@ -390,6 +391,9 @@ $script:Messages = @{
     "matrix_e2ee.choice" = @{ zh = "请选择 [1/2]"; en = "Enter choice [1/2]" }
     "matrix_e2ee.selected_enabled" = @{ zh = "Matrix E2EE: 已启用"; en = "Matrix E2EE: enabled" }
     "matrix_e2ee.selected_disabled" = @{ zh = "Matrix E2EE: 已禁用（默认）"; en = "Matrix E2EE: disabled (default)" }
+    "matrix_e2ee.title_short" = @{ zh = "Matrix E2EE"; en = "Matrix E2EE" }
+    "matrix_e2ee.val_enabled" = @{ zh = "已启用"; en = "enabled" }
+    "matrix_e2ee.val_disabled" = @{ zh = "已禁用"; en = "disabled" }
 
     # --- Docker API proxy ---
     "docker_proxy.title" = @{ zh = "--- Docker API 安全代理 ---"; en = "--- Docker API Security Proxy ---" }
@@ -399,12 +403,17 @@ $script:Messages = @{
     "docker_proxy.choice" = @{ zh = "请选择 [1/2]"; en = "Enter choice [1/2]" }
     "docker_proxy.selected_enabled" = @{ zh = "Docker API 代理: 已启用"; en = "Docker API proxy: enabled" }
     "docker_proxy.selected_disabled" = @{ zh = "Docker API 代理: 已禁用"; en = "Docker API proxy: disabled" }
+    "docker_proxy.title_short" = @{ zh = "Docker API 代理"; en = "Docker API Proxy" }
+    "docker_proxy.val_enabled" = @{ zh = "已启用"; en = "enabled" }
+    "docker_proxy.val_disabled" = @{ zh = "已禁用"; en = "disabled" }
     "docker_proxy.registries_desc" = @{ zh = "默认放行的镜像来源：本地镜像、localhost、Higress 仓库（所有 region）。`n  如需放行其他镜像仓库，请输入逗号分隔的地址前缀。`n  示例: ghcr.io/myorg,registry.example.com/team"; en = "Default allowed image sources: local images, localhost, Higress registries (all regions).`n  To allow additional image sources, enter comma-separated address prefixes.`n  Example: ghcr.io/myorg,registry.example.com/team" }
     "docker_proxy.registries_prompt" = @{ zh = "额外放行的镜像来源（按回车跳过）"; en = "Additional allowed image sources (press Enter to skip)" }
+    "docker_proxy.registries_label" = @{ zh = "额外放行的镜像来源"; en = "Additional allowed image sources" }
 
     # --- Worker idle timeout ---
     "idle_timeout.prompt" = @{ zh = "Worker 空闲自动停止超时（分钟）[720]"; en = "Worker idle auto-stop timeout in minutes [720]" }
     "idle_timeout.selected" = @{ zh = "Worker 空闲超时: {0} 分钟"; en = "Worker idle timeout: {0} minutes" }
+    "idle_timeout.label" = @{ zh = "Worker 空闲超时（分钟）"; en = "Worker idle timeout (min)" }
 
     # --- Secrets and config ---
     "install.generating_secrets" = @{ zh = "正在生成密钥..."; en = "Generating secrets..." }
@@ -843,7 +852,7 @@ function Read-Prompt {
                     $displayValue = $envValue.Substring(0, 4) + "****" + $envValue.Substring($envValue.Length - 4)
                 }
             }
-            Write-Log (Get-Msg "prompt.upgrade_keep" -f $VarName, $displayValue)
+            Write-Log (Get-Msg "prompt.upgrade_keep" -f $PromptText, $displayValue)
             $prompt = $PromptText
             if ($Secret) {
                 $newValue = Read-Host -Prompt $prompt -AsSecureString
@@ -859,12 +868,12 @@ function Read-Prompt {
             }
             return $envValue
         }
-        Write-Log (Get-Msg "prompt.preset" -f $VarName)
+        Write-Log (Get-Msg "prompt.preset" -f $PromptText)
         return $envValue
     }
     # Upgrade mode: optional fields with empty value — let user set a new value
     elseif ($Optional -and $script:HICLAW_UPGRADE -and -not $script:HICLAW_NON_INTERACTIVE) {
-        Write-Log (Get-Msg "prompt.upgrade_empty" -f $VarName)
+        Write-Log (Get-Msg "prompt.upgrade_empty" -f $PromptText)
         $prompt = $PromptText
         if ($Secret) {
             $newValue = Read-Host -Prompt $prompt -AsSecureString
@@ -884,7 +893,7 @@ function Read-Prompt {
     # Non-interactive or quickstart mode
     if ($script:HICLAW_NON_INTERACTIVE -or $script:HICLAW_QUICKSTART) {
         if ($Default) {
-            Write-Log (Get-Msg "prompt.default" -f $VarName, $Default)
+            Write-Log (Get-Msg "prompt.default" -f $PromptText, $Default)
             return $Default
         }
         elseif ($Optional) {
@@ -892,7 +901,7 @@ function Read-Prompt {
         }
         elseif ($script:HICLAW_NON_INTERACTIVE) {
             # Only hard-error in fully non-interactive mode, not quickstart
-            Write-Error (Get-Msg "prompt.required" -f $VarName)
+            Write-Error (Get-Msg "prompt.required" -f $PromptText)
         }
         # quickstart + no default + not optional: fall through to interactive prompt
     }
@@ -916,7 +925,7 @@ function Read-Prompt {
     }
 
     if (-not $value -and -not $Optional) {
-        Write-Error (Get-Msg "prompt.required_empty" -f $VarName)
+        Write-Error (Get-Msg "prompt.required_empty" -f $PromptText)
     }
 
     return $value
@@ -1733,7 +1742,7 @@ function Step-Admin {
         }
     } else {
         $script:config.ADMIN_PASSWORD = $env:HICLAW_ADMIN_PASSWORD
-        Write-Log (Get-Msg "prompt.preset" -f "HICLAW_ADMIN_PASSWORD")
+        Write-Log (Get-Msg "prompt.preset" -f (Get-Msg "admin.password_prompt"))
     }
 
     if ($script:config.ADMIN_PASSWORD.Length -lt 8) {
@@ -1844,7 +1853,7 @@ function Step-Runtime {
     if ($script:HICLAW_NON_INTERACTIVE) {
         $script:config.DEFAULT_WORKER_RUNTIME = if ($env:HICLAW_DEFAULT_WORKER_RUNTIME) { $env:HICLAW_DEFAULT_WORKER_RUNTIME } else { "openclaw" }
     } elseif ($script:HICLAW_UPGRADE -and $env:HICLAW_DEFAULT_WORKER_RUNTIME) {
-        Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_DEFAULT_WORKER_RUNTIME", $env:HICLAW_DEFAULT_WORKER_RUNTIME)
+        Write-Log (Get-Msg "prompt.upgrade_keep" -f (Get-Msg "worker_runtime.title_short"), $env:HICLAW_DEFAULT_WORKER_RUNTIME)
         $rtChoice = Read-Host (Get-Msg "worker_runtime.choice")
         if ($rtChoice -eq "b") { $script:StepResult = "back"; return }
         if ($rtChoice) {
@@ -1874,7 +1883,8 @@ function Step-E2ee {
     Write-Host ""
 
     if ($script:HICLAW_UPGRADE -and $env:HICLAW_MATRIX_E2EE) {
-        Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_MATRIX_E2EE", $env:HICLAW_MATRIX_E2EE)
+        $e2eeDisplay = if ($env:HICLAW_MATRIX_E2EE -eq "1") { Get-Msg "matrix_e2ee.val_enabled" } else { Get-Msg "matrix_e2ee.val_disabled" }
+        Write-Log (Get-Msg "prompt.upgrade_keep" -f (Get-Msg "matrix_e2ee.title_short"), $e2eeDisplay)
         $e2eeChoice = Read-Host (Get-Msg "matrix_e2ee.choice")
         if ($e2eeChoice -eq "b") { $script:StepResult = "back"; return }
         if ($e2eeChoice) {
@@ -1914,7 +1924,8 @@ function Step-DockerProxy {
     Write-Host ""
 
     if ($script:HICLAW_UPGRADE -and $env:HICLAW_DOCKER_PROXY) {
-        Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_DOCKER_PROXY", $env:HICLAW_DOCKER_PROXY)
+        $proxyDisplay = if ($env:HICLAW_DOCKER_PROXY -eq "1") { Get-Msg "docker_proxy.val_enabled" } else { Get-Msg "docker_proxy.val_disabled" }
+        Write-Log (Get-Msg "prompt.upgrade_keep" -f (Get-Msg "docker_proxy.title_short"), $proxyDisplay)
         $proxyChoice = Read-Host (Get-Msg "docker_proxy.choice")
         if ($proxyChoice -eq "b") { $script:StepResult = "back"; return }
         if ($proxyChoice) {
@@ -1939,7 +1950,7 @@ function Step-DockerProxy {
         Write-Host "  $(Get-Msg 'docker_proxy.registries_desc')"
         Write-Host ""
         if ($script:HICLAW_UPGRADE -and $env:HICLAW_PROXY_ALLOWED_REGISTRIES) {
-            Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_PROXY_ALLOWED_REGISTRIES", $env:HICLAW_PROXY_ALLOWED_REGISTRIES)
+            Write-Log (Get-Msg "prompt.upgrade_keep" -f (Get-Msg "docker_proxy.registries_label"), $env:HICLAW_PROXY_ALLOWED_REGISTRIES)
             $regInput = Read-Host (Get-Msg "docker_proxy.registries_prompt")
             if ($regInput -eq "b") { $script:StepResult = "back"; return }
             $script:config.PROXY_ALLOWED_REGISTRIES = if ($regInput) { $regInput } else { $env:HICLAW_PROXY_ALLOWED_REGISTRIES }
@@ -1957,7 +1968,7 @@ function Step-DockerProxy {
 
 function Step-Idle {
     if ($script:HICLAW_UPGRADE -and $env:HICLAW_WORKER_IDLE_TIMEOUT) {
-        Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_WORKER_IDLE_TIMEOUT", $env:HICLAW_WORKER_IDLE_TIMEOUT)
+        Write-Log (Get-Msg "prompt.upgrade_keep" -f (Get-Msg "idle_timeout.label"), $env:HICLAW_WORKER_IDLE_TIMEOUT)
         $idleInput = Read-Host (Get-Msg "idle_timeout.prompt")
         if ($idleInput -eq "b") { $script:StepResult = "back"; return }
         $script:config.WORKER_IDLE_TIMEOUT = if ($idleInput) { $idleInput } else { $env:HICLAW_WORKER_IDLE_TIMEOUT }
