@@ -61,13 +61,14 @@ bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 
 安装脚本检测到已有安装时会询问处理方式，选择删除后重装即可清除脏数据。
 
-**情况三：Mac M 系列芯片 + 低版本 Docker**
+**情况三：Mac M 系列芯片 + 低版本 Docker/Podman**
 
 如果你使用的是搭载 Apple M 系列芯片（M1/M2/M3/M4）的 Mac，且 Docker Desktop 版本低于 4.39.0，Manager Agent 可能无法正常启动。
 
-**解决方案：** 升级 Docker Desktop 到 4.39.0 或更高版本。
+**解决方案：**
 
-如果你使用的是 Podman，则不受此问题影响。
+- **Docker Desktop**：升级到 4.39.0 或更高版本
+- **Podman**：确保 Podman Engine **Server 版本 ≥ 5.7.1**（可通过 `podman version` 查看）
 
 ---
 

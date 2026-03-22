@@ -481,8 +481,6 @@ fi
 log "Generating Manager openclaw.json..."
 export MANAGER_MATRIX_TOKEN="${MANAGER_TOKEN}"
 export MANAGER_GATEWAY_KEY="${HICLAW_MANAGER_GATEWAY_KEY}"
-export MANAGER_HOOKS_TOKEN=$(echo -n "${HICLAW_MANAGER_GATEWAY_KEY}-hooks" | base64 -w 0)
-
 # Resolve model parameters based on model name
 MODEL_NAME="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
 case "${MODEL_NAME}" in
@@ -561,7 +559,8 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
         # Rebuild model aliases from the full models list
         | (.models.providers["hiclaw-gateway"].models | map({ ("hiclaw-gateway/" + .id): { "alias": .id } }) | add // {}) as $aliases
         | .agents.defaults.models = ((.agents.defaults.models // {}) + $aliases)
-        | .channels.matrix.accessToken = $token | .hooks.token = ($key + "-hooks" | @base64) | .models.providers["hiclaw-gateway"].apiKey = $key
+        | .channels.matrix.accessToken = $token | .models.providers["hiclaw-gateway"].apiKey = $key
+        | ((.hooks.token // "") as $ht | if $ht == $key or $ht == ($key + "-hooks" | @base64) then del(.hooks) else . end)
         | .agents.defaults.model.primary = ("hiclaw-gateway/" + $model)
         | .commands.restart = true
         | .gateway.controlUi.dangerouslyDisableDeviceAuth = true
@@ -606,7 +605,7 @@ if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
        '.channels.matrix.homeserver = $homeserver
         | .models.providers["hiclaw-gateway"].baseUrl = $gateway
         | .models.providers["hiclaw-gateway"].apiKey = $key
-        | .hooks.token = ($key + "-hooks" | @base64)
+        | ((.hooks.token // "") as $ht | if $ht == $key or $ht == ($key + "-hooks" | @base64) then del(.hooks) else . end)
         | .commands.restart = false' \
        /root/manager-workspace/openclaw.json > /tmp/openclaw-cloud.json && \
         mv /tmp/openclaw-cloud.json /root/manager-workspace/openclaw.json

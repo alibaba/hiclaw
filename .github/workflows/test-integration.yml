@@ -386,14 +386,16 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y jq curl unzip
 
-      - name: Pull published image
+      - name: Pull published images
         run: |
           VERSION=${{ steps.version.outputs.version }}
           REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com/higress
           docker pull ${REGISTRY}/hiclaw-manager:${VERSION}
           docker pull ${REGISTRY}/hiclaw-worker:${VERSION}
+          docker pull ${REGISTRY}/hiclaw-docker-proxy:${VERSION}
           docker tag ${REGISTRY}/hiclaw-manager:${VERSION} hiclaw/manager-agent:${VERSION}
           docker tag ${REGISTRY}/hiclaw-worker:${VERSION} hiclaw/worker-agent:${VERSION}
+          docker tag ${REGISTRY}/hiclaw-docker-proxy:${VERSION} hiclaw/docker-proxy:${VERSION}
 
       - name: Install HiClaw
         env:
@@ -407,6 +409,7 @@ jobs:
           HICLAW_LLM_PROVIDER=qwen \
           HICLAW_INSTALL_MANAGER_IMAGE=hiclaw/manager-agent:${VERSION} \
           HICLAW_INSTALL_WORKER_IMAGE=hiclaw/worker-agent:${VERSION} \
+          HICLAW_INSTALL_DOCKER_PROXY_IMAGE=hiclaw/docker-proxy:${VERSION} \
           bash ./install/hiclaw-install.sh manager
 
       - name: Wait for Manager to be ready

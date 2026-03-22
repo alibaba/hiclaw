@@ -90,6 +90,9 @@ jobs:
 
           # Worker
           docker pull ${REGISTRY}/${REPO}/hiclaw-worker:${VERSION}
+
+          # Docker Proxy
+          docker pull ${REGISTRY}/${REPO}/hiclaw-docker-proxy:${VERSION}
           \`\`\`
 
           ---
