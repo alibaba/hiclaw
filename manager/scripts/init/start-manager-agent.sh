@@ -482,7 +482,7 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
         | (.models.providers["hiclaw-gateway"].models | map({ ("hiclaw-gateway/" + .id): { "alias": .id } }) | add // {}) as $aliases
         | .agents.defaults.models = ((.agents.defaults.models // {}) + $aliases)
         | .channels.matrix.accessToken = $token | .models.providers["hiclaw-gateway"].apiKey = $key
-        | if (.hooks.token // "") == ($key + "-hooks" | @base64) then del(.hooks) else . end
+        | ((.hooks.token // "") as $ht | if $ht == $key or $ht == ($key + "-hooks" | @base64) then del(.hooks) else . end)
         | .agents.defaults.model.primary = ("hiclaw-gateway/" + $model)
         | .commands.restart = true
         | .gateway.controlUi.dangerouslyDisableDeviceAuth = true
@@ -527,7 +527,7 @@ if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
        '.channels.matrix.homeserver = $homeserver
         | .models.providers["hiclaw-gateway"].baseUrl = $gateway
         | .models.providers["hiclaw-gateway"].apiKey = $key
-        | if (.hooks.token // "") == ($key + "-hooks" | @base64) then del(.hooks) else . end
+        | ((.hooks.token // "") as $ht | if $ht == $key or $ht == ($key + "-hooks" | @base64) then del(.hooks) else . end)
         | .commands.restart = false' \
        /root/manager-workspace/openclaw.json > /tmp/openclaw-cloud.json && \
         mv /tmp/openclaw-cloud.json /root/manager-workspace/openclaw.json
