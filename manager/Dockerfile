@@ -11,6 +11,8 @@
 
 ARG HIGRESS_REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com
 ARG OPENCLAW_BASE_IMAGE=hiclaw/openclaw-base:20260314-be855ee
+ARG OPENCLAW_CMS_PLUGIN_ENABLED=1
+ARG OPENCLAW_CMS_PLUGIN_URL=https://arms-apm-cn-hangzhou-pre.oss-cn-hangzhou.aliyuncs.com/openclaw-cms-plugin/openclaw-cms-plugin.tar.gz
 
 # ============ Stage 1: Tuwunel Matrix Server ============
 FROM ${HIGRESS_REGISTRY}/higress/tuwunel:20260216 AS tuwunel
@@ -31,6 +33,8 @@ FROM ${HIGRESS_REGISTRY}/higress/element-web:20260216 AS element-web
 # This ensures that high-frequency changes (agent/, scripts/) only invalidate
 # the smallest, topmost layers, so users pull minimal data on upgrades.
 FROM ${OPENCLAW_BASE_IMAGE}
+ARG OPENCLAW_CMS_PLUGIN_ENABLED=1
+ARG OPENCLAW_CMS_PLUGIN_URL=https://arms-apm-cn-hangzhou-pre.oss-cn-hangzhou.aliyuncs.com/openclaw-cms-plugin/openclaw-cms-plugin.tar.gz
 
 # ---- Stable binaries from build stages (~355MB, rarely change) ----
 
@@ -52,9 +56,30 @@ COPY --from=element-web /app /opt/element-web
 
 ENV PATH="/opt/openclaw/packages/clawdbot/node_modules/.bin:${PATH}"
 ENV OPENCLAW_CONFIG_PATH="/root/manager-workspace/openclaw.json"
+ENV OPENCLAW_CMS_PLUGIN_DIR="/opt/openclaw/extensions/openclaw-cms-plugin"
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY configs/ /opt/hiclaw/configs/
+
+# ---- Built-in observability plugin (optional) ----
+RUN if [ "${OPENCLAW_CMS_PLUGIN_ENABLED}" = "1" ]; then \
+      echo "Installing openclaw-cms-plugin from ${OPENCLAW_CMS_PLUGIN_URL}..." && \
+      tmp_dir="$(mktemp -d)" && \
+      curl -fsSL "${OPENCLAW_CMS_PLUGIN_URL}" -o "${tmp_dir}/plugin.tar.gz" && \
+      mkdir -p "${OPENCLAW_CMS_PLUGIN_DIR}" && \
+      tar -xzf "${tmp_dir}/plugin.tar.gz" -C "${tmp_dir}" && \
+      if [ -d "${tmp_dir}/openclaw-cms-plugin" ]; then \
+        cp -rf "${tmp_dir}/openclaw-cms-plugin/." "${OPENCLAW_CMS_PLUGIN_DIR}/"; \
+      else \
+        cp -rf "${tmp_dir}/." "${OPENCLAW_CMS_PLUGIN_DIR}/"; \
+      fi && \
+      cd "${OPENCLAW_CMS_PLUGIN_DIR}" && \
+      npm install --omit=dev --ignore-scripts && \
+      rm -rf "${tmp_dir}" && \
+      echo "openclaw-cms-plugin installed at ${OPENCLAW_CMS_PLUGIN_DIR}"; \
+    else \
+      echo "Skipping openclaw-cms-plugin installation (OPENCLAW_CMS_PLUGIN_ENABLED=${OPENCLAW_CMS_PLUGIN_ENABLED})"; \
+    fi
 
 # ---- Shared lib (low-frequency changes, ~8KB) ----
 
