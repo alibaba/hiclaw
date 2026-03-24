@@ -547,7 +547,7 @@ if [ "${CMS_TRACES_ENABLED}" = "1" ]; then
     DIAG_PLUGIN_DIR="/opt/openclaw/extensions/diagnostics-otel"
     CMS_LICENSE_KEY="${HICLAW_CMS_LICENSE_KEY:-}"
     CMS_PROJECT="${HICLAW_CMS_PROJECT:-}"
-    CMS_METRICS_ENABLED="${HICLAW_CMS_METRICS_ENABLED:-1}"
+    CMS_METRICS_ENABLED="${HICLAW_CMS_METRICS_ENABLED:-0}"
 
     if [ ! -f "${CMS_PLUGIN_MANIFEST}" ]; then
         log "WARNING: ${CMS_PLUGIN_NAME} manifest not found at ${CMS_PLUGIN_MANIFEST}, skipping plugin config"
