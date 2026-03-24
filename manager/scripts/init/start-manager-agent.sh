@@ -538,8 +538,8 @@ fi
 # Optional: enable openclaw-cms-plugin observability
 # Config is applied at runtime so secrets stay out of image layers.
 # ============================================================
-CMS_TRACES_ENABLED="${HICLAW_CMS_TRACES_ENABLED:-0}"
-if [ "${CMS_TRACES_ENABLED}" = "1" ]; then
+CMS_TRACES_ENABLED="$(echo "${HICLAW_CMS_TRACES_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')"
+if [ "${CMS_TRACES_ENABLED}" = "true" ]; then
     CMS_PLUGIN_NAME="openclaw-cms-plugin"
     CMS_PLUGIN_DIR="${OPENCLAW_CMS_PLUGIN_DIR:-/opt/openclaw/extensions/openclaw-cms-plugin}"
     CMS_PLUGIN_MANIFEST="${CMS_PLUGIN_DIR}/openclaw.plugin.json"
@@ -547,23 +547,23 @@ if [ "${CMS_TRACES_ENABLED}" = "1" ]; then
     DIAG_PLUGIN_DIR="/opt/openclaw/extensions/diagnostics-otel"
     CMS_LICENSE_KEY="${HICLAW_CMS_LICENSE_KEY:-}"
     CMS_PROJECT="${HICLAW_CMS_PROJECT:-}"
-    CMS_METRICS_ENABLED="${HICLAW_CMS_METRICS_ENABLED:-0}"
+    CMS_METRICS_ENABLED="${HICLAW_CMS_METRICS_ENABLED:-false}"
 
     if [ ! -f "${CMS_PLUGIN_MANIFEST}" ]; then
         log "WARNING: ${CMS_PLUGIN_NAME} manifest not found at ${CMS_PLUGIN_MANIFEST}, skipping plugin config"
     else
         _missing=0
-        [ -z "${HICLAW_CMS_ENDPOINT:-}" ] && log "WARNING: HICLAW_CMS_ENDPOINT is required when HICLAW_CMS_TRACES_ENABLED=1" && _missing=1
-        [ -z "${CMS_LICENSE_KEY:-}" ] && log "WARNING: HICLAW_CMS_LICENSE_KEY is required when HICLAW_CMS_TRACES_ENABLED=1" && _missing=1
-        [ -z "${CMS_PROJECT:-}" ] && log "WARNING: HICLAW_CMS_PROJECT is required when HICLAW_CMS_TRACES_ENABLED=1" && _missing=1
-        [ -z "${HICLAW_CMS_WORKSPACE:-}" ] && log "WARNING: HICLAW_CMS_WORKSPACE is required when HICLAW_CMS_TRACES_ENABLED=1" && _missing=1
+        [ -z "${HICLAW_CMS_ENDPOINT:-}" ] && log "WARNING: HICLAW_CMS_ENDPOINT is required when HICLAW_CMS_TRACES_ENABLED=true" && _missing=1
+        [ -z "${CMS_LICENSE_KEY:-}" ] && log "WARNING: HICLAW_CMS_LICENSE_KEY is required when HICLAW_CMS_TRACES_ENABLED=true" && _missing=1
+        [ -z "${CMS_PROJECT:-}" ] && log "WARNING: HICLAW_CMS_PROJECT is required when HICLAW_CMS_TRACES_ENABLED=true" && _missing=1
+        [ -z "${HICLAW_CMS_WORKSPACE:-}" ] && log "WARNING: HICLAW_CMS_WORKSPACE is required when HICLAW_CMS_TRACES_ENABLED=true" && _missing=1
 
         if [ "${_missing}" = "0" ]; then
             CMS_SERVICE_NAME="${HICLAW_CMS_SERVICE_NAME:-hiclaw-manager}"
             CMS_ENABLE_METRICS="${CMS_METRICS_ENABLED}"
             DIAG_AVAILABLE="0"
             _metrics_lc="$(echo "${CMS_ENABLE_METRICS}" | tr '[:upper:]' '[:lower:]')"
-            if [ "${_metrics_lc}" = "1" ] || [ "${_metrics_lc}" = "true" ] || [ "${_metrics_lc}" = "yes" ]; then
+            if [ "${_metrics_lc}" = "true" ]; then
                 if [ -f "${DIAG_PLUGIN_DIR}/package.json" ]; then
                     DIAG_AVAILABLE="1"
                     if [ ! -d "${DIAG_PLUGIN_DIR}/node_modules" ]; then
@@ -617,7 +617,7 @@ if [ "${CMS_TRACES_ENABLED}" = "1" ]; then
                 # diagnostics-otel metrics (optional)
                 | ($metricsRaw | ascii_downcase) as $m
                 | ($diagAvailableRaw == "1") as $diagAvailable
-                | ((($m == "1") or ($m == "true") or ($m == "yes")) and $diagAvailable) as $metricsEnabled
+                | (($m == "true") and $diagAvailable) as $metricsEnabled
                 | if $metricsEnabled then
                     (if (.plugins.allow | index($diagPluginName)) == null then .plugins.allow += [$diagPluginName] else . end)
                     | (if (.plugins.load.paths | index($diagPluginDir)) == null then .plugins.load.paths += [$diagPluginDir] else . end)

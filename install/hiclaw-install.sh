@@ -26,13 +26,13 @@
 #   HICLAW_INSTALL_MANAGER_IMAGE       Override manager image (e.g., local build)
 #   HICLAW_INSTALL_WORKER_IMAGE        Override worker image  (e.g., local build)
 #   HICLAW_INSTALL_COPAW_WORKER_IMAGE  Override copaw worker image (e.g., local build)
-#   HICLAW_CMS_TRACES_ENABLED          Enable openclaw-cms-plugin traces at runtime (default: 0)
+#   HICLAW_CMS_TRACES_ENABLED          Enable openclaw-cms-plugin traces at runtime (default: false)
 #   HICLAW_CMS_ENDPOINT                ARMS OTLP endpoint (required if plugin enabled)
 #   HICLAW_CMS_LICENSE_KEY             CMS license key (required if plugin enabled)
 #   HICLAW_CMS_PROJECT                 CMS project (required if plugin enabled)
 #   HICLAW_CMS_WORKSPACE               CMS workspace (required if plugin enabled)
 #   HICLAW_CMS_SERVICE_NAME            Service name override (default: hiclaw-manager)
-#   HICLAW_CMS_METRICS_ENABLED         Enable diagnostics-otel metrics (default: 0)
+#   HICLAW_CMS_METRICS_ENABLED         Enable diagnostics-otel metrics (default: false)
 #   HICLAW_PORT_GATEWAY       Host port for Higress gateway (default: 18080)
 #   HICLAW_PORT_CONSOLE       Host port for Higress console (default: 18001)
 #   HICLAW_PORT_ELEMENT_WEB   Host port for Element Web direct access (default: 18088)
@@ -2192,13 +2192,13 @@ HICLAW_GITHUB_TOKEN=${HICLAW_GITHUB_TOKEN:-}
 HICLAW_SKILLS_API_URL=${HICLAW_SKILLS_API_URL:-}
 
 # OpenClaw CMS plugin (optional)
-HICLAW_CMS_TRACES_ENABLED=${HICLAW_CMS_TRACES_ENABLED:-0}
+HICLAW_CMS_TRACES_ENABLED=${HICLAW_CMS_TRACES_ENABLED:-false}
 HICLAW_CMS_ENDPOINT=${HICLAW_CMS_ENDPOINT:-}
 HICLAW_CMS_LICENSE_KEY=${HICLAW_CMS_LICENSE_KEY:-}
 HICLAW_CMS_PROJECT=${HICLAW_CMS_PROJECT:-}
 HICLAW_CMS_WORKSPACE=${HICLAW_CMS_WORKSPACE:-}
 HICLAW_CMS_SERVICE_NAME=${HICLAW_CMS_SERVICE_NAME:-hiclaw-manager}
-HICLAW_CMS_METRICS_ENABLED=${HICLAW_CMS_METRICS_ENABLED:-0}
+HICLAW_CMS_METRICS_ENABLED=${HICLAW_CMS_METRICS_ENABLED:-false}
 
 # Worker images (for direct container creation)
 HICLAW_WORKER_IMAGE=${WORKER_IMAGE}
