@@ -35,7 +35,7 @@ log() {
 # Parse arguments
 # ============================================================
 WORKER_NAME=""
-MODEL_ID=""
+MODEL_ID="${HICLAW_DEFAULT_MODEL}"
 MCP_SERVERS=""
 WORKER_SKILLS=""
 REMOTE_MODE=false

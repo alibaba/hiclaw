@@ -71,6 +71,10 @@ bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
   [--remote] [--runtime openclaw|copaw] [--console-port <PORT>]
 ```
 
+| Flag | Description |
+|------|-------------|
+| `--model` | Model ID. If not specified, uses the default from `HICLAW_DEFAULT_MODEL` environment variable. |
+
 The script handles everything: Matrix registration, room creation, Higress consumer, AI/MCP authorization, config generation, MinIO sync, skills push, and container startup.
 
 ### MCP server short-circuit
