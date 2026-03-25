@@ -70,6 +70,18 @@ RUN cp /opt/hiclaw/scripts/systemctl-shim.sh /usr/local/bin/systemctl
 COPY agent/ /opt/hiclaw/agent/
 
 ARG BUILTIN_VERSION=latest
+
+# ---- Optional: mem0 Plugin (long-term memory for agents) ----
+# Set MEM0_PLUGIN_ENABLED=1 at build time to bundle the plugin.
+# Runtime configuration is injected via HICLAW_MEM0_* env vars.
+ARG MEM0_PLUGIN_ENABLED=0
+RUN if [ "${MEM0_PLUGIN_ENABLED}" = "1" ]; then \
+        echo "Installing @mem0/openclaw-mem0 plugin..." && \
+        cd /opt/openclaw && \
+        npm install @mem0/openclaw-mem0 --save && \
+        echo "mem0 plugin installed successfully"; \
+    fi
+
 RUN echo "${BUILTIN_VERSION}" > /opt/hiclaw/agent/.builtin-version \
     && find /opt/hiclaw/agent/skills/*/scripts -name '*.sh' -exec chmod +x {} + 2>/dev/null || true \
     && find /opt/hiclaw/agent/worker-skills/*/scripts -name '*.sh' -exec chmod +x {} + 2>/dev/null || true \

@@ -186,7 +186,68 @@ ln -sfn "${MCPORTER_DEFAULT}" "${MCPORTER_COMPAT}"
 export MCPORTER_CONFIG="${MCPORTER_DEFAULT}"
 
 # ============================================================
-# Step 5: Launch OpenClaw Worker Agent
+# Step 5: mem0 Plugin Configuration (Platform mode only)
+# Injects openclaw-mem0 plugin config into openclaw.json when enabled.
+# Environment variables are passed from Manager via container creation.
+# ============================================================
+if [ "${HICLAW_MEM0_ENABLED:-false}" = "true" ]; then
+    if [ -z "${HICLAW_MEM0_API_KEY:-}" ]; then
+        log "WARNING: HICLAW_MEM0_ENABLED=true but HICLAW_MEM0_API_KEY is not set, skipping mem0 plugin"
+    else
+        # Check if mem0 plugin is installed, install if missing
+        _mem0_installed=false
+        if [ -d "/opt/openclaw/node_modules/@mem0/openclaw-mem0" ]; then
+            _mem0_installed=true
+        fi
+        
+        if [ "${_mem0_installed}" != "true" ]; then
+            log "mem0 plugin not found, installing @mem0/openclaw-mem0..."
+            if (cd /opt/openclaw && npm install @mem0/openclaw-mem0 --save 2>&1); then
+                _mem0_installed=true
+                log "mem0 plugin installed successfully"
+            else
+                log "WARNING: Failed to install mem0 plugin, skipping configuration"
+            fi
+        fi
+        
+        if [ "${_mem0_installed}" = "true" ]; then
+            log "Configuring mem0 plugin (Platform mode)..."
+            # Use worker name as userId if not specified
+            _mem0_user_id="${HICLAW_MEM0_USER_ID:-${WORKER_NAME}}"
+            _mem0_org_id="${HICLAW_MEM0_ORG_ID:-}"
+            _mem0_project_id="${HICLAW_MEM0_PROJECT_ID:-}"
+            _mem0_enable_graph="${HICLAW_MEM0_ENABLE_GRAPH:-false}"
+            
+            # Build mem0 plugin config JSON
+            _mem0_config=$(jq -n \
+                --arg apiKey "${HICLAW_MEM0_API_KEY}" \
+                --arg userId "${_mem0_user_id}" \
+                --arg orgId "${_mem0_org_id}" \
+                --arg projectId "${_mem0_project_id}" \
+                --argjson enableGraph "${_mem0_enable_graph}" \
+                '{
+                    "enabled": true,
+                    "config": {
+                        "apiKey": $apiKey,
+                        "userId": $userId
+                    } + (if $orgId != "" then {"orgId": $orgId} else {} end)
+                      + (if $projectId != "" then {"projectId": $projectId} else {} end)
+                      + (if $enableGraph then {"enableGraph": $enableGraph} else {} end)
+                }')
+            
+            # Inject into openclaw.json (idempotent merge)
+            jq --argjson mem0 "${_mem0_config}" '
+                .plugins.entries["openclaw-mem0"] = $mem0
+            ' "${WORKSPACE}/openclaw.json" > /tmp/openclaw-mem0.json && \
+                mv /tmp/openclaw-mem0.json "${WORKSPACE}/openclaw.json"
+            
+            log "mem0 plugin configured (userId: ${_mem0_user_id})"
+        fi
+    fi
+fi
+
+# ============================================================
+# Step 6: Launch OpenClaw Worker Agent
 # ============================================================
 log "Starting Worker Agent: ${WORKER_NAME}"
 export OPENCLAW_CONFIG_PATH="${WORKSPACE}/openclaw.json"
