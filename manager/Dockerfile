@@ -32,7 +32,6 @@ FROM ${HIGRESS_REGISTRY}/higress/element-web:20260216 AS element-web
 # Plugin install (slow download + npm install) is placed early so that
 # config/scripts/agent changes do not invalidate it.
 FROM ${OPENCLAW_BASE_IMAGE}
-ARG OPENCLAW_CMS_PLUGIN_URL=https://arms-apm-cn-hangzhou-pre.oss-cn-hangzhou.aliyuncs.com/openclaw-cms-plugin/0.1.1/openclaw-cms-plugin.tar.gz
 
 # ---- Stable binaries from build stages (~355MB, rarely change) ----
 
@@ -54,6 +53,7 @@ COPY --from=element-web /app /opt/element-web
 # Plugin is small; runtime toggles HICLAW_CMS_TRACES_ENABLED / HICLAW_CMS_METRICS_ENABLED
 # control whether it is active. Placed before configs COPY so that configs/scripts/agent
 # layer changes do not invalidate this (slow download + npm install) layer.
+ARG OPENCLAW_CMS_PLUGIN_URL=https://arms-apm-cn-hangzhou-pre.oss-cn-hangzhou.aliyuncs.com/openclaw-cms-plugin/0.1.1/openclaw-cms-plugin.tar.gz
 ENV OPENCLAW_CMS_PLUGIN_DIR="/opt/openclaw/extensions/openclaw-cms-plugin"
 RUN tmp_dir="$(mktemp -d)" && \
     curl -fsSL "${OPENCLAW_CMS_PLUGIN_URL}" -o "${tmp_dir}/plugin.tar.gz" && \
