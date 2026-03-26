@@ -28,7 +28,7 @@ MANAGER_IMAGE        ?= $(REGISTRY)/$(REPO)/hiclaw-manager
 MANAGER_ALIYUN_IMAGE ?= $(REGISTRY)/$(REPO)/hiclaw-manager-aliyun
 WORKER_IMAGE         ?= $(REGISTRY)/$(REPO)/hiclaw-worker
 COPAW_WORKER_IMAGE   ?= $(REGISTRY)/$(REPO)/hiclaw-copaw-worker
-DOCKER_PROXY_IMAGE   ?= $(REGISTRY)/$(REPO)/hiclaw-docker-proxy
+ORCHESTRATOR_IMAGE   ?= $(REGISTRY)/$(REPO)/hiclaw-orchestrator
 OPENCLAW_BASE_IMAGE  ?= $(REGISTRY)/$(REPO)/openclaw-base
 CONTROLLER_IMAGE     ?= $(REGISTRY)/$(REPO)/hiclaw-controller
 
@@ -36,7 +36,7 @@ MANAGER_TAG        ?= $(MANAGER_IMAGE):$(VERSION)
 MANAGER_ALIYUN_TAG ?= $(MANAGER_ALIYUN_IMAGE):$(VERSION)
 WORKER_TAG         ?= $(WORKER_IMAGE):$(VERSION)
 COPAW_WORKER_TAG   ?= $(COPAW_WORKER_IMAGE):$(VERSION)
-DOCKER_PROXY_TAG   ?= $(DOCKER_PROXY_IMAGE):$(VERSION)
+ORCHESTRATOR_TAG   ?= $(ORCHESTRATOR_IMAGE):$(VERSION)
 OPENCLAW_BASE_TAG  ?= $(OPENCLAW_BASE_IMAGE):$(VERSION)
 CONTROLLER_TAG     ?= $(CONTROLLER_IMAGE):$(VERSION)
 
@@ -45,7 +45,7 @@ LOCAL_MANAGER        = hiclaw/manager-agent:$(VERSION)
 LOCAL_MANAGER_ALIYUN = hiclaw/manager-aliyun:$(VERSION)
 LOCAL_WORKER         = hiclaw/worker-agent:$(VERSION)
 LOCAL_COPAW_WORKER   = hiclaw/copaw-worker:$(VERSION)
-LOCAL_DOCKER_PROXY   = hiclaw/docker-proxy:$(VERSION)
+LOCAL_ORCHESTRATOR   = hiclaw/orchestrator:$(VERSION)
 LOCAL_OPENCLAW_BASE  = hiclaw/openclaw-base:$(VERSION)
 LOCAL_CONTROLLER     = hiclaw/hiclaw-controller:$(VERSION)
 
@@ -95,8 +95,8 @@ LINES          ?= 50
 
 # ---------- Phony targets ----------
 
-.PHONY: all build build-openclaw-base build-hiclaw-controller build-manager build-manager-aliyun build-worker build-copaw-worker build-docker-proxy \
-        tag push push-openclaw-base push-hiclaw-controller push-manager push-manager-aliyun push-worker push-copaw-worker push-docker-proxy \
+.PHONY: all build build-openclaw-base build-hiclaw-controller build-manager build-manager-aliyun build-worker build-copaw-worker build-orchestrator \
+        tag push push-openclaw-base push-hiclaw-controller push-manager push-manager-aliyun push-worker push-copaw-worker push-orchestrator \
         push-native push-native-manager push-native-worker push-native-copaw-worker \
         buildx-setup \
         test test-quick test-installed \
@@ -111,7 +111,7 @@ all: build
 
 # ---------- Build ----------
 
-build: build-manager build-manager-aliyun build-worker build-copaw-worker build-docker-proxy ## Build all images (base image pulled from registry, not rebuilt locally)
+build: build-manager build-manager-aliyun build-worker build-copaw-worker build-orchestrator ## Build all images (base image pulled from registry, not rebuilt locally)
 
 build-openclaw-base: ## Build OpenClaw base image
 	@echo "==> Building OpenClaw base image: $(LOCAL_OPENCLAW_BASE) (registry: $(HIGRESS_REGISTRY))"
@@ -158,11 +158,11 @@ build-copaw-worker: ## Build CoPaw Worker image
 		-t $(LOCAL_COPAW_WORKER) \
 		./copaw/
 
-build-docker-proxy: ## Build Docker API proxy image
-	@echo "==> Building Docker Proxy image: $(LOCAL_DOCKER_PROXY)"
+build-orchestrator: ## Build Orchestrator image
+	@echo "==> Building Orchestrator image: $(LOCAL_ORCHESTRATOR)"
 	docker build $(PLATFORM_FLAG) $(REGISTRY_ARG) $(DOCKER_BUILD_ARGS) \
-		-t $(LOCAL_DOCKER_PROXY) \
-		./docker-proxy/
+		-t $(LOCAL_ORCHESTRATOR) \
+		./orchestrator/
 
 # ---------- Tag ----------
 
@@ -171,13 +171,13 @@ tag: build ## Tag images for registry push
 	docker tag $(LOCAL_MANAGER_ALIYUN) $(MANAGER_ALIYUN_TAG)
 	docker tag $(LOCAL_WORKER) $(WORKER_TAG)
 	docker tag $(LOCAL_COPAW_WORKER) $(COPAW_WORKER_TAG)
-	docker tag $(LOCAL_DOCKER_PROXY) $(DOCKER_PROXY_TAG)
+	docker tag $(LOCAL_ORCHESTRATOR) $(ORCHESTRATOR_TAG)
 ifeq ($(PUSH_LATEST),yes)
 	docker tag $(LOCAL_MANAGER) $(MANAGER_IMAGE):latest
 	docker tag $(LOCAL_MANAGER_ALIYUN) $(MANAGER_ALIYUN_IMAGE):latest
 	docker tag $(LOCAL_WORKER) $(WORKER_IMAGE):latest
 	docker tag $(LOCAL_COPAW_WORKER) $(COPAW_WORKER_IMAGE):latest
-	docker tag $(LOCAL_DOCKER_PROXY) $(DOCKER_PROXY_IMAGE):latest
+	docker tag $(LOCAL_ORCHESTRATOR) $(ORCHESTRATOR_IMAGE):latest
 	@echo "==> Images tagged as $(VERSION) and latest"
 else
 	@echo "==> Images tagged as $(VERSION) (latest not pushed for pre-release)"
@@ -205,7 +205,7 @@ else
 	fi
 endif
 
-push: push-manager push-manager-aliyun push-worker push-copaw-worker push-docker-proxy ## Build + push multi-arch images (amd64 + arm64); base image built separately via build-base.yml
+push: push-manager push-manager-aliyun push-worker push-copaw-worker push-orchestrator ## Build + push multi-arch images (amd64 + arm64); base image built separately via build-base.yml
 
 push-openclaw-base: buildx-setup ## Build + push multi-arch OpenClaw base image
 	@echo "==> Building + pushing multi-arch OpenClaw base: $(OPENCLAW_BASE_TAG) [$(MULTIARCH_PLATFORMS)]"
@@ -361,29 +361,29 @@ else
 		./copaw/
 endif
 
-push-docker-proxy: buildx-setup ## Build + push multi-arch Docker Proxy image
-	@echo "==> Building + pushing multi-arch Docker Proxy: $(DOCKER_PROXY_TAG) [$(MULTIARCH_PLATFORMS)]"
+push-orchestrator: buildx-setup ## Build + push multi-arch Orchestrator image
+	@echo "==> Building + pushing multi-arch Orchestrator: $(ORCHESTRATOR_TAG) [$(MULTIARCH_PLATFORMS)]"
 ifeq ($(IS_PODMAN),1)
-	-podman manifest rm $(DOCKER_PROXY_TAG) 2>/dev/null
+	-podman manifest rm $(ORCHESTRATOR_TAG) 2>/dev/null
 	$(foreach plat,$(subst $(comma), ,$(MULTIARCH_PLATFORMS)), \
-		echo "  -> Building Docker Proxy for $(plat)..." && \
+		echo "  -> Building Orchestrator for $(plat)..." && \
 		podman build --platform $(plat) \
 			$(DOCKER_BUILD_ARGS) \
-			--manifest $(DOCKER_PROXY_TAG) \
-			./docker-proxy/ && ) true
-	podman manifest push --all $(DOCKER_PROXY_TAG) docker://$(DOCKER_PROXY_TAG)
+			--manifest $(ORCHESTRATOR_TAG) \
+			./orchestrator/ && ) true
+	podman manifest push --all $(ORCHESTRATOR_TAG) docker://$(ORCHESTRATOR_TAG)
 	$(if $(PUSH_LATEST), \
-		podman manifest push --all $(DOCKER_PROXY_TAG) docker://$(DOCKER_PROXY_IMAGE):latest && \
+		podman manifest push --all $(ORCHESTRATOR_TAG) docker://$(ORCHESTRATOR_IMAGE):latest && \
 		echo "  -> Also pushed :latest tag")
 else
 	docker buildx build \
 		--builder $(BUILDX_BUILDER) \
 		--platform $(MULTIARCH_PLATFORMS) \
 		$(DOCKER_BUILD_ARGS) \
-		-t $(DOCKER_PROXY_TAG) \
-		$(if $(PUSH_LATEST),-t $(DOCKER_PROXY_IMAGE):latest) \
+		-t $(ORCHESTRATOR_TAG) \
+		$(if $(PUSH_LATEST),-t $(ORCHESTRATOR_IMAGE):latest) \
 		--push \
-		./docker-proxy/
+		./orchestrator/
 endif
 
 # ---------- Push native-arch only (dev use) ----------
@@ -475,7 +475,7 @@ endif
 		HICLAW_INSTALL_MANAGER_IMAGE=$(LOCAL_MANAGER) \
 		HICLAW_INSTALL_WORKER_IMAGE=$(LOCAL_WORKER) \
 		HICLAW_INSTALL_COPAW_WORKER_IMAGE=$(LOCAL_COPAW_WORKER) \
-		HICLAW_INSTALL_DOCKER_PROXY_IMAGE=$(LOCAL_DOCKER_PROXY) \
+		HICLAW_INSTALL_ORCHESTRATOR_IMAGE=$(LOCAL_ORCHESTRATOR) \
 		bash ./install/hiclaw-install.sh manager
 
 install-interactive: ## Install Manager interactively (prompts for config)

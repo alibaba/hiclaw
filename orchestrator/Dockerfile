@@ -4,9 +4,12 @@ FROM ${HIGRESS_REGISTRY}/higress/golang:1.23-alpine AS builder
 WORKDIR /app
 COPY go.mod ./
 COPY *.go ./
-RUN CGO_ENABLED=0 go build -o /hiclaw-docker-proxy .
+COPY proxy/ ./proxy/
+COPY backend/ ./backend/
+COPY api/ ./api/
+RUN CGO_ENABLED=0 go build -o /hiclaw-orchestrator .
 
 FROM ${HIGRESS_REGISTRY}/higress/alpine:3.20
-COPY --from=builder /hiclaw-docker-proxy /usr/local/bin/
+COPY --from=builder /hiclaw-orchestrator /usr/local/bin/
 EXPOSE 2375
-CMD ["hiclaw-docker-proxy"]
+CMD ["hiclaw-orchestrator"]

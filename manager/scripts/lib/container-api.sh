@@ -4,7 +4,7 @@
 # container runtime socket (Docker or Podman compatible).
 #
 # Supports two modes:
-#   1. HTTP proxy mode: set HICLAW_CONTAINER_API=http://hiclaw-docker-proxy:2375
+#   1. HTTP proxy mode: set HICLAW_CONTAINER_API=http://hiclaw-orchestrator:2375
 #   2. Unix socket mode (legacy): mount docker.sock into the container
 #
 # Usage:

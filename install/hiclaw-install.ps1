@@ -1797,10 +1797,10 @@ function Install-Manager {
         "$($script:HICLAW_REGISTRY)/higress/hiclaw-copaw-worker:$($script:HICLAW_VERSION)"
     }
 
-    $script:DOCKER_PROXY_IMAGE = if ($env:HICLAW_INSTALL_DOCKER_PROXY_IMAGE) {
-        $env:HICLAW_INSTALL_DOCKER_PROXY_IMAGE
+    $script:ORCHESTRATOR_IMAGE = if ($env:HICLAW_INSTALL_ORCHESTRATOR_IMAGE) {
+        $env:HICLAW_INSTALL_ORCHESTRATOR_IMAGE
     } else {
-        "$($script:HICLAW_REGISTRY)/higress/hiclaw-docker-proxy:$($script:HICLAW_VERSION)"
+        "$($script:HICLAW_REGISTRY)/higress/hiclaw-orchestrator:$($script:HICLAW_VERSION)"
     }
 
     Write-Log (Get-Msg "install.registry" -f $script:HICLAW_REGISTRY)
@@ -2005,17 +2005,21 @@ function Install-Manager {
 
             # Start Docker API proxy if enabled
             if ($config.DOCKER_PROXY -eq "1") {
-                $proxyImage = $script:DOCKER_PROXY_IMAGE
+                $proxyImage = $script:ORCHESTRATOR_IMAGE
+                # Ensure Docker network exists (reuse if already present)
+                docker network inspect hiclaw-net *>$null
+                if ($LASTEXITCODE -ne 0) { docker network create hiclaw-net *>$null }
                 Write-Log "Starting Docker API proxy..."
-                docker rm -f hiclaw-docker-proxy *>$null
-                docker run -d --name hiclaw-docker-proxy `
+                docker rm -f hiclaw-orchestrator *>$null
+                docker run -d --name hiclaw-orchestrator `
                     --network hiclaw-net `
                     -v "//var/run/docker.sock:/var/run/docker.sock" `
                     --security-opt label=disable `
                     $(if ($config.PROXY_ALLOWED_REGISTRIES) { @("-e", "HICLAW_PROXY_ALLOWED_REGISTRIES=$($config.PROXY_ALLOWED_REGISTRIES)") }) `
                     --restart unless-stopped `
                     $proxyImage
-                $dockerArgs += @("-e", "HICLAW_CONTAINER_API=http://hiclaw-docker-proxy:2375")
+                $dockerArgs += @("-e", "HICLAW_ORCHESTRATOR_URL=http://hiclaw-orchestrator:2375")
+                $dockerArgs += @("--network", "hiclaw-net")
                 Write-Log (Get-Msg "docker_proxy.selected_enabled")
             } else {
                 $dockerArgs += @("-v", "//var/run/docker.sock:/var/run/docker.sock")
@@ -2124,10 +2128,10 @@ function Install-Manager {
 
     # Stop and remove existing containers (deferred until after all
     # configuration is collected and images are pulled successfully)
-    $existingProxy = docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-docker-proxy$"
+    $existingProxy = docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-orchestrator$"
     if ($existingProxy) {
-        docker stop hiclaw-docker-proxy *>$null
-        docker rm hiclaw-docker-proxy *>$null
+        docker stop hiclaw-orchestrator *>$null
+        docker rm hiclaw-orchestrator *>$null
     }
     $existingContainer = docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-manager$"
     if ($existingContainer) {
