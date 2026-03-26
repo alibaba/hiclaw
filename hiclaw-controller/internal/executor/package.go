@@ -24,7 +24,8 @@ func NewPackageResolver(importDir string) *PackageResolver {
 	return &PackageResolver{ImportDir: importDir, ExtractDir: extractDir}
 }
 
-// Resolve downloads or locates a package and returns the local ZIP path.
+// Resolve downloads or locates a package and returns the local path.
+// For nacos:// URIs the result is a directory; for all others it is a ZIP file.
 // Supported schemes: file://, http://, https://, nacos://
 func (p *PackageResolver) Resolve(ctx context.Context, uri string) (string, error) {
 	if uri == "" {
@@ -79,20 +80,26 @@ func (p *PackageResolver) ResolveAndExtract(ctx context.Context, uri, name strin
 		return "", nil
 	}
 
-	zipPath, err := p.Resolve(ctx, uri)
+	resolved, err := p.Resolve(ctx, uri)
 	if err != nil {
 		return "", fmt.Errorf("resolve package: %w", err)
 	}
 
+	// If Resolve already returned a directory (e.g. nacos://), use it directly.
+	if info, err := os.Stat(resolved); err == nil && info.IsDir() {
+		return resolved, nil
+	}
+
+	// Otherwise treat as ZIP and extract.
 	destDir := filepath.Join(p.ExtractDir, name)
 	os.RemoveAll(destDir)
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return "", fmt.Errorf("create extract dir: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "unzip", "-q", "-o", zipPath, "-d", destDir)
+	cmd := exec.CommandContext(ctx, "unzip", "-q", "-o", resolved, "-d", destDir)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("extract ZIP %s: %s: %w", zipPath, string(out), err)
+		return "", fmt.Errorf("extract ZIP %s: %s: %w", resolved, string(out), err)
 	}
 
 	// Validate: SOUL.md must exist (check both root and config/ subdirectory)
@@ -217,72 +224,61 @@ func (p *PackageResolver) resolveHTTP(ctx context.Context, uri string) (string, 
 	return destPath, nil
 }
 
-// resolveNacos pulls a package from Nacos configuration center.
-// URI format: nacos://{instance-id}/{namespace}/{group}/{data-id}/{version}
+// resolveNacos downloads a Worker template from Nacos via the AgentSpec client API.
+// URI format: nacos://{instance-id}/{namespace}/{agentspec-name}[/{version}]
+// Requires HICLAW_NACOS_ADDR for connection info (supports user:pass@host:port for auth).
 func (p *PackageResolver) resolveNacos(ctx context.Context, u *url.URL) (string, error) {
+	// Parse URI path segments: /{namespace}/{agentspec-name}/{version}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(parts) < 3 {
-		return "", fmt.Errorf("invalid nacos URI: expected nacos://{instance}/{namespace}/{group}/{data-id}[/{version}], got %s", u.String())
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid nacos URI: expected nacos://{instance}/{namespace}/{agentspec-name}[/{version}], got %s", u.String())
 	}
 
 	instanceID := u.Host
 	namespace := parts[0]
-	group := parts[1]
-	dataID := parts[2]
+	specName := parts[1]
 	version := ""
-	if len(parts) >= 4 {
-		version = parts[3]
+	if len(parts) >= 3 {
+		version = parts[2]
 	}
 
 	nacosAddr := os.Getenv("HICLAW_NACOS_ADDR")
 	if nacosAddr == "" {
 		return "", fmt.Errorf("HICLAW_NACOS_ADDR not set (required for nacos:// packages, instance=%s)", instanceID)
 	}
-	nacosToken := os.Getenv("HICLAW_NACOS_TOKEN")
 
-	apiURL := fmt.Sprintf("%s/nacos/v1/cs/configs?tenant=%s&group=%s&dataId=%s",
-		strings.TrimRight(nacosAddr, "/"),
-		url.QueryEscape(namespace),
-		url.QueryEscape(group),
-		url.QueryEscape(dataID),
-	)
-	if version != "" {
-		apiURL += "&tag=" + url.QueryEscape(version)
+	outputDir := filepath.Join(p.ImportDir, "nacos")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create nacos import dir %s: %w", outputDir, err)
+	}
+	destPath := filepath.Join(outputDir, specName)
+	if err := os.RemoveAll(destPath); err != nil {
+		return "", fmt.Errorf("failed to clean previous nacos package %s: %w", destPath, err)
+	}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	client, err := newNacosAgentSpecClient(ctx, nacosAddr, namespace)
 	if err != nil {
-		return "", fmt.Errorf("failed to create nacos request: %w", err)
-	}
-	if nacosToken != "" {
-		req.Header.Set("accessToken", nacosToken)
+		return "", err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	label := ""
+	if strings.HasPrefix(version, "label:") {
+		label = strings.TrimPrefix(version, "label:")
+		version = ""
+	}
+
+	if err := client.GetAgentSpec(ctx, specName, outputDir, version, label); err != nil {
+		return "", fmt.Errorf("fetch agentspec %s from nacos failed: %w", specName, err)
+	}
+
+	info, err := os.Stat(destPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch from nacos (%s): %w", apiURL, err)
+		return "", fmt.Errorf("agentspec download finished but %s was not created: %w", destPath, err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("nacos returned status %d for %s/%s/%s", resp.StatusCode, namespace, group, dataID)
+	if !info.IsDir() {
+		return "", fmt.Errorf("agentspec output %s is not a directory", destPath)
 	}
-
-	destName := fmt.Sprintf("%s-%s.zip", dataID, version)
-	if version == "" {
-		destName = dataID + ".zip"
-	}
-	destPath := filepath.Join(p.ImportDir, destName)
-
-	out, err := os.Create(destPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create %s: %w", destPath, err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		os.Remove(destPath)
-		return "", fmt.Errorf("failed to write %s: %w", destPath, err)
 	}
 
 	return destPath, nil
