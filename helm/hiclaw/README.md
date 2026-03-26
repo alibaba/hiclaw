@@ -8,8 +8,6 @@
 
 ## 前置资源准备
 
-完整清单、参数约定与团队内流程见语雀：**[《HiClaw ACK/ACS 云上部署》前置资源准备](https://aliyuque.antfin.com/g/youjin.ls/uzsiws/kighwth7htbw7pa0/collaborator/join?token=MriVAXlhRjRT8KeF&source=doc_collaborator#)**（需协作权限；无法打开时可仅依赖下文与阿里云官方文档完成环境）。
-
 建议按下面各云产品**顺序**准备；每节说明「要做什么」并附对应产品文档。
 
 **本机**：安装 **`kubectl`**、**Helm 3**，并配置好访问目标集群的 **kubeconfig**。
