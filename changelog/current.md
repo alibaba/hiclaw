@@ -4,13 +4,17 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 ---
 
-- feat(shared/manager): **ACK/ACS cloud Workers** — `HICLAW_RUNTIME=aliyun`, `HICLAW_ALIYUN_WORKER_BACKEND=k8s` (aligned with Helm); under `HICLAW_CLOUD_COORDINATOR`, skip local Higress/MinIO and use OSS pull/sync; `kubernetes.sh` / `kubernetes-api.py` create Worker Pods in-cluster (SAE-equivalent env, no fake MinIO on `:9000`); `create-worker` / `lifecycle-worker` / `k8s-worker-env.sh`; RRSA with `gateway-api.sh`, `hiclaw-env.sh`, `start-manager-agent.sh`, `container-api.sh`, `Dockerfile.aliyun`, etc.
-- feat(helm): **ACK/ACS Helm deploy** — **Manager**, **Tuwunel**, and **Element Web** in one namespace; **`global.platform`** `ack` | `acs` (Tuwunel NAS: **ACK** static PV+PVC / **ACS** annotated PVC); **`tuwunel.persistence.nas.server`**; RRSA (manual default or webhook + optional namespace injection); **`HICLAW_REGISTRATION_TOKEN`** shared with Tuwunel via Secret; dedicated **Worker ServiceAccount** and `HICLAW_K8S_WORKER_SERVICE_ACCOUNT`; Manager probes **18799**; install docs merged into **`helm/hiclaw/README.md`**
+- feat(helm): **Deploy HiClaw on Alibaba Cloud ACK / ACS** — Add **`helm/hiclaw`** chart to install **HiClaw** (Manager, Tuwunel, Element Web) on **Container Service for Kubernetes (ACK)**; **`global.platform`** (`ack` or `acs`) selects the Tuwunel NAS pattern (ACK static PV vs ACS PVC); install guide in **`helm/hiclaw/README.md`**
+- feat(shared/manager): **Runtime support for that Helm path** — `HICLAW_RUNTIME=aliyun`, `HICLAW_ALIYUN_WORKER_BACKEND=k8s`, `kubernetes-api.py` / worker scripts so Manager spawns Workers as Pods in the same ACK cluster (OSS, RRSA, APIG)
 
 ### Security
 
-- fix(security): `oss-credentials.sh` — `HICLAW_WORKER_NAME` 时令 STS 仅限 `agents/{worker}/*`、`shared/*`
+- **fix(security): restrict cloud worker OSS access with STS inline policy** — In cloud mode (Alibaba Cloud SAE), all workers shared the same RRSA role with unrestricted OSS bucket access, allowing any worker to read/write other workers' and manager's files. Now `oss-credentials.sh` injects an inline policy into the STS `AssumeRoleWithOIDC` request when `HICLAW_WORKER_NAME` is set, restricting the STS token to `agents/{worker}/*` and `shared/*` prefixes only — matching the per-worker MinIO policy used in local mode. Manager (which does not set `HICLAW_WORKER_NAME`) retains full access.
 
 ### Cloud Runtime
+- **fix(cloud): auto-refresh STS credentials for all mc invocations** — wrap mc binary with `mc-wrapper.sh` that calls `ensure_mc_credentials` before every invocation, preventing token expiry after ~50 minutes in cloud mode. Affects: manager, worker, copaw.
+- fix(copaw): refresh STS credentials in Python sync loops to prevent MinIO sync failure after token expiry
 
-- fix(cloud): `Dockerfile.aliyun` 安装 `kubernetes`；mc/copaw STS 刷新；`HICLAW_RUNTIME` 显式或尊重预置；Matrix 欢迎语前入房重试
+- fix(cloud): set `HICLAW_RUNTIME=aliyun` explicitly in Dockerfile.aliyun instead of relying on OIDC file detection at runtime
+- fix(cloud): respect pre-set `HICLAW_RUNTIME` in hiclaw-env.sh — only auto-detect when unset
+- fix: add explicit Matrix room join with retry before sending welcome message to prevent race condition
