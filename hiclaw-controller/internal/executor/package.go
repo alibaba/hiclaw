@@ -141,6 +141,12 @@ func (p *PackageResolver) DeployToMinIO(ctx context.Context, extractedDir, worke
 		for _, e := range entries {
 			src := filepath.Join(configDir, e.Name())
 			dst := filepath.Join(agentDir, e.Name())
+			if e.IsDir() {
+				// Recursively copy subdirectories (e.g. memory/)
+				cpCmd := exec.CommandContext(ctx, "cp", "-r", src, dst)
+				cpCmd.CombinedOutput()
+				continue
+			}
 			data, err := os.ReadFile(src)
 			if err != nil {
 				continue
@@ -159,10 +165,13 @@ func (p *PackageResolver) DeployToMinIO(ctx context.Context, extractedDir, worke
 		}
 	}
 
-	// Copy custom skills/ directory if present
+	// Copy custom skills/ directory if present — merge into skills/ alongside builtins
 	skillsDir := filepath.Join(extractedDir, "skills")
 	if info, err := os.Stat(skillsDir); err == nil && info.IsDir() {
-		cpCmd := exec.CommandContext(ctx, "cp", "-r", skillsDir, filepath.Join(agentDir, "custom-skills"))
+		destSkills := filepath.Join(agentDir, "skills")
+		os.MkdirAll(destSkills, 0755)
+		// Use cp -r with trailing /. to merge contents into existing skills/ dir
+		cpCmd := exec.CommandContext(ctx, "cp", "-r", skillsDir+"/.", destSkills+"/")
 		cpCmd.CombinedOutput()
 	}
 
@@ -194,19 +203,39 @@ func validatePackageDir(dir string) error {
 // Uses the same format as builtin-merge.sh (BUILTIN_HEADER + BUILTIN_END) so that
 // upgrade-builtins.sh can fill the builtin section without destroying user content.
 // If markers already exist, the content is returned as-is.
+// YAML frontmatter (---...---) is preserved before the markers.
 func wrapWithBuiltinMarkers(data []byte) []byte {
 	content := string(data)
 	if strings.Contains(content, "<!-- hiclaw-builtin-start -->") {
 		return data // already has markers
 	}
+
+	var frontmatter, body string
+	// Extract YAML frontmatter if present
+	if strings.HasPrefix(content, "---\n") {
+		if end := strings.Index(content[4:], "\n---\n"); end >= 0 {
+			fmEnd := 4 + end + 4 // past the closing "---\n"
+			frontmatter = content[:fmEnd]
+			body = content[fmEnd:]
+		} else {
+			body = content
+		}
+	} else {
+		body = content
+	}
+
 	// Match the exact format from builtin-merge.sh BUILTIN_HEADER + BUILTIN_END
-	wrapped := "<!-- hiclaw-builtin-start -->\n" +
+	wrapped := ""
+	if frontmatter != "" {
+		wrapped += frontmatter + "\n"
+	}
+	wrapped += "<!-- hiclaw-builtin-start -->\n" +
 		"> ⚠️ **DO NOT EDIT** this section. It is managed by HiClaw and will be automatically\n" +
 		"> replaced on upgrade. To customize, add your content **after** the\n" +
 		"> `<!-- hiclaw-builtin-end -->` marker below.\n" +
 		"\n" +
 		"<!-- hiclaw-builtin-end -->\n\n" +
-		content
+		body
 	return []byte(wrapped)
 }
 
