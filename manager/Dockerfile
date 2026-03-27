@@ -11,7 +11,8 @@
 # ============================================================
 
 ARG HIGRESS_REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com
-ARG OPENCLAW_BASE_IMAGE=hiclaw/openclaw-base:20260314-be855ee
+ARG OPENCLAW_BASE_IMAGE=hiclaw/openclaw-base:20260325-1b5a5d8
+ARG HICLAW_CONTROLLER_IMAGE=hiclaw/hiclaw-controller:latest
 
 # ============ Stage 1: Tuwunel Matrix Server ============
 FROM ${HIGRESS_REGISTRY}/higress/tuwunel:20260216 AS tuwunel
@@ -24,6 +25,9 @@ FROM ${HIGRESS_REGISTRY}/higress/mc:20260216 AS mc
 
 # ============ Stage 4: Element Web ============
 FROM ${HIGRESS_REGISTRY}/higress/element-web:20260216 AS element-web
+
+# ============ Stage 5: hiclaw-controller (pre-built image) ============
+FROM ${HICLAW_CONTROLLER_IMAGE} AS hiclaw-controller
 
 # ============ Final Image: Based on openclaw-base ============
 # openclaw-base already includes: all-in-one + Node.js 22 + OpenClaw + mcporter + common tools
@@ -48,6 +52,15 @@ COPY --from=mc /usr/bin/mc /usr/local/bin/mc
 
 # Element Web static files
 COPY --from=element-web /app /opt/element-web
+
+# hiclaw-controller + hiclaw CLI + kube-apiserver (from pre-built image)
+COPY --from=hiclaw-controller /usr/local/bin/hiclaw-controller /usr/local/bin/hiclaw-controller
+COPY --from=hiclaw-controller /usr/local/bin/hiclaw /usr/local/bin/hiclaw
+COPY --from=hiclaw-controller /usr/local/bin/kube-apiserver /usr/local/bin/kube-apiserver
+COPY --from=hiclaw-controller /opt/hiclaw/config/crd/ /opt/hiclaw/config/crd/
+
+# zip/unzip needed by hiclaw CLI for --zip package handling
+RUN apt-get update -qq && apt-get install -y -qq zip unzip > /dev/null 2>&1 && rm -rf /var/lib/apt/lists/*
 
 # ---- Built-in observability plugin (bundled unconditionally, enabled at runtime) ----
 # Plugin is small; runtime toggles HICLAW_CMS_TRACES_ENABLED / HICLAW_CMS_METRICS_ENABLED

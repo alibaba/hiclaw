@@ -1,6 +1,15 @@
 # Worker Selection (Step 0)
 
-**Trigger**: Admin gives a task without naming a Worker.
+**Trigger**: Admin gives a task without naming a Worker or Team.
+
+## Check for matching Team first
+
+```bash
+# List all teams
+bash /opt/hiclaw/agent/skills/team-management/scripts/manage-teams-registry.sh --action list
+```
+
+If the task matches a Team's domain/expertise, delegate to the Team Leader instead of an individual Worker. See `team-management/references/team-task-delegation.md`.
 
 ## Find available workers
 
@@ -10,15 +19,19 @@ bash /opt/hiclaw/agent/skills/task-management/scripts/find-worker.sh
 
 # Filter by required skills
 bash /opt/hiclaw/agent/skills/task-management/scripts/find-worker.sh --skills github-operations,git-delegation
+
+# Filter by team membership
+bash /opt/hiclaw/agent/skills/task-management/scripts/find-worker.sh --team alpha-team
 ```
 
-Output includes `summary` (idle/busy/stopped/unavailable counts) and `workers` array with: `availability`, `role` (from SOUL.md), `skills`, `finite_tasks`, `infinite_tasks`, `active_tasks`, `container_status`.
+Output includes `summary` (idle/busy/stopped/unavailable counts) and `workers` array with: `availability`, `role` (from SOUL.md), `worker_role` (worker/team_leader), `team_id`, `skills`, `finite_tasks`, `infinite_tasks`, `active_tasks`, `container_status`.
 
 ## Decision flow (delegation-first)
 
-1. **Idle workers exist** → pick best match by role + skills, present as Option A (strongly recommended)
-2. **Only busy workers** → present workload info, suggest Option B (create new Worker) or wait
-3. **No workers at all** → suggest Option B. Only fall back to Option C if admin explicitly requests it
+1. **Task matches a Team** → delegate to Team Leader (preferred for complex, multi-skill tasks)
+2. **Idle standalone workers exist** → pick best match by role + skills, present as Option A (strongly recommended)
+3. **Only busy workers** → present workload info, suggest Option B (create new Worker) or wait
+4. **No workers at all** → suggest Option B. Only fall back to Option C if admin explicitly requests it
 
 Options:
 - **Option A** (preferred) — Assign to idle Worker

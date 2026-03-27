@@ -1,13 +1,13 @@
 ---
 name: file-sync
-description: Sync files with centralized storage. Use when Manager or another Worker notifies you of file updates (config changes, task files, shared data, collaboration artifacts).
+description: Sync files with centralized storage. Use when your coordinator or another Worker notifies you of file updates (config changes, task files, shared data, collaboration artifacts).
 ---
 
 # File Sync (CoPaw Worker)
 
 ## Sync agent config files
 
-When the Manager notifies you that your config has been updated (e.g., model switch, skill update), trigger an immediate sync:
+When your coordinator notifies you that your config has been updated (e.g., model switch, skill update), trigger an immediate sync:
 
 ```bash
 copaw-sync
@@ -47,7 +47,7 @@ Always confirm to the sender after push completes.
 
 **Example workflow:**
 ```bash
-# Manager assigns task: "New task [task-20260309-120000]. Pull spec from MinIO."
+# Coordinator assigns task: "New task [task-20260309-120000]. Pull spec from MinIO."
 # shared/ is already synced — just read the spec
 cat ~/.copaw-worker/<your-name>/shared/tasks/task-20260309-120000/spec.md
 
@@ -58,6 +58,6 @@ mc mirror ~/.copaw-worker/<your-name>/shared/tasks/task-20260309-120000/ \
   ${HICLAW_STORAGE_PREFIX}/shared/tasks/task-20260309-120000/ \
   --overwrite --exclude "spec.md" --exclude "base/"
 
-# Confirm to Manager
+# Confirm to coordinator
 "Task complete. Results pushed to MinIO."
 ```

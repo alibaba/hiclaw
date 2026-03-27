@@ -43,6 +43,10 @@ SKILLS_API_URL=""
 WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"   # openclaw | copaw
 CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
 CUSTOM_IMAGE=""             # optional: custom Docker image for this worker
+WORKER_ROLE="worker"        # worker | team_leader
+TEAM_NAME=""                # optional: team this worker belongs to
+TEAM_LEADER_NAME=""         # optional: for team workers, who their leader is
+TEAM_ADMIN_MATRIX_ID=""     # optional: team admin Matrix ID for team-context injection
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -55,12 +59,16 @@ while [ $# -gt 0 ]; do
         --remote)     REMOTE_MODE=true; shift ;;
         --runtime)    WORKER_RUNTIME="$2"; shift 2 ;;
         --console-port) CONSOLE_PORT="$2"; shift 2 ;;
+        --role)       WORKER_ROLE="$2"; shift 2 ;;
+        --team)       TEAM_NAME="$2"; shift 2 ;;
+        --team-leader) TEAM_LEADER_NAME="$2"; shift 2 ;;
+        --team-admin-matrix-id) TEAM_ADMIN_MATRIX_ID="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 if [ -z "${WORKER_NAME}" ]; then
-    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--image <IMAGE>] [--mcp-servers s1,s2] [--skills s1,s2] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--console-port <PORT>]"
+    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--image <IMAGE>] [--mcp-servers s1,s2] [--skills s1,s2] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--console-port <PORT>] [--role worker|team_leader] [--team <TEAM>] [--team-leader <LEADER>]"
     exit 1
 fi
 
@@ -274,14 +282,25 @@ if [ "${HICLAW_MATRIX_E2EE:-0}" = "1" ] || [ "${HICLAW_MATRIX_E2EE:-}" = "true" 
     log "  E2EE enabled: adding m.room.encryption to room initial_state"
 fi
 
+# For team workers, the 3-party room is Leader + Admin + Worker (not Manager)
+if [ -n "${TEAM_LEADER_NAME}" ]; then
+    ROOM_AUTHORITY_ID="@${TEAM_LEADER_NAME}:${MATRIX_DOMAIN}"
+    ROOM_NAME_PREFIX="Worker"
+    log "  Team worker mode: room will be Leader(${TEAM_LEADER_NAME}) + Admin + Worker"
+else
+    ROOM_AUTHORITY_ID="${MANAGER_MATRIX_ID}"
+    ROOM_NAME_PREFIX="Worker"
+fi
+
 ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
     -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
     -H 'Content-Type: application/json' \
     -d '{
-        "name": "Worker: '"${WORKER_NAME}"'",
+        "name": "'"${ROOM_NAME_PREFIX}: ${WORKER_NAME}"'",
         "topic": "Communication channel for '"${WORKER_NAME}"'",
         "invite": [
             "'"${ADMIN_MATRIX_ID}"'",
+            "'"${ROOM_AUTHORITY_ID}"'",
             "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
         ],
         "preset": "trusted_private_chat",
@@ -289,6 +308,7 @@ ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoo
             "users": {
                 "'"${MANAGER_MATRIX_ID}"'": 100,
                 "'"${ADMIN_MATRIX_ID}"'": 100,
+                "'"${ROOM_AUTHORITY_ID}"'": 100,
                 "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
             }
         }'"${ROOM_E2EE_INITIAL_STATE}"'
@@ -337,6 +357,12 @@ log "Step 6: Generating openclaw.json..."
 GEN_ARGS=("${WORKER_NAME}" "${WORKER_MATRIX_TOKEN}" "${WORKER_KEY}")
 if [ -n "${MODEL_ID}" ]; then
     GEN_ARGS+=("${MODEL_ID}")
+else
+    GEN_ARGS+=("")
+fi
+# Pass team-leader name as 5th arg so groupAllowFrom uses Leader instead of Manager
+if [ -n "${TEAM_LEADER_NAME}" ]; then
+    GEN_ARGS+=("${TEAM_LEADER_NAME}")
 fi
 bash /opt/hiclaw/agent/skills/worker-management/scripts/generate-worker-config.sh "${GEN_ARGS[@]}"
 
@@ -374,21 +400,26 @@ REGISTRY_FILE_EARLY="${HOME}/workers-registry.json"
 # ============================================================
 # Step 7: Update Manager groupAllowFrom
 # ============================================================
-log "Step 7: Updating Manager groupAllowFrom..."
-MANAGER_CONFIG="${HOME}/openclaw.json"
-WORKER_MATRIX_ID="@${WORKER_NAME}:${MATRIX_DOMAIN}"
-if [ -f "${MANAGER_CONFIG}" ]; then
-    ALREADY_IN=$(jq -r --arg w "${WORKER_MATRIX_ID}" \
-        '.channels.matrix.groupAllowFrom // [] | map(select(. == $w)) | length' \
-        "${MANAGER_CONFIG}" 2>/dev/null || echo "0")
-    if [ "${ALREADY_IN}" = "0" ]; then
-        jq --arg w "${WORKER_MATRIX_ID}" \
-            '.channels.matrix.groupAllowFrom += [$w]' \
-            "${MANAGER_CONFIG}" > /tmp/manager-config-updated.json
-        mv /tmp/manager-config-updated.json "${MANAGER_CONFIG}"
-        log "  Added ${WORKER_MATRIX_ID} to groupAllowFrom"
-    else
-        log "  ${WORKER_MATRIX_ID} already in groupAllowFrom"
+# For team workers, do NOT add to Manager's groupAllowFrom — they only talk to their Leader.
+if [ -n "${TEAM_LEADER_NAME}" ]; then
+    log "Step 7: Skipping Manager groupAllowFrom (team worker reports to leader ${TEAM_LEADER_NAME})"
+else
+    log "Step 7: Updating Manager groupAllowFrom..."
+    MANAGER_CONFIG="${HOME}/openclaw.json"
+    WORKER_MATRIX_ID="@${WORKER_NAME}:${MATRIX_DOMAIN}"
+    if [ -f "${MANAGER_CONFIG}" ]; then
+        ALREADY_IN=$(jq -r --arg w "${WORKER_MATRIX_ID}" \
+            '.channels.matrix.groupAllowFrom // [] | map(select(. == $w)) | length' \
+            "${MANAGER_CONFIG}" 2>/dev/null || echo "0")
+        if [ "${ALREADY_IN}" = "0" ]; then
+            jq --arg w "${WORKER_MATRIX_ID}" \
+                '.channels.matrix.groupAllowFrom += [$w]' \
+                "${MANAGER_CONFIG}" > /tmp/manager-config-updated.json
+            mv /tmp/manager-config-updated.json "${MANAGER_CONFIG}"
+            log "  Added ${WORKER_MATRIX_ID} to groupAllowFrom"
+        else
+            log "  ${WORKER_MATRIX_ID} already in groupAllowFrom"
+        fi
     fi
 fi
 
@@ -414,8 +445,10 @@ rm -f "${_tmp_pw}"
 log "  MinIO sync verified"
 
 # Push Worker agent files from Manager image (AGENTS.md + default skills)
-# Use runtime-specific skills for copaw workers
-if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+# Use runtime-specific skills for copaw workers, team-leader skills for leaders
+if [ "${WORKER_ROLE}" = "team_leader" ] && [ -d "/opt/hiclaw/agent/team-leader-agent" ]; then
+    WORKER_AGENT_SRC="/opt/hiclaw/agent/team-leader-agent"
+elif [ "${WORKER_RUNTIME}" = "copaw" ]; then
     WORKER_AGENT_SRC="/opt/hiclaw/agent/copaw-worker-agent"
 else
     WORKER_AGENT_SRC="/opt/hiclaw/agent/worker-agent"
@@ -428,6 +461,104 @@ if [ -d "${WORKER_AGENT_SRC}" ]; then
         "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/AGENTS.md" \
         "${WORKER_AGENT_SRC}/AGENTS.md" \
         || log "  WARNING: Failed to merge AGENTS.md"
+
+    # Inject team-context coordination block into AGENTS.md
+    # This tells the worker who their coordinator is (Manager or Team Leader)
+    # and who the Team Admin is (if applicable)
+    log "  Injecting coordination context..."
+    _agents_minio_path="${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/AGENTS.md"
+    _ctx_tmp=$(mktemp /tmp/team-ctx-XXXXXX.md)
+
+    # Look up Team Admin from parameter or teams-registry
+    _team_admin_mid="${TEAM_ADMIN_MATRIX_ID:-}"
+    if [ -z "${_team_admin_mid}" ] && [ -n "${TEAM_NAME}" ]; then
+        _teams_reg="${HOME}/teams-registry.json"
+        if [ -f "${_teams_reg}" ]; then
+            _team_admin_mid=$(jq -r --arg t "${TEAM_NAME}" '.teams[$t].admin.matrix_user_id // empty' "${_teams_reg}" 2>/dev/null)
+        fi
+    fi
+
+    if [ -n "${TEAM_LEADER_NAME}" ]; then
+        # Team Worker: coordinator is Team Leader
+        {
+            echo ""
+            echo "<!-- hiclaw-team-context-start -->"
+            echo "## Coordination"
+            echo ""
+            echo "- **Coordinator**: @${TEAM_LEADER_NAME}:${MATRIX_DOMAIN} (Team Leader of ${TEAM_NAME})"
+            if [ -n "${_team_admin_mid}" ]; then
+                echo "- **Team Admin**: ${_team_admin_mid} (has admin authority within this team)"
+            fi
+            echo "- Report task completion, blockers, and questions to your coordinator"
+            if [ -n "${_team_admin_mid}" ]; then
+                echo "- Respond to @mentions from your coordinator, Team Admin, and global Admin"
+            else
+                echo "- Respond to @mentions from your coordinator and global Admin"
+            fi
+            echo "- Do NOT @mention Manager directly — all communication goes through your Team Leader"
+            echo "<!-- hiclaw-team-context-end -->"
+        } > "${_ctx_tmp}"
+    elif [ "${WORKER_ROLE}" = "team_leader" ]; then
+        # Team Leader: upstream is Manager, downstream is team workers
+        {
+            echo ""
+            echo "<!-- hiclaw-team-context-start -->"
+            echo "## Coordination"
+            echo ""
+            echo "- **Upstream coordinator**: @manager:${MATRIX_DOMAIN} (Manager) — you receive tasks from Manager"
+            if [ -n "${_team_admin_mid}" ]; then
+                echo "- **Team Admin**: ${_team_admin_mid} — can assign tasks and make decisions within the team"
+            fi
+            echo "- **Team**: ${TEAM_NAME}"
+            echo "- You decompose tasks from Manager and assign sub-tasks to your team workers"
+            echo "- Report aggregated results to Manager when all sub-tasks complete"
+            echo "- @mention Manager only for: task completion, blockers, escalations"
+            echo "<!-- hiclaw-team-context-end -->"
+        } > "${_ctx_tmp}"
+    else
+        # Standalone Worker: coordinator is Manager
+        cat > "${_ctx_tmp}" <<STDCTX
+
+<!-- hiclaw-team-context-start -->
+## Coordination
+
+- **Coordinator**: @manager:${MATRIX_DOMAIN} (Manager)
+- Report task completion, blockers, and questions to your coordinator
+- Only respond to @mentions from your coordinator and Admin
+<!-- hiclaw-team-context-end -->
+STDCTX
+    fi
+
+    # Pull current AGENTS.md, inject context block, push back
+    _agents_tmp=$(mktemp /tmp/agents-ctx-XXXXXX.md)
+    if mc cp "${_agents_minio_path}" "${_agents_tmp}" 2>/dev/null; then
+        # Remove any existing team-context block and re-inject using awk (reliable across GNU/BSD)
+        _agents_clean=$(mktemp /tmp/agents-clean-XXXXXX.md)
+        awk '/<!-- hiclaw-team-context-start -->/{skip=1; next} /<!-- hiclaw-team-context-end -->/{skip=0; next} !skip' \
+            "${_agents_tmp}" > "${_agents_clean}"
+
+        # Insert context after builtin-end marker
+        _agents_final=$(mktemp /tmp/agents-final-XXXXXX.md)
+        if grep -q '^<!-- hiclaw-builtin-end -->' "${_agents_clean}"; then
+            awk -v ctx_file="${_ctx_tmp}" '
+                {print}
+                /^<!-- hiclaw-builtin-end -->$/ {
+                    while ((getline line < ctx_file) > 0) print line
+                    close(ctx_file)
+                }
+            ' "${_agents_clean}" > "${_agents_final}"
+        else
+            cat "${_agents_clean}" "${_ctx_tmp}" > "${_agents_final}"
+        fi
+
+        mc cp "${_agents_final}" "${_agents_minio_path}" 2>/dev/null \
+            || log "  WARNING: Failed to push coordination context to MinIO"
+        rm -f "${_agents_clean}" "${_agents_final}"
+        log "  Coordination context injected"
+    else
+        log "  WARNING: Could not pull AGENTS.md for context injection"
+    fi
+    rm -f "${_ctx_tmp}" "${_agents_tmp}"
 
     # Push all builtin skills from runtime-specific agent dir
     if [ -d "${WORKER_AGENT_SRC}/skills" ]; then
@@ -486,6 +617,8 @@ jq --arg w "${WORKER_NAME}" \
    --arg runtime "${WORKER_RUNTIME}" \
    --arg deployment "${DEPLOY_MODE_HINT}" \
    --arg image "${CUSTOM_IMAGE:-}" \
+   --arg role "${WORKER_ROLE}" \
+   --arg team_id "${TEAM_NAME:-}" \
    --argjson skills "${SKILLS_JSON}" \
    '.workers[$w] = {
      "matrix_user_id": $uid,
@@ -493,6 +626,8 @@ jq --arg w "${WORKER_NAME}" \
      "runtime": $runtime,
      "deployment": $deployment,
      "skills": $skills,
+     "role": $role,
+     "team_id": (if $team_id == "" then null else $team_id end),
      "image": (if $image == "" then null else $image end),
      "created_at": (if .workers[$w].created_at? then .workers[$w].created_at else $ts end),
      "skills_updated_at": $ts
@@ -690,6 +825,9 @@ RESULT=$(jq -n \
     --arg status "${WORKER_STATUS}" \
     --arg install_cmd "${INSTALL_CMD:-}" \
     --arg console_host_port "${CONSOLE_HOST_PORT:-}" \
+    --arg role "${WORKER_ROLE}" \
+    --arg team_id "${TEAM_NAME:-}" \
+    --arg team_leader "${TEAM_LEADER_NAME:-}" \
     --argjson skills "${SKILLS_JSON}" \
     '{
         worker_name: $name,
@@ -697,6 +835,9 @@ RESULT=$(jq -n \
         room_id: $room_id,
         consumer: $consumer,
         runtime: $runtime,
+        role: $role,
+        team_id: (if $team_id == "" then null else $team_id end),
+        team_leader: (if $team_leader == "" then null else $team_leader end),
         skills: $skills,
         mode: $mode,
         container_id: $container_id,
