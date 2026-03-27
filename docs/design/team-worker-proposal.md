@@ -395,10 +395,10 @@ MinIO `hiclaw-config/` 目录是声明式配置的 single source of truth。hicl
 | 维度 | embedded（非 K8s，默认） | incluster（K8s） |
 |------|------------------------|-----------------|
 | 配置存储 | MinIO `hiclaw-config/` | K8s etcd（CRD 直接落 K8s，不经过 MinIO） |
-| `hiclaw apply` | mc cp 到 MinIO → mirror → fsnotify → kine → reconcile | client-go apply 到 API Server → informer → reconcile |
-| `hiclaw get` | mc ls/cat MinIO 文件 | client-go list/get |
-| `hiclaw delete` | mc rm MinIO 文件 | client-go delete |
-| Controller 感知 | fsnotify 监听本地目录 | controller-runtime informer 监听 API |
+| `hiclaw apply` | mc cp 到 MinIO → mirror → fsnotify → kine → reconcile | ⚠️ 待实现（CLI 层尚未对接） |
+| `hiclaw get` | mc ls/cat MinIO 文件 | ⚠️ 待实现 |
+| `hiclaw delete` | mc rm MinIO 文件 | ⚠️ 待实现 |
+| Controller 感知 | fsnotify 监听本地目录 | controller-runtime informer 监听 API（已支持） |
 | MinIO 角色 | 配置存储 + 运行时数据 | 仅运行时数据（agents/、shared/） |
 
 切换方式：环境变量 `HICLAW_KUBE_MODE=embedded|incluster`
@@ -577,7 +577,7 @@ manager/agent/team-leader-agent/
 
 ### 后续规划
 
-- incluster 模式完整实现（client-go apply/get/delete）
+- `hiclaw` CLI 的 incluster 模式支持（`apply`/`get`/`delete` 对接真实 K8s API Server，目前仅 controller 本身支持 incluster 部署，CLI 操作尚未实现）
 - Template 市场（预置常见 Worker/Team 模板包）
 - 多 IM 平台支持（飞书、钉钉、企微等 Channel 适配）
 - 审计日志和成本追踪
