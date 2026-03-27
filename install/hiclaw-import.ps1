@@ -38,14 +38,27 @@ if (-not $ContainerCmd) {
     try { $null = & podman info 2>$null; $ContainerCmd = "podman" } catch {}
 }
 if (-not $ContainerCmd) {
-    Write-Host "[HiClaw Import ERROR] Neither docker nor podman found" -ForegroundColor Red
+    Write-Host "[HiClaw Import ERROR] Neither docker nor podman found." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Docker is required to run HiClaw. Install Docker Desktop first, then install HiClaw:" -ForegroundColor Yellow
+    Write-Host "  Set-ExecutionPolicy Bypass -Scope Process -Force; `$wc=New-Object Net.WebClient; `$wc.Encoding=[Text.Encoding]::UTF8; iex `$wc.DownloadString('https://higress.ai/hiclaw/install.ps1')"
     exit 1
 }
 
 # Verify Manager container
 $mgrRunning = & $ContainerCmd ps --filter "name=hiclaw-manager" --format "{{.Names}}" 2>$null
 if ($mgrRunning -notmatch "hiclaw-manager") {
-    Write-Host "[HiClaw Import ERROR] hiclaw-manager container is not running" -ForegroundColor Red
+    Write-Host "[HiClaw Import ERROR] hiclaw-manager container is not running." -ForegroundColor Red
+    Write-Host ""
+    # Check if the container exists but is stopped
+    $mgrExists = & $ContainerCmd ps -a --filter "name=hiclaw-manager" --format "{{.Names}}" 2>$null
+    if ($mgrExists -match "hiclaw-manager") {
+        Write-Host "The hiclaw-manager container exists but is stopped. Start it with:" -ForegroundColor Yellow
+        Write-Host "  $ContainerCmd start hiclaw-manager"
+    } else {
+        Write-Host "HiClaw does not appear to be installed. Install it first:" -ForegroundColor Yellow
+        Write-Host "  Set-ExecutionPolicy Bypass -Scope Process -Force; `$wc=New-Object Net.WebClient; `$wc.Encoding=[Text.Encoding]::UTF8; iex `$wc.DownloadString('https://higress.ai/hiclaw/install.ps1')"
+    }
     exit 1
 }
 

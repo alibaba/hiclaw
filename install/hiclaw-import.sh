@@ -25,13 +25,25 @@ elif command -v podman &>/dev/null && podman info &>/dev/null 2>&1; then
     CONTAINER_CMD="podman"
 fi
 if [ -z "${CONTAINER_CMD}" ]; then
-    echo "ERROR: Neither docker nor podman found" >&2
+    echo "ERROR: Neither docker nor podman found." >&2
+    echo "" >&2
+    echo "Docker is required to run HiClaw. Install Docker first, then install HiClaw:" >&2
+    echo "  bash <(curl -sSL https://higress.ai/hiclaw/install.sh)" >&2
     exit 1
 fi
 
 # Verify Manager container
 if ! ${CONTAINER_CMD} ps --filter name=hiclaw-manager --format '{{.Names}}' 2>/dev/null | grep -q 'hiclaw-manager'; then
-    echo "ERROR: hiclaw-manager container is not running" >&2
+    echo "ERROR: hiclaw-manager container is not running." >&2
+    echo "" >&2
+    # Check if the container exists but is stopped
+    if ${CONTAINER_CMD} ps -a --filter name=hiclaw-manager --format '{{.Names}}' 2>/dev/null | grep -q 'hiclaw-manager'; then
+        echo "The hiclaw-manager container exists but is stopped. Start it with:" >&2
+        echo "  ${CONTAINER_CMD} start hiclaw-manager" >&2
+    else
+        echo "HiClaw does not appear to be installed. Install it first:" >&2
+        echo "  bash <(curl -sSL https://higress.ai/hiclaw/install.sh)" >&2
+    fi
     exit 1
 fi
 
