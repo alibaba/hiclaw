@@ -417,26 +417,26 @@ func (p *PackageResolver) resolveHTTP(ctx context.Context, uri string) (string, 
 }
 
 // resolveNacos downloads a Worker template from Nacos via the AgentSpec client API.
-// URI format: nacos://{instance-id}/{namespace}/{agentspec-name}[/{version}]
-// Requires HICLAW_NACOS_ADDR for connection info (supports user:pass@host:port for auth).
+// URI format: nacos://[user:pass@]host:port/{namespace}/{agentspec-name}[/{version}]
+// The Nacos server address (and optional credentials) are extracted directly from the URI.
 func (p *PackageResolver) resolveNacos(ctx context.Context, u *url.URL) (string, error) {
 	// Parse URI path segments: /{namespace}/{agentspec-name}/{version}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid nacos URI: expected nacos://{instance}/{namespace}/{agentspec-name}[/{version}], got %s", u.String())
+		return "", fmt.Errorf("invalid nacos URI: expected nacos://[user:pass@]host:port/{namespace}/{agentspec-name}[/{version}], got %s", u.String())
 	}
 
-	instanceID := u.Host
+	// Build the Nacos server address from the URI authority (host, port, userinfo).
+	nacosAddr := u.Host
+	if u.User != nil {
+		nacosAddr = u.User.String() + "@" + u.Host
+	}
+
 	namespace := parts[0]
 	specName := parts[1]
 	version := ""
 	if len(parts) >= 3 {
 		version = parts[2]
-	}
-
-	nacosAddr := os.Getenv("HICLAW_NACOS_ADDR")
-	if nacosAddr == "" {
-		return "", fmt.Errorf("HICLAW_NACOS_ADDR not set (required for nacos:// packages, instance=%s)", instanceID)
 	}
 
 	outputDir := filepath.Join(p.ImportDir, "nacos")
