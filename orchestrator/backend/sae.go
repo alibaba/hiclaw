@@ -82,6 +82,7 @@ func NewSAEBackendWithClient(client SAEClient, config SAEConfig, containerPrefix
 }
 
 func (s *SAEBackend) Name() string                        { return "sae" }
+func (s *SAEBackend) DeploymentMode() string               { return DeployCloud }
 func (s *SAEBackend) NeedsCredentialInjection() bool       { return true }
 
 func (s *SAEBackend) Available(_ context.Context) bool {
@@ -162,11 +163,12 @@ func (s *SAEBackend) Create(ctx context.Context, req CreateRequest) (*WorkerResu
 			if current == "RUNNING" {
 				log.Printf("[SAE] Application %s is RUNNING", appName)
 				return &WorkerResult{
-					Name:      req.Name,
-					Backend:   "sae",
-					Status:    StatusRunning,
-					AppID:     appID,
-					RawStatus: "RUNNING",
+					Name:           req.Name,
+					Backend:        "sae",
+					DeploymentMode: DeployCloud,
+					Status:         StatusRunning,
+					AppID:          appID,
+					RawStatus:      "RUNNING",
 				}, nil
 			}
 			if strings.Contains(current, "FAILED") {
@@ -179,10 +181,11 @@ func (s *SAEBackend) Create(ctx context.Context, req CreateRequest) (*WorkerResu
 		select {
 		case <-ctx.Done():
 			return &WorkerResult{
-				Name:    req.Name,
-				Backend: "sae",
-				Status:  StatusStarting,
-				AppID:   appID,
+				Name:           req.Name,
+				Backend:        "sae",
+				DeploymentMode: DeployCloud,
+				Status:         StatusStarting,
+				AppID:          appID,
 			}, nil
 		case <-time.After(5 * time.Second):
 		}
@@ -190,10 +193,11 @@ func (s *SAEBackend) Create(ctx context.Context, req CreateRequest) (*WorkerResu
 
 	log.Printf("[SAE] Application %s did not reach RUNNING within 120s", appName)
 	return &WorkerResult{
-		Name:    req.Name,
-		Backend: "sae",
-		Status:  StatusStarting,
-		AppID:   appID,
+		Name:           req.Name,
+		Backend:        "sae",
+		DeploymentMode: DeployCloud,
+		Status:         StatusStarting,
+		AppID:          appID,
 	}, nil
 }
 
@@ -264,9 +268,10 @@ func (s *SAEBackend) Status(_ context.Context, name string) (*WorkerResult, erro
 	}
 	if appID == "" {
 		return &WorkerResult{
-			Name:    name,
-			Backend: "sae",
-			Status:  StatusNotFound,
+			Name:           name,
+			Backend:        "sae",
+			DeploymentMode: DeployCloud,
+			Status:         StatusNotFound,
 		}, nil
 	}
 
@@ -283,11 +288,12 @@ func (s *SAEBackend) Status(_ context.Context, name string) (*WorkerResult, erro
 	}
 
 	return &WorkerResult{
-		Name:      name,
-		Backend:   "sae",
-		Status:    normalizeSAEStatus(rawStatus),
-		AppID:     appID,
-		RawStatus: rawStatus,
+		Name:           name,
+		Backend:        "sae",
+		DeploymentMode: DeployCloud,
+		Status:         normalizeSAEStatus(rawStatus),
+		AppID:          appID,
+		RawStatus:      rawStatus,
 	}, nil
 }
 
@@ -314,9 +320,10 @@ func (s *SAEBackend) List(_ context.Context) ([]WorkerResult, error) {
 			appID = *app.AppId
 		}
 		results = append(results, WorkerResult{
-			Name:    name,
-			Backend: "sae",
-			AppID:   appID,
+			Name:           name,
+			Backend:        "sae",
+			DeploymentMode: DeployCloud,
+			AppID:          appID,
 		})
 	}
 	return results, nil

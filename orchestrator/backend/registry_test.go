@@ -12,6 +12,7 @@ type mockWorkerBackend struct {
 }
 
 func (m *mockWorkerBackend) Name() string                                          { return m.name }
+func (m *mockWorkerBackend) DeploymentMode() string                                 { return DeployLocal }
 func (m *mockWorkerBackend) Available(_ context.Context) bool                      { return m.available }
 func (m *mockWorkerBackend) NeedsCredentialInjection() bool                        { return false }
 func (m *mockWorkerBackend) Create(_ context.Context, _ CreateRequest) (*WorkerResult, error) { return nil, nil }

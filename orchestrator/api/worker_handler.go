@@ -273,12 +273,13 @@ func (h *WorkerHandler) mergeReadiness(name string, status backend.WorkerStatus)
 
 func toWorkerResponse(r *backend.WorkerResult) WorkerResponse {
 	return WorkerResponse{
-		Name:        r.Name,
-		Backend:     r.Backend,
-		Status:      r.Status,
-		ContainerID: r.ContainerID,
-		AppID:       r.AppID,
-		RawStatus:   r.RawStatus,
+		Name:           r.Name,
+		Backend:        r.Backend,
+		DeploymentMode: r.DeploymentMode,
+		Status:         r.Status,
+		ContainerID:    r.ContainerID,
+		AppID:          r.AppID,
+		RawStatus:      r.RawStatus,
 	}
 }
 

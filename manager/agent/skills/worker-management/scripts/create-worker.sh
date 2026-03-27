@@ -830,12 +830,7 @@ elif container_api_available; then
     CONTAINER_ID=$(echo "${CREATE_OUTPUT}" | jq -r '.container_id // empty' 2>/dev/null)
 
     if [ "${CREATE_STATUS}" = "running" ] || [ "${CREATE_STATUS}" = "starting" ]; then
-        DEPLOY_MODE=$(echo "${CREATE_OUTPUT}" | jq -r '.backend // "local"' 2>/dev/null)
-        if [ "${DEPLOY_MODE}" = "docker" ]; then
-            DEPLOY_MODE="local"
-        elif [ "${DEPLOY_MODE}" = "sae" ]; then
-            DEPLOY_MODE="cloud"
-        fi
+        DEPLOY_MODE=$(echo "${CREATE_OUTPUT}" | jq -r '.deployment_mode // "local"' 2>/dev/null)
 
         # Wait for worker to report ready (unified — works for both Docker and SAE)
         log "  Waiting for Worker agent to be ready..."

@@ -50,14 +50,21 @@ type CreateRequest struct {
 	WorkerAPIKey    string `json:"-"`
 }
 
+// Deployment modes returned by backends.
+const (
+	DeployLocal = "local"
+	DeployCloud = "cloud"
+)
+
 // WorkerResult holds the result of a worker operation.
 type WorkerResult struct {
-	Name        string       `json:"name"`
-	Backend     string       `json:"backend"`
-	Status      WorkerStatus `json:"status"`
-	ContainerID string       `json:"container_id,omitempty"`
-	AppID       string       `json:"app_id,omitempty"`
-	RawStatus   string       `json:"raw_status,omitempty"`
+	Name           string       `json:"name"`
+	Backend        string       `json:"backend"`
+	DeploymentMode string       `json:"deployment_mode"`
+	Status         WorkerStatus `json:"status"`
+	ContainerID    string       `json:"container_id,omitempty"`
+	AppID          string       `json:"app_id,omitempty"`
+	RawStatus      string       `json:"raw_status,omitempty"`
 }
 
 // WorkerBackend defines the interface for worker lifecycle operations.
@@ -65,6 +72,9 @@ type WorkerResult struct {
 type WorkerBackend interface {
 	// Name returns the backend identifier (e.g. "docker", "sae").
 	Name() string
+
+	// DeploymentMode returns the user-facing deployment mode ("local" or "cloud").
+	DeploymentMode() string
 
 	// Available reports whether this backend is usable in the current environment.
 	Available(ctx context.Context) bool

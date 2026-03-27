@@ -34,6 +34,7 @@ func newMockBackend() *mockBackend {
 }
 
 func (m *mockBackend) Name() string                          { return m.name }
+func (m *mockBackend) DeploymentMode() string                 { return backend.DeployLocal }
 func (m *mockBackend) Available(_ context.Context) bool      { return m.available }
 func (m *mockBackend) NeedsCredentialInjection() bool        { return false }
 
@@ -42,11 +43,12 @@ func (m *mockBackend) Create(_ context.Context, req backend.CreateRequest) (*bac
 		return nil, m.createErr
 	}
 	r := &backend.WorkerResult{
-		Name:        req.Name,
-		Backend:     "mock",
-		Status:      backend.StatusRunning,
-		ContainerID: "mock-" + req.Name,
-		RawStatus:   "running",
+		Name:           req.Name,
+		Backend:        "mock",
+		DeploymentMode: backend.DeployLocal,
+		Status:         backend.StatusRunning,
+		ContainerID:    "mock-" + req.Name,
+		RawStatus:      "running",
 	}
 	m.workers[req.Name] = r
 	return r, nil
@@ -142,6 +144,9 @@ func TestCreateWorker(t *testing.T) {
 	}
 	if resp.Backend != "mock" {
 		t.Errorf("expected backend mock, got %s", resp.Backend)
+	}
+	if resp.DeploymentMode != backend.DeployLocal {
+		t.Errorf("expected deployment_mode local, got %s", resp.DeploymentMode)
 	}
 }
 

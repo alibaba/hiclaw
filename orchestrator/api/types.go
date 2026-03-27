@@ -18,13 +18,14 @@ type CreateWorkerRequest struct {
 
 // WorkerResponse is the JSON response for worker operations.
 type WorkerResponse struct {
-	Name        string                `json:"name"`
-	Backend     string                `json:"backend"`
-	Status      backend.WorkerStatus  `json:"status"`
-	ContainerID string                `json:"container_id,omitempty"`
-	AppID       string                `json:"app_id,omitempty"`
-	RawStatus   string                `json:"raw_status,omitempty"`
-	APIKey      string                `json:"api_key,omitempty"`
+	Name           string                `json:"name"`
+	Backend        string                `json:"backend"`
+	DeploymentMode string                `json:"deployment_mode"`
+	Status         backend.WorkerStatus  `json:"status"`
+	ContainerID    string                `json:"container_id,omitempty"`
+	AppID          string                `json:"app_id,omitempty"`
+	RawStatus      string                `json:"raw_status,omitempty"`
+	APIKey         string                `json:"api_key,omitempty"`
 }
 
 // WorkerListResponse is the JSON response for GET /workers.

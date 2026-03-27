@@ -164,6 +164,9 @@ func TestDockerCreate(t *testing.T) {
 	if result.Backend != "docker" {
 		t.Errorf("expected backend docker, got %s", result.Backend)
 	}
+	if result.DeploymentMode != DeployLocal {
+		t.Errorf("expected deployment_mode local, got %s", result.DeploymentMode)
+	}
 	if result.Status != StatusRunning {
 		t.Errorf("expected status running, got %s", result.Status)
 	}

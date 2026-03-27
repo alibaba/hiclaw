@@ -47,6 +47,7 @@ func NewDockerBackend(config DockerConfig, containerPrefix string) *DockerBacken
 }
 
 func (d *DockerBackend) Name() string                        { return "docker" }
+func (d *DockerBackend) DeploymentMode() string               { return DeployLocal }
 func (d *DockerBackend) NeedsCredentialInjection() bool       { return false }
 
 func (d *DockerBackend) Available(ctx context.Context) bool {
@@ -135,11 +136,12 @@ func (d *DockerBackend) Create(ctx context.Context, req CreateRequest) (*WorkerR
 	}
 
 	return &WorkerResult{
-		Name:        req.Name,
-		Backend:     "docker",
-		Status:      StatusRunning,
-		ContainerID: createResp.ID,
-		RawStatus:   "running",
+		Name:           req.Name,
+		Backend:        "docker",
+		DeploymentMode: DeployLocal,
+		Status:         StatusRunning,
+		ContainerID:    createResp.ID,
+		RawStatus:      "running",
 	}, nil
 }
 
@@ -218,9 +220,10 @@ func (d *DockerBackend) Status(ctx context.Context, name string) (*WorkerResult,
 
 	if resp.StatusCode == http.StatusNotFound {
 		return &WorkerResult{
-			Name:    name,
-			Backend: "docker",
-			Status:  StatusNotFound,
+			Name:           name,
+			Backend:        "docker",
+			DeploymentMode: DeployLocal,
+			Status:         StatusNotFound,
 		}, nil
 	}
 
@@ -240,11 +243,12 @@ func (d *DockerBackend) Status(ctx context.Context, name string) (*WorkerResult,
 	}
 
 	return &WorkerResult{
-		Name:        name,
-		Backend:     "docker",
-		Status:      normalizeDockerStatus(inspectResp.State.Status),
-		ContainerID: inspectResp.ID,
-		RawStatus:   inspectResp.State.Status,
+		Name:           name,
+		Backend:        "docker",
+		DeploymentMode: DeployLocal,
+		Status:         normalizeDockerStatus(inspectResp.State.Status),
+		ContainerID:    inspectResp.ID,
+		RawStatus:      inspectResp.State.Status,
 	}, nil
 }
 
@@ -291,11 +295,12 @@ func (d *DockerBackend) List(ctx context.Context) ([]WorkerResult, error) {
 			continue
 		}
 		results = append(results, WorkerResult{
-			Name:        name,
-			Backend:     "docker",
-			Status:      normalizeDockerStatus(c.State),
-			ContainerID: c.ID,
-			RawStatus:   c.State,
+			Name:           name,
+			Backend:        "docker",
+			DeploymentMode: DeployLocal,
+			Status:         normalizeDockerStatus(c.State),
+			ContainerID:    c.ID,
+			RawStatus:      c.State,
 		})
 	}
 	return results, nil
