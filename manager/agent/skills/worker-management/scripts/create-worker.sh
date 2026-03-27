@@ -134,9 +134,39 @@ EOF
 fi
 
 _fail() {
-    echo '{"error": "'"$1"'"}'
+    local err_msg="$1"
+    echo '{"error": "'"${err_msg}"'"}'
+
+    # If a room was already created, notify it about the failure
+    if [ -n "${ROOM_ID:-}" ] && [ -n "${MANAGER_MATRIX_TOKEN:-}" ]; then
+        local txn_id="cwf-$(date +%s%N)"
+        local notify_body="Worker creation failed for ${WORKER_NAME:-unknown}: ${err_msg}"
+        curl -sf -X PUT \
+            "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/${txn_id}" \
+            -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"msgtype\":\"m.text\",\"body\":\"${notify_body}\"}" \
+            > /dev/null 2>&1 || true
+    fi
+
     exit 1
 }
+
+# Trap unexpected exits (e.g. set -e) to notify the room
+_on_exit_error() {
+    local exit_code=$?
+    if [ ${exit_code} -ne 0 ] && [ -n "${ROOM_ID:-}" ] && [ -n "${MANAGER_MATRIX_TOKEN:-}" ]; then
+        local txn_id="cwe-$(date +%s%N)"
+        local notify_body="Worker creation for ${WORKER_NAME:-unknown} exited unexpectedly (code ${exit_code}). Check Manager logs for details."
+        curl -sf -X PUT \
+            "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/${txn_id}" \
+            -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"msgtype\":\"m.text\",\"body\":\"${notify_body}\"}" \
+            > /dev/null 2>&1 || true
+    fi
+}
+trap _on_exit_error EXIT
 
 # ============================================================
 # Ensure credentials are available
@@ -221,6 +251,7 @@ cat > "${WORKER_CREDS_FILE}" <<CREDS
 WORKER_PASSWORD="${WORKER_PASSWORD}"
 WORKER_MINIO_PASSWORD="${WORKER_MINIO_PASSWORD}"
 WORKER_GATEWAY_KEY="${WORKER_GATEWAY_KEY}"
+WORKER_ROOM_ID="${WORKER_ROOM_ID:-}"
 CREDS
 chmod 600 "${WORKER_CREDS_FILE}"
 
@@ -292,33 +323,48 @@ else
     ROOM_NAME_PREFIX="Worker"
 fi
 
-ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
-    -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
-    -H 'Content-Type: application/json' \
-    -d '{
-        "name": "'"${ROOM_NAME_PREFIX}: ${WORKER_NAME}"'",
-        "topic": "Communication channel for '"${WORKER_NAME}"'",
-        "invite": [
-            "'"${ADMIN_MATRIX_ID}"'",
-            "'"${ROOM_AUTHORITY_ID}"'",
-            "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
-        ],
-        "preset": "trusted_private_chat",
-        "power_level_content_override": {
-            "users": {
-                "'"${MANAGER_MATRIX_ID}"'": 100,
-                "'"${ADMIN_MATRIX_ID}"'": 100,
-                "'"${ROOM_AUTHORITY_ID}"'": 100,
-                "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
-            }
-        }'"${ROOM_E2EE_INITIAL_STATE}"'
-    }' 2>/dev/null) || _fail "Failed to create Matrix room"
+if [ -n "${WORKER_ROOM_ID:-}" ]; then
+    ROOM_ID="${WORKER_ROOM_ID}"
+    log "  Reusing existing room from persisted state: ${ROOM_ID}"
+else
+    ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
+        -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
+        -H 'Content-Type: application/json' \
+        -d '{
+            "name": "'"${ROOM_NAME_PREFIX}: ${WORKER_NAME}"'",
+            "topic": "Communication channel for '"${WORKER_NAME}"'",
+            "invite": [
+                "'"${ADMIN_MATRIX_ID}"'",
+                "'"${ROOM_AUTHORITY_ID}"'",
+                "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
+            ],
+            "preset": "trusted_private_chat",
+            "power_level_content_override": {
+                "users": {
+                    "'"${MANAGER_MATRIX_ID}"'": 100,
+                    "'"${ADMIN_MATRIX_ID}"'": 100,
+                    "'"${ROOM_AUTHORITY_ID}"'": 100,
+                    "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
+                }
+            }'"${ROOM_E2EE_INITIAL_STATE}"'
+        }' 2>/dev/null) || _fail "Failed to create Matrix room"
 
-ROOM_ID=$(echo "${ROOM_RESP}" | jq -r '.room_id // empty')
-if [ -z "${ROOM_ID}" ]; then
-    _fail "Failed to create Matrix room: ${ROOM_RESP}"
+    ROOM_ID=$(echo "${ROOM_RESP}" | jq -r '.room_id // empty')
+    if [ -z "${ROOM_ID}" ]; then
+        _fail "Failed to create Matrix room: ${ROOM_RESP}"
+    fi
+    log "  Room created with all members (Human + Manager + Worker): ${ROOM_ID} — no manual room creation needed"
+
+    # Persist room_id early so retries can reuse it (registry update is at Step 8.5)
+    WORKER_ROOM_ID="${ROOM_ID}"
+    cat > "${WORKER_CREDS_FILE}" <<CREDS
+WORKER_PASSWORD="${WORKER_PASSWORD}"
+WORKER_MINIO_PASSWORD="${WORKER_MINIO_PASSWORD}"
+WORKER_GATEWAY_KEY="${WORKER_GATEWAY_KEY}"
+WORKER_ROOM_ID="${WORKER_ROOM_ID}"
+CREDS
+    chmod 600 "${WORKER_CREDS_FILE}"
 fi
-log "  Room created with all members (Human + Manager + Worker): ${ROOM_ID} — no manual room creation needed"
 
 # ============================================================
 # Steps 3-5: Gateway consumer and authorization
