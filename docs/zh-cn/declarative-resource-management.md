@@ -51,11 +51,15 @@ spec:
   identity: |                      # Worker 公开身份信息（生成 IDENTITY.md）
     - Name: Alice
     - Specialization: DevOps, CI/CD pipeline management
-  soul: |                          # Worker 身份和角色定义（生成 SOUL.md）
+  soul: |                          # Worker 人格与价值观设定（生成 SOUL.md）
     # Alice - DevOps Worker
-    ## Role
-    - Specialization: CI/CD pipeline management, deployment automation
-    - Skills: GitHub Operations, Docker, shell scripting
+    ## 人格
+    - 严谨细致，部署前必定反复确认
+    - 对潜在风险保持敏感，及早提出顾虑
+    - 偏好自动化，尽量避免手动操作
+    ## 价值观
+    - 稳定优先：绝不为速度牺牲可靠性
+    - 透明沟通：始终说明在做什么以及为什么
   agents: |                        # Agent 行为规则（生成 AGENTS.md）
     ## Behavior
     - Monitor CI/CD pipelines proactively
@@ -76,7 +80,7 @@ spec:
 | `spec.runtime` | string | 否 | `openclaw` | Agent 运行时，`openclaw` 或 `copaw` |
 | `spec.image` | string | 否 | `hiclaw/worker-agent:latest` | 自定义 Docker 镜像 |
 | `spec.identity` | string | 否 | — | Worker 公开身份信息，用于生成 IDENTITY.md |
-| `spec.soul` | string | 否 | — | Worker 身份和角色定义，用于生成 SOUL.md |
+| `spec.soul` | string | 否 | — | Worker 人格与价值观设定，用于生成 SOUL.md |
 | `spec.agents` | string | 否 | — | Agent 行为规则，用于生成 AGENTS.md |
 | `spec.skills` | []string | 否 | — | 内置 skills 列表，由 Manager 统一分发 |
 | `spec.mcpServers` | []string | 否 | — | 内置 MCP Servers 列表，通过 Higress 网关授权 |
@@ -149,13 +153,37 @@ spec:
   leader:
     name: alpha-lead
     model: claude-sonnet-4-6
+    soul: |
+      # Alpha Lead - Team Leader
+      ## 人格
+      - 沉稳有条理，带领团队聚焦优先事项
+      - 对团队成员有耐心，鼓励开放沟通
+      ## 价值观
+      - 清晰：每个任务分配前必须有明确的验收标准
+      - 信任：充分授权，不微观管理
   workers:
     - name: alpha-dev
       model: claude-sonnet-4-6
       skills: [github-operations]
       mcpServers: [github]
+      soul: |
+        # Alpha Dev - 后端开发
+        ## 人格
+        - 务实的问题解决者，偏好简单方案而非巧妙方案
+        - 严格的代码审查者，善于发现边界情况
+        ## 价值观
+        - 代码质量：上线前先写测试
+        - 保持简单：避免过早抽象
     - name: alpha-qa
       model: claude-sonnet-4-6
+      soul: |
+        # Alpha QA - 测试工程师
+        ## 人格
+        - 天生怀疑论者，总是问"哪里可能出问题？"
+        - 对复现和记录问题一丝不苟
+        ## 价值观
+        - 用户体验优先：从用户视角进行测试
+        - 不允许静默失败：每个 bug 都要有清晰的报告
 ```
 
 ### 完整字段说明
@@ -176,6 +204,9 @@ spec:
 |------|------|------|------|
 | `leader.name` | string | 是 | Leader 名称 |
 | `leader.model` | string | 否 | LLM 模型 |
+| `leader.identity` | string | 否 | Leader 公开身份信息（生成 IDENTITY.md） |
+| `leader.soul` | string | 否 | Leader 人格与价值观设定（生成 SOUL.md） |
+| `leader.agents` | string | 否 | 自定义行为规则（追加在内置 AGENTS.md 之后） |
 | `leader.package` | string | 否 | 自定义包 URI |
 
 **Worker 字段（与独立 Worker 的 spec 一致）：**
@@ -185,6 +216,9 @@ spec:
 | `workers[].name` | string | 是 | Worker 名称 |
 | `workers[].model` | string | 否 | LLM 模型 |
 | `workers[].runtime` | string | 否 | Agent 运行时 |
+| `workers[].identity` | string | 否 | Worker 公开身份信息（生成 IDENTITY.md） |
+| `workers[].soul` | string | 否 | Worker 人格与价值观设定（生成 SOUL.md） |
+| `workers[].agents` | string | 否 | 自定义行为规则（追加在内置 AGENTS.md 之后） |
 | `workers[].skills` | []string | 否 | 内置 skills |
 | `workers[].mcpServers` | []string | 否 | 内置 MCP Servers |
 | `workers[].package` | string | 否 | 自定义包 URI |
@@ -198,6 +232,30 @@ Team Leader 本质上是一个 Worker 容器，但有以下区别：
 - 不拥有 `worker-management`、`mcp-server-management` 等 Manager 独占 skill
 - 在 `workers-registry.json` 中标记为 `role: "team_leader"`
 - 采用委派优先原则——始终将任务分配给团队 Worker，自己不执行领域任务
+
+### Team Leader 的 AGENTS.md 组装
+
+Team Leader 的 AGENTS.md 由三层内容组装而成，各自独立管理：
+
+```
+<!-- hiclaw-builtin-start -->
+[内置：Team Leader 工作空间规则、任务流程、skills 参考]
+<!-- hiclaw-builtin-end -->
+
+<!-- hiclaw-team-context-start -->
+## Coordination
+- Upstream coordinator: @manager:{domain}
+- Team Admin: @admin:{domain}
+- Team: alpha-team
+- Team members: alpha-dev, alpha-qa
+<!-- hiclaw-team-context-end -->
+
+[用户通过 spec.agents 提供的自定义内容（如有）]
+```
+
+- 内置段由 HiClaw 自动管理，升级时自动更新
+- 团队上下文段自动注入团队名称、成员列表和协调者信息
+- 用户通过 `spec.agents` 提供的内容放在两段之后，更新时不会被覆盖
 
 ### Room 拓扑
 

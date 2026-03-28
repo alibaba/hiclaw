@@ -51,11 +51,15 @@ spec:
   identity: |                      # Worker public identity (generates IDENTITY.md)
     - Name: Alice
     - Specialization: DevOps, CI/CD pipeline management
-  soul: |                          # Worker identity and role (generates SOUL.md)
+  soul: |                          # Worker personality and values (generates SOUL.md)
     # Alice - DevOps Worker
-    ## Role
-    - Specialization: CI/CD pipeline management, deployment automation
-    - Skills: GitHub Operations, Docker, shell scripting
+    ## Personality
+    - Methodical and detail-oriented, always double-checks before deploying
+    - Proactive about potential risks, raises concerns early
+    - Prefers automation over manual processes
+    ## Values
+    - Stability first: never sacrifice reliability for speed
+    - Transparency: always explain what you're doing and why
   agents: |                        # Agent behavior rules (generates AGENTS.md)
     ## Behavior
     - Monitor CI/CD pipelines proactively
@@ -76,7 +80,7 @@ spec:
 | `spec.runtime` | string | No | `openclaw` | Agent runtime: `openclaw` or `copaw` |
 | `spec.image` | string | No | `hiclaw/worker-agent:latest` | Custom Docker image |
 | `spec.identity` | string | No | — | Worker public identity, used to generate IDENTITY.md |
-| `spec.soul` | string | No | — | Worker identity and role definition, used to generate SOUL.md |
+| `spec.soul` | string | No | — | Worker personality and values (generates SOUL.md) |
 | `spec.agents` | string | No | — | Agent behavior rules, used to generate AGENTS.md |
 | `spec.skills` | []string | No | — | Built-in skills, distributed by Manager |
 | `spec.mcpServers` | []string | No | — | Built-in MCP Servers, authorized via Higress gateway |
@@ -149,13 +153,37 @@ spec:
   leader:
     name: alpha-lead
     model: claude-sonnet-4-6
+    soul: |
+      # Alpha Lead - Team Leader
+      ## Personality
+      - Calm and organized, keeps the team focused on priorities
+      - Patient with team members, encourages open communication
+      ## Values
+      - Clarity: every task must have clear acceptance criteria before assignment
+      - Trust: delegate fully, don't micromanage
   workers:
     - name: alpha-dev
       model: claude-sonnet-4-6
       skills: [github-operations]
       mcpServers: [github]
+      soul: |
+        # Alpha Dev - Backend Developer
+        ## Personality
+        - Pragmatic problem-solver, favors simple solutions over clever ones
+        - Thorough code reviewer, catches edge cases early
+        ## Values
+        - Code quality: write tests before shipping
+        - Keep it simple: avoid premature abstraction
     - name: alpha-qa
       model: claude-sonnet-4-6
+      soul: |
+        # Alpha QA - QA Engineer
+        ## Personality
+        - Skeptical by nature, always asks "what could go wrong?"
+        - Meticulous about reproducing and documenting issues
+        ## Values
+        - User experience first: test from the user's perspective
+        - No silent failures: every bug gets a clear report
 ```
 
 ### Field Reference
@@ -176,6 +204,9 @@ spec:
 |-------|------|----------|-------------|
 | `leader.name` | string | Yes | Leader name |
 | `leader.model` | string | No | LLM model |
+| `leader.identity` | string | No | Leader public identity (generates IDENTITY.md) |
+| `leader.soul` | string | No | Leader personality and values (generates SOUL.md) |
+| `leader.agents` | string | No | Custom behavior rules (appended after builtin AGENTS.md) |
 | `leader.package` | string | No | Custom package URI |
 
 **Worker fields (same as standalone Worker spec):**
@@ -185,6 +216,9 @@ spec:
 | `workers[].name` | string | Yes | Worker name |
 | `workers[].model` | string | No | LLM model |
 | `workers[].runtime` | string | No | Agent runtime |
+| `workers[].identity` | string | No | Worker public identity (generates IDENTITY.md) |
+| `workers[].soul` | string | No | Worker personality and values (generates SOUL.md) |
+| `workers[].agents` | string | No | Custom behavior rules (appended after builtin AGENTS.md) |
 | `workers[].skills` | []string | No | Built-in skills |
 | `workers[].mcpServers` | []string | No | Built-in MCP Servers |
 | `workers[].package` | string | No | Custom package URI |
@@ -198,6 +232,30 @@ A Team Leader is essentially a Worker container, but with key differences:
 - Does NOT have Manager-exclusive skills like `worker-management` or `mcp-server-management`
 - Marked as `role: "team_leader"` in `workers-registry.json`
 - Follows a delegation-first principle — always assigns tasks to team Workers, never executes domain tasks itself
+
+### Team Leader AGENTS.md Assembly
+
+The Team Leader's AGENTS.md is assembled in three layers, each managed independently:
+
+```
+<!-- hiclaw-builtin-start -->
+[Builtin: Team Leader workspace rules, task flow, skills reference]
+<!-- hiclaw-builtin-end -->
+
+<!-- hiclaw-team-context-start -->
+## Coordination
+- Upstream coordinator: @manager:{domain}
+- Team Admin: @admin:{domain}
+- Team: alpha-team
+- Team members: alpha-dev, alpha-qa
+<!-- hiclaw-team-context-end -->
+
+[User-provided content from spec.agents (if any)]
+```
+
+- The builtin section is auto-managed by HiClaw and updated on upgrades
+- The team context is auto-injected with the team name, members, and coordinator info
+- User-provided `spec.agents` content is placed after both sections and preserved across updates
 
 ### Room Topology
 
