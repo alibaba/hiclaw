@@ -48,6 +48,18 @@ metadata:
   name: alice
 spec:
   model: claude-sonnet-4-6        # LLM model
+  identity: |                      # Worker public identity (generates IDENTITY.md)
+    - Name: Alice
+    - Specialization: DevOps, CI/CD pipeline management
+  soul: |                          # Worker identity and role (generates SOUL.md)
+    # Alice - DevOps Worker
+    ## Role
+    - Specialization: CI/CD pipeline management, deployment automation
+    - Skills: GitHub Operations, Docker, shell scripting
+  agents: |                        # Agent behavior rules (generates AGENTS.md)
+    ## Behavior
+    - Monitor CI/CD pipelines proactively
+    - Alert on failures immediately
   skills:                          # HiClaw built-in skills
     - github-operations
     - git-delegation
@@ -63,9 +75,21 @@ spec:
 | `spec.model` | string | Yes | — | LLM model ID, e.g. `claude-sonnet-4-6`, `qwen3.5-plus` |
 | `spec.runtime` | string | No | `openclaw` | Agent runtime: `openclaw` or `copaw` |
 | `spec.image` | string | No | `hiclaw/worker-agent:latest` | Custom Docker image |
+| `spec.identity` | string | No | — | Worker public identity, used to generate IDENTITY.md |
+| `spec.soul` | string | No | — | Worker identity and role definition, used to generate SOUL.md |
+| `spec.agents` | string | No | — | Agent behavior rules, used to generate AGENTS.md |
 | `spec.skills` | []string | No | — | Built-in skills, distributed by Manager |
 | `spec.mcpServers` | []string | No | — | Built-in MCP Servers, authorized via Higress gateway |
 | `spec.package` | string | No | — | Custom package URI: `file://`, `http(s)://`, or `nacos://` |
+
+### identity / soul / agents vs package
+
+There are two ways to configure a Worker's identity and behavior:
+
+- **Inline**: Define `spec.identity`, `spec.soul`, and `spec.agents` directly in the YAML. The Controller generates the corresponding IDENTITY.md, SOUL.md, and AGENTS.md. Best for lightweight configurations.
+- **Package**: Provide a ZIP via `spec.package` containing the full config (IDENTITY.md, SOUL.md, AGENTS.md, custom skills, Dockerfile, etc.). Best for complex setups requiring custom skills or system dependencies.
+
+When both are set, inline fields override the corresponding files in the package. This allows you to use a package as a base template while customizing specific aspects via YAML — for example, importing a shared package but overriding `soul` to give the Worker a unique role definition.
 
 ### Built-in Skills vs Custom Skills
 

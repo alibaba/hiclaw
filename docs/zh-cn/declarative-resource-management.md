@@ -48,6 +48,18 @@ metadata:
   name: alice
 spec:
   model: claude-sonnet-4-6        # LLM 模型
+  identity: |                      # Worker 公开身份信息（生成 IDENTITY.md）
+    - Name: Alice
+    - Specialization: DevOps, CI/CD pipeline management
+  soul: |                          # Worker 身份和角色定义（生成 SOUL.md）
+    # Alice - DevOps Worker
+    ## Role
+    - Specialization: CI/CD pipeline management, deployment automation
+    - Skills: GitHub Operations, Docker, shell scripting
+  agents: |                        # Agent 行为规则（生成 AGENTS.md）
+    ## Behavior
+    - Monitor CI/CD pipelines proactively
+    - Alert on failures immediately
   skills:                          # HiClaw 内置 skills
     - github-operations
     - git-delegation
@@ -63,9 +75,21 @@ spec:
 | `spec.model` | string | 是 | — | LLM 模型 ID，如 `claude-sonnet-4-6`、`qwen3.5-plus` |
 | `spec.runtime` | string | 否 | `openclaw` | Agent 运行时，`openclaw` 或 `copaw` |
 | `spec.image` | string | 否 | `hiclaw/worker-agent:latest` | 自定义 Docker 镜像 |
+| `spec.identity` | string | 否 | — | Worker 公开身份信息，用于生成 IDENTITY.md |
+| `spec.soul` | string | 否 | — | Worker 身份和角色定义，用于生成 SOUL.md |
+| `spec.agents` | string | 否 | — | Agent 行为规则，用于生成 AGENTS.md |
 | `spec.skills` | []string | 否 | — | 内置 skills 列表，由 Manager 统一分发 |
 | `spec.mcpServers` | []string | 否 | — | 内置 MCP Servers 列表，通过 Higress 网关授权 |
 | `spec.package` | string | 否 | — | 自定义包 URI，支持 `file://`、`http(s)://`、`nacos://` |
+
+### identity / soul / agents 与 package 的关系
+
+配置 Worker 身份和行为有两种方式：
+
+- **内联方式**：通过 `spec.identity`、`spec.soul` 和 `spec.agents` 字段直接在 YAML 中定义，Controller 会据此生成对应的 IDENTITY.md、SOUL.md 和 AGENTS.md。适合轻量配置场景。
+- **包方式**：通过 `spec.package` 引入一个包含完整配置的 ZIP 包（IDENTITY.md、SOUL.md、AGENTS.md、自定义 skills、Dockerfile 等）。适合需要自定义 skills 或系统依赖的复杂场景。
+
+两者可以同时使用——当同时配置时，内联字段会覆盖包中的对应文件。这允许你使用 package 作为基础模板，同时通过 YAML 定制特定部分。例如，导入一个共享的 Worker 包，但通过 `soul` 字段覆盖角色定义，赋予 Worker 独特的身份。
 
 ### 内置 Skills 与自定义 Skills
 
