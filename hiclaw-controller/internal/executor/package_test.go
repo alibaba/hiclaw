@@ -30,10 +30,12 @@ func TestWriteInlineConfigs_AllFields_CoPaw(t *testing.T) {
 		t.Fatalf("WriteInlineConfigs failed: %v", err)
 	}
 
+	// CoPaw: no IDENTITY.md
 	if _, err := os.Stat(filepath.Join(dir, "IDENTITY.md")); err == nil {
 		t.Error("IDENTITY.md should not exist for copaw runtime")
 	}
 
+	// SOUL.md should contain identity prepended to soul
 	soulData, err := os.ReadFile(filepath.Join(dir, "SOUL.md"))
 	if err != nil {
 		t.Fatalf("failed to read SOUL.md: %v", err)
@@ -70,6 +72,7 @@ func TestWriteInlineConfigs_SoulOnly(t *testing.T) {
 func TestWriteInlineConfigs_OverridesExisting(t *testing.T) {
 	dir := t.TempDir()
 
+	// Pre-create files
 	_ = os.WriteFile(filepath.Join(dir, "SOUL.md"), []byte("old soul"), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("old agents"), 0o644)
 
@@ -81,6 +84,7 @@ func TestWriteInlineConfigs_OverridesExisting(t *testing.T) {
 	assertFileContent(t, filepath.Join(dir, "SOUL.md"), "new soul")
 	assertFileContains(t, filepath.Join(dir, "AGENTS.md"), "new agents")
 
+	// Verify old content is gone
 	data, _ := os.ReadFile(filepath.Join(dir, "SOUL.md"))
 	if strings.Contains(string(data), "old soul") {
 		t.Error("SOUL.md should not contain old content")
@@ -125,6 +129,7 @@ func TestWriteInlineConfigs_CoPawMergesIdentityIntoSoul(t *testing.T) {
 	}
 	content := string(data)
 
+	// Identity should come before soul
 	idxIdentity := strings.Index(content, "# Identity")
 	idxRole := strings.Index(content, "# Role")
 	if idxIdentity < 0 || idxRole < 0 {
@@ -396,6 +401,7 @@ func TestValidateNacosURI_PartialEnvCredentialsFail(t *testing.T) {
 	}
 }
 
+// --- helpers ---
 func assertFileContent(t *testing.T, path, expected string) {
 	t.Helper()
 	data, err := os.ReadFile(path)

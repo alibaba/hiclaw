@@ -132,6 +132,7 @@ spec:
 }
 
 func TestLoadResources_NameInMetadataOnly(t *testing.T) {
+	// "name:" under spec should NOT be picked up as resource name
 	yaml := `apiVersion: hiclaw.io/v1beta1
 kind: Team
 metadata:
@@ -190,6 +191,7 @@ func TestOrderForApply(t *testing.T) {
 
 	ordered := orderForApply(resources)
 
+	// Expected order: Team -> Worker -> Human
 	if ordered[0].Kind != "Team" {
 		t.Errorf("expected first to be Team, got %s", ordered[0].Kind)
 	}
@@ -212,6 +214,7 @@ func TestWriteTempYAML(t *testing.T) {
 	}
 }
 
+// Helper to create temp YAML file for tests
 func writeTempYAMLForTest(t *testing.T, content string) string {
 	t.Helper()
 	path, err := writeTempYAML(content)
@@ -219,6 +222,7 @@ func writeTempYAMLForTest(t *testing.T, content string) string {
 		t.Fatalf("failed to write temp YAML: %v", err)
 	}
 	t.Cleanup(func() {
+		// os.Remove(path) // uncomment to auto-clean
 		_ = path
 	})
 	return path
@@ -345,6 +349,7 @@ spec:
 	if r.Name != "alice" {
 		t.Errorf("expected name alice, got %s", r.Name)
 	}
+	// Verify the raw YAML preserves inline fields
 	if !strings.Contains(r.Raw, "identity:") {
 		t.Error("raw YAML should contain identity field")
 	}
