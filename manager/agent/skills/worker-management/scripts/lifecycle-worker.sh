@@ -143,6 +143,20 @@ _worker_has_any_tasks() {
     [ "$count" -gt 0 ]
 }
 
+# Check if a worker has enabled cron jobs in its .openclaw/cron/jobs.json
+# Returns 0 if worker has enabled cron jobs, 1 otherwise
+_worker_has_cron_jobs() {
+    local worker="$1"
+    local cron_file="/root/hiclaw-fs/agents/${worker}/.openclaw/cron/jobs.json"
+    if [ ! -f "$cron_file" ]; then
+        return 1
+    fi
+    local count
+    # Handle both {"jobs":[...]} and bare array [...] formats
+    count=$(jq '(if type == "object" then .jobs // [] else . end) | [.[] | select(.state.enabled == true)] | length' "$cron_file" 2>/dev/null || echo "0")
+    [ "$count" -gt 0 ]
+}
+
 # ─── Actions ─────────────────────────────────────────────────────────────────
 
 # Sync worker status into lifecycle file (Docker or cloud backend)
@@ -218,6 +232,18 @@ action_check_idle() {
             current_idle=$(_get_worker_field "$worker" "idle_since")
             if [ -n "$current_idle" ] && [ "$current_idle" != "null" ]; then
                 _log "Worker $worker has active tasks — clearing idle_since"
+                local tmp
+                tmp=$(mktemp)
+                jq --arg w "$worker" --arg ts "$(_ts)" \
+                    '.workers[$w].idle_since = null | .updated_at = $ts' \
+                    "$LIFECYCLE_FILE" > "$tmp" && mv "$tmp" "$LIFECYCLE_FILE"
+            fi
+        elif _worker_has_cron_jobs "$worker"; then
+            # Worker has enabled cron jobs — never idle-stop
+            local current_idle
+            current_idle=$(_get_worker_field "$worker" "idle_since")
+            if [ -n "$current_idle" ] && [ "$current_idle" != "null" ]; then
+                _log "Worker $worker has cron jobs — clearing idle_since (idle-stop disabled)"
                 local tmp
                 tmp=$(mktemp)
                 jq --arg w "$worker" --arg ts "$(_ts)" \
