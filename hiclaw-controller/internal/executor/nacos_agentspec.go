@@ -65,7 +65,7 @@ func newNacosAgentSpecClient(ctx context.Context, rawAddr, namespace string) (*n
 	if username != "" && password != "" {
 		authType = nacosAuthTypeNacos
 	} else if username != "" || password != "" {
-		return nil, fmt.Errorf("both username and password are required in nacos URL (use http://user:pass@host:port)")
+		return nil, fmt.Errorf("both username and password are required in nacos URL or env (use nacos://user:pass@host:port or set HICLAW_NACOS_USERNAME/HICLAW_NACOS_PASSWORD)")
 	}
 
 	client := &nacosAgentSpecClient{
@@ -323,7 +323,7 @@ func parseNacosHTTPError(statusCode int, body []byte, operation string) error {
 
 	switch statusCode {
 	case http.StatusUnauthorized:
-		return formatNacosHTTPError(operation, statusCode, serverMessage, "authentication required; check username:password in nacos address URL")
+		return formatNacosHTTPError(operation, statusCode, serverMessage, "authentication required; check username:password in the nacos URL or set HICLAW_NACOS_USERNAME/HICLAW_NACOS_PASSWORD")
 	case http.StatusForbidden:
 		return formatNacosHTTPError(operation, statusCode, serverMessage, "access denied; token may be expired or permissions may be missing")
 	case http.StatusNotFound:
@@ -373,6 +373,11 @@ func parseNacosAddr(raw string) (host, port, username, password string, err erro
 	if parsed.User != nil {
 		username = parsed.User.Username()
 		password, _ = parsed.User.Password()
+	}
+
+	if username == "" && password == "" {
+		username = os.Getenv("HICLAW_NACOS_USERNAME")
+		password = os.Getenv("HICLAW_NACOS_PASSWORD")
 	}
 
 	return parsed.Hostname(), port, username, password, nil

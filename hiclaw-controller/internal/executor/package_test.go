@@ -327,6 +327,75 @@ func TestResolveNacos_AddrExtraction(t *testing.T) {
 	}
 }
 
+func TestParseNacosAddr_UsesEnvCredentialsAsDefault(t *testing.T) {
+	t.Setenv("HICLAW_NACOS_USERNAME", "env-user")
+	t.Setenv("HICLAW_NACOS_PASSWORD", "env-pass")
+
+	host, port, username, password, err := parseNacosAddr("nacos.internal:8848")
+	if err != nil {
+		t.Fatalf("parseNacosAddr returned error: %v", err)
+	}
+	if host != "nacos.internal" {
+		t.Fatalf("host = %q, want %q", host, "nacos.internal")
+	}
+	if port != "8848" {
+		t.Fatalf("port = %q, want %q", port, "8848")
+	}
+	if username != "env-user" || password != "env-pass" {
+		t.Fatalf("credentials = %q/%q, want env-user/env-pass", username, password)
+	}
+}
+
+func TestParseNacosAddr_URIAuthOverridesEnv(t *testing.T) {
+	t.Setenv("HICLAW_NACOS_USERNAME", "env-user")
+	t.Setenv("HICLAW_NACOS_PASSWORD", "env-pass")
+
+	host, port, username, password, err := parseNacosAddr("nacos://uri-user:uri-pass@nacos.internal/ns/spec")
+	if err != nil {
+		t.Fatalf("parseNacosAddr returned error: %v", err)
+	}
+	if host != "nacos.internal" {
+		t.Fatalf("host = %q, want %q", host, "nacos.internal")
+	}
+	if port != "8848" {
+		t.Fatalf("port = %q, want %q", port, "8848")
+	}
+	if username != "uri-user" || password != "uri-pass" {
+		t.Fatalf("credentials = %q/%q, want uri-user/uri-pass", username, password)
+	}
+}
+
+func TestValidateNacosURI_UsesEnvCredentialsWhenURIHasNoAuth(t *testing.T) {
+	t.Setenv("HICLAW_NACOS_USERNAME", "env-user")
+	t.Setenv("HICLAW_NACOS_PASSWORD", "env-pass")
+
+	err := ValidateNacosURI(context.Background(), "nacos://127.0.0.1:19999/ns/my-spec")
+	if err == nil {
+		t.Fatal("expected connection error for unreachable server, got nil")
+	}
+	if strings.Contains(err.Error(), "scheme must be") ||
+		strings.Contains(err.Error(), "missing host") ||
+		strings.Contains(err.Error(), "expected nacos://[user:pass@]host:port") {
+		t.Errorf("got format error instead of connection error: %v", err)
+	}
+	if !strings.Contains(err.Error(), "preflight check failed") {
+		t.Errorf("expected preflight check error, got: %v", err)
+	}
+}
+
+func TestValidateNacosURI_PartialEnvCredentialsFail(t *testing.T) {
+	t.Setenv("HICLAW_NACOS_USERNAME", "env-user")
+	t.Setenv("HICLAW_NACOS_PASSWORD", "")
+
+	err := ValidateNacosURI(context.Background(), "nacos://127.0.0.1:19999/ns/my-spec")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "both username and password are required") {
+		t.Fatalf("expected credential pair error, got: %v", err)
+	}
+}
+
 func assertFileContent(t *testing.T, path, expected string) {
 	t.Helper()
 	data, err := os.ReadFile(path)

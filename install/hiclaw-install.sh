@@ -26,6 +26,8 @@
 #   HICLAW_INSTALL_MANAGER_IMAGE       Override manager image (e.g., local build)
 #   HICLAW_INSTALL_WORKER_IMAGE        Override worker image  (e.g., local build)
 #   HICLAW_INSTALL_COPAW_WORKER_IMAGE  Override copaw worker image (e.g., local build)
+#   HICLAW_NACOS_USERNAME              Default Nacos username for nacos:// package imports (optional)
+#   HICLAW_NACOS_PASSWORD              Default Nacos password for nacos:// package imports (optional)
 #   HICLAW_CMS_TRACES_ENABLED          Enable openclaw-cms-plugin traces for Manager AND all Workers (default: false)
 #   HICLAW_CMS_ENDPOINT                ARMS OTLP endpoint (required if traces enabled)
 #   HICLAW_CMS_LICENSE_KEY             CMS license key (required if traces enabled)
@@ -2090,6 +2092,10 @@ HICLAW_REGISTRATION_TOKEN=${HICLAW_REGISTRATION_TOKEN}
 
 # GitHub (optional)
 HICLAW_GITHUB_TOKEN=${HICLAW_GITHUB_TOKEN:-}
+
+# Nacos package import defaults (optional)
+HICLAW_NACOS_USERNAME=${HICLAW_NACOS_USERNAME:-}
+HICLAW_NACOS_PASSWORD=${HICLAW_NACOS_PASSWORD:-}
 
 # Skills Registry (optional, default: https://skills.sh)
 HICLAW_SKILLS_API_URL=${HICLAW_SKILLS_API_URL:-}
