@@ -26,6 +26,15 @@ spec:
                 image:
                   type: string
                   description: Custom Docker image for this worker
+                identity:
+                  type: string
+                  description: Worker public identity (generates IDENTITY.md; merged into SOUL.md for copaw)
+                soul:
+                  type: string
+                  description: Worker identity and role definition (generates SOUL.md)
+                agents:
+                  type: string
+                  description: Agent behavior rules (generates AGENTS.md)
                 skills:
                   type: array
                   items:

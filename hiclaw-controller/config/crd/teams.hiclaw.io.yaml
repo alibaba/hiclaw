@@ -36,6 +36,12 @@ spec:
                       type: string
                     model:
                       type: string
+                    identity:
+                      type: string
+                    soul:
+                      type: string
+                    agents:
+                      type: string
                     package:
                       type: string
                 workers:
@@ -52,6 +58,12 @@ spec:
                         type: string
                         enum: [openclaw, copaw]
                       image:
+                        type: string
+                      identity:
+                        type: string
+                      soul:
+                        type: string
+                      agents:
                         type: string
                       skills:
                         type: array

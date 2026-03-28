@@ -100,6 +100,18 @@ func (r *WorkerReconciler) handleCreate(ctx context.Context, w *v1beta1.Worker) 
 		}
 	}
 
+	// Write inline configs (overrides package files if both set)
+	if w.Spec.Identity != "" || w.Spec.Soul != "" || w.Spec.Agents != "" {
+		agentDir := fmt.Sprintf("/root/hiclaw-fs/agents/%s", w.Name)
+		if err := executor.WriteInlineConfigs(agentDir, w.Spec.Runtime, w.Spec.Identity, w.Spec.Soul, w.Spec.Agents); err != nil {
+			w.Status.Phase = "Failed"
+			w.Status.Message = fmt.Sprintf("write inline configs failed: %v", err)
+			r.Status().Update(ctx, w)
+			return reconcile.Result{RequeueAfter: time.Minute}, err
+		}
+		logger.Info("inline configs written", "name", w.Name)
+	}
+
 	// Build script arguments
 	args := []string{
 		"--name", w.Name,
@@ -198,6 +210,16 @@ func (r *WorkerReconciler) handleUpdate(ctx context.Context, w *v1beta1.Worker) 
 		} else if extractedDir != "" {
 			packageDir = extractedDir
 			logger.Info("package resolved for update", "name", w.Name, "dir", extractedDir)
+		}
+	}
+
+	// Write inline configs (overrides package files if both set)
+	if w.Spec.Identity != "" || w.Spec.Soul != "" || w.Spec.Agents != "" {
+		agentDir := fmt.Sprintf("/root/hiclaw-fs/agents/%s", w.Name)
+		if err := executor.WriteInlineConfigs(agentDir, w.Spec.Runtime, w.Spec.Identity, w.Spec.Soul, w.Spec.Agents); err != nil {
+			logger.Error(err, "write inline configs failed during update", "name", w.Name)
+		} else {
+			logger.Info("inline configs written for update", "name", w.Name)
 		}
 	}
 

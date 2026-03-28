@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -225,4 +226,49 @@ func writeTempYAMLForTest(t *testing.T, content string) string {
 		_ = path
 	})
 	return path
+}
+
+func TestLoadResources_WorkerWithInlineFields(t *testing.T) {
+	yaml := `apiVersion: hiclaw.io/v1beta1
+kind: Worker
+metadata:
+  name: alice
+spec:
+  model: claude-sonnet-4-6
+  identity: |
+    Name: Alice
+    Specialization: DevOps
+  soul: |
+    # Alice - DevOps Worker
+    ## Role
+    CI/CD pipeline management
+  agents: |
+    ## Behavior
+    Monitor pipelines proactively
+`
+	tmpFile := writeTempYAMLForTest(t, yaml)
+	resources, err := loadResources([]string{tmpFile})
+	if err != nil {
+		t.Fatalf("loadResources failed: %v", err)
+	}
+	if len(resources) != 1 {
+		t.Fatalf("expected 1 resource, got %d", len(resources))
+	}
+	r := resources[0]
+	if r.Kind != "Worker" {
+		t.Errorf("expected kind Worker, got %s", r.Kind)
+	}
+	if r.Name != "alice" {
+		t.Errorf("expected name alice, got %s", r.Name)
+	}
+	// Verify the raw YAML preserves inline fields
+	if !strings.Contains(r.Raw, "identity:") {
+		t.Error("raw YAML should contain identity field")
+	}
+	if !strings.Contains(r.Raw, "soul:") {
+		t.Error("raw YAML should contain soul field")
+	}
+	if !strings.Contains(r.Raw, "agents:") {
+		t.Error("raw YAML should contain agents field")
+	}
 }

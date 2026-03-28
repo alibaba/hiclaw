@@ -79,6 +79,32 @@ func (r *TeamReconciler) handleCreate(ctx context.Context, t *v1beta1.Team) (rec
 		workerNames = append(workerNames, w.Name)
 	}
 
+	// Write leader inline configs
+	if t.Spec.Leader.Identity != "" || t.Spec.Leader.Soul != "" || t.Spec.Leader.Agents != "" {
+		agentDir := fmt.Sprintf("/root/hiclaw-fs/agents/%s", t.Spec.Leader.Name)
+		if err := executor.WriteInlineConfigs(agentDir, "", t.Spec.Leader.Identity, t.Spec.Leader.Soul, t.Spec.Leader.Agents); err != nil {
+			t.Status.Phase = "Failed"
+			t.Status.Message = fmt.Sprintf("write leader inline configs failed: %v", err)
+			r.Status().Update(ctx, t)
+			return reconcile.Result{RequeueAfter: time.Minute}, err
+		}
+		logger.Info("leader inline configs written", "leader", t.Spec.Leader.Name)
+	}
+
+	// Write each worker's inline configs
+	for _, w := range t.Spec.Workers {
+		if w.Identity != "" || w.Soul != "" || w.Agents != "" {
+			agentDir := fmt.Sprintf("/root/hiclaw-fs/agents/%s", w.Name)
+			if err := executor.WriteInlineConfigs(agentDir, w.Runtime, w.Identity, w.Soul, w.Agents); err != nil {
+				t.Status.Phase = "Failed"
+				t.Status.Message = fmt.Sprintf("write worker %s inline configs failed: %v", w.Name, err)
+				r.Status().Update(ctx, t)
+				return reconcile.Result{RequeueAfter: time.Minute}, err
+			}
+			logger.Info("worker inline configs written", "worker", w.Name)
+		}
+	}
+
 	args := []string{
 		"--name", t.Name,
 		"--leader", t.Spec.Leader.Name,

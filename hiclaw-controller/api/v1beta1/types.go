@@ -24,6 +24,9 @@ type WorkerSpec struct {
 	Model      string   `json:"model"`
 	Runtime    string   `json:"runtime,omitempty"` // openclaw | copaw (default: openclaw)
 	Image      string   `json:"image,omitempty"`   // custom Docker image
+	Identity   string   `json:"identity,omitempty"`
+	Soul       string   `json:"soul,omitempty"`
+	Agents     string   `json:"agents,omitempty"`
 	Skills     []string `json:"skills,omitempty"`
 	McpServers []string `json:"mcpServers,omitempty"`
 	Package    string   `json:"package,omitempty"` // file://, http(s)://, or nacos:// URI
@@ -70,9 +73,12 @@ type TeamAdminSpec struct {
 }
 
 type LeaderSpec struct {
-	Name    string `json:"name"`
-	Model   string `json:"model,omitempty"`
-	Package string `json:"package,omitempty"`
+	Name     string `json:"name"`
+	Model    string `json:"model,omitempty"`
+	Identity string `json:"identity,omitempty"`
+	Soul     string `json:"soul,omitempty"`
+	Agents   string `json:"agents,omitempty"`
+	Package  string `json:"package,omitempty"`
 }
 
 type TeamWorkerSpec struct {
@@ -80,6 +86,9 @@ type TeamWorkerSpec struct {
 	Model      string   `json:"model,omitempty"`
 	Runtime    string   `json:"runtime,omitempty"`
 	Image      string   `json:"image,omitempty"`
+	Identity   string   `json:"identity,omitempty"`
+	Soul       string   `json:"soul,omitempty"`
+	Agents     string   `json:"agents,omitempty"`
 	Skills     []string `json:"skills,omitempty"`
 	McpServers []string `json:"mcpServers,omitempty"`
 	Package    string   `json:"package,omitempty"`

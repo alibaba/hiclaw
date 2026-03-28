@@ -258,6 +258,54 @@ func wrapWithBuiltinMarkers(data []byte) []byte {
 	return []byte(wrapped)
 }
 
+// WriteInlineConfigs writes inline identity/soul/agents content to the agent directory.
+// For copaw runtime, identity is merged into SOUL.md since copaw doesn't support IDENTITY.md.
+// This function is called AFTER DeployToMinIO so inline fields override package files.
+func WriteInlineConfigs(agentDir, runtime, identity, soul, agents string) error {
+	if err := os.MkdirAll(agentDir, 0755); err != nil {
+		return fmt.Errorf("create agent dir %s: %w", agentDir, err)
+	}
+
+	isCoPaw := strings.EqualFold(runtime, "copaw")
+
+	if isCoPaw {
+		// CoPaw: merge identity into soul (prepend)
+		merged := ""
+		if identity != "" {
+			merged += strings.TrimSpace(identity) + "\n\n"
+		}
+		if soul != "" {
+			merged += strings.TrimSpace(soul)
+		}
+		if merged != "" {
+			if err := os.WriteFile(filepath.Join(agentDir, "SOUL.md"), []byte(merged+"\n"), 0644); err != nil {
+				return fmt.Errorf("write SOUL.md: %w", err)
+			}
+		}
+	} else {
+		// OpenClaw: write IDENTITY.md and SOUL.md separately
+		if identity != "" {
+			if err := os.WriteFile(filepath.Join(agentDir, "IDENTITY.md"), []byte(strings.TrimSpace(identity)+"\n"), 0644); err != nil {
+				return fmt.Errorf("write IDENTITY.md: %w", err)
+			}
+		}
+		if soul != "" {
+			if err := os.WriteFile(filepath.Join(agentDir, "SOUL.md"), []byte(strings.TrimSpace(soul)+"\n"), 0644); err != nil {
+				return fmt.Errorf("write SOUL.md: %w", err)
+			}
+		}
+	}
+
+	if agents != "" {
+		wrapped := wrapWithBuiltinMarkers([]byte(strings.TrimSpace(agents)))
+		if err := os.WriteFile(filepath.Join(agentDir, "AGENTS.md"), wrapped, 0644); err != nil {
+			return fmt.Errorf("write AGENTS.md: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // getMinIOETag returns the ETag (content MD5) of a MinIO object via mc stat.
 // Returns empty string if mc stat fails.
 func getMinIOETag(ctx context.Context, minioPath string) string {

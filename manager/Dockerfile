@@ -11,7 +11,7 @@
 # ============================================================
 
 ARG HIGRESS_REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com
-ARG OPENCLAW_BASE_IMAGE=hiclaw/openclaw-base:20260325-1b5a5d8
+ARG OPENCLAW_BASE_IMAGE=hiclaw/openclaw-base:20260327-74de2f2
 ARG HICLAW_CONTROLLER_IMAGE=hiclaw/hiclaw-controller:latest
 
 # ============ Stage 1: Tuwunel Matrix Server ============
