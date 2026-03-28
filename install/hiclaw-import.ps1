@@ -82,7 +82,8 @@ if ($File) {
     $hiclawArgs = @("apply", "-f", "/tmp/import/$FileName")
     if ($Prune) { $hiclawArgs += "--prune" }
     if ($DryRun) { $hiclawArgs += "--dry-run" }
-    if ($Yes) { $hiclawArgs += "--yes" }
+    # Accept -Yes for wrapper compatibility, but do not forward it because the
+    # container-internal hiclaw CLI does not support --yes.
 
     & $ContainerCmd exec hiclaw-manager hiclaw @hiclawArgs
     exit $LASTEXITCODE

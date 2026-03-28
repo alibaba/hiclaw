@@ -75,8 +75,10 @@ case "${RESOURCE_TYPE}" in
                     ZIP_FILE="$2"; shift 2 ;;
                 --name|--model|--package|--skills|--mcp-servers|--runtime)
                     HICLAW_ARGS+=("$1" "$2"); shift 2 ;;
-                --dry-run|--yes)
+                --dry-run)
                     HICLAW_ARGS+=("$1"); shift ;;
+                --yes)
+                    shift ;;
                 *) echo "Unknown option: $1"; exit 1 ;;
             esac
         done
@@ -97,6 +99,9 @@ case "${RESOURCE_TYPE}" in
             HICLAW_ARGS+=("--zip" "/tmp/import/${ZIP_BASENAME}")
         fi
 
+        # `hiclaw-import.sh` accepts `--yes` for backward compatibility, but the
+        # container-internal `hiclaw apply worker` CLI does not support it.
+        # Swallow the flag here instead of forwarding it and breaking imports.
         exec ${CONTAINER_CMD} exec hiclaw-manager hiclaw "${HICLAW_ARGS[@]}"
         ;;
 
