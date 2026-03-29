@@ -28,8 +28,8 @@
 
 Order matters — delete from inside out:
 
-1. Stop all team worker containers
-2. Stop Leader container
+1. Delete all team worker containers: `lifecycle-worker.sh --action delete --worker <name>` (per worker)
+2. Delete Leader container: `lifecycle-worker.sh --action delete --worker <leader>`
 3. Remove Team Room (or leave it as archive)
 4. Remove from `teams-registry.json`
 5. Remove `team_id` from workers in `workers-registry.json`

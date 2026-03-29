@@ -306,13 +306,13 @@ func (r *WorkerReconciler) handleDelete(ctx context.Context, w *v1beta1.Worker) 
 
 	r.deleteLastSpec(w.Name)
 
-	// Stop container via lifecycle script
+	// Delete container via lifecycle script
 	_, err := r.Executor.RunSimple(ctx,
 		"/opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh",
-		"--action", "stop", "--worker", w.Name,
+		"--action", "delete", "--worker", w.Name,
 	)
 	if err != nil {
-		logger.Error(err, "failed to stop worker container (may already be stopped)", "name", w.Name)
+		logger.Error(err, "failed to delete worker container (may already be removed)", "name", w.Name)
 	}
 
 	return nil

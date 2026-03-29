@@ -167,16 +167,16 @@ func (r *TeamReconciler) handleDelete(ctx context.Context, t *v1beta1.Team) erro
 	logger := log.FromContext(ctx)
 	logger.Info("deleting team", "name", t.Name)
 
-	// Stop all team workers first, then leader
+	// Delete all team workers first, then leader
 	for _, w := range t.Spec.Workers {
 		r.Executor.RunSimple(ctx,
 			"/opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh",
-			"--action", "stop", "--worker", w.Name,
+			"--action", "delete", "--worker", w.Name,
 		)
 	}
 	r.Executor.RunSimple(ctx,
 		"/opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh",
-		"--action", "stop", "--worker", t.Spec.Leader.Name,
+		"--action", "delete", "--worker", t.Spec.Leader.Name,
 	)
 
 	// Remove from teams-registry

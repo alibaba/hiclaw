@@ -45,3 +45,4 @@ Read the relevant doc **before** executing. Do not load all of them.
 | Enable direct @mentions between workers | `references/peer-mentions.md` | `scripts/enable-peer-mentions.sh` |
 | Get remote worker install command | `references/lifecycle.md` | `scripts/get-worker-install-cmd.sh` |
 | Reset a worker | `references/create-worker.md` | `rm -rf` config dir + re-run `create-worker.sh` |
+| Delete a worker (remove container) | `references/lifecycle.md` | `scripts/lifecycle-worker.sh` |
