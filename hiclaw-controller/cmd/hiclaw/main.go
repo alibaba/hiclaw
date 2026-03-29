@@ -181,7 +181,7 @@ func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime 
 	// Build YAML
 	var specLines []string
 	specLines = append(specLines, fmt.Sprintf("  model: %s", model))
-	if runtime != "" && runtime != "openclaw" {
+	if runtime != "" {
 		specLines = append(specLines, fmt.Sprintf("  runtime: %s", runtime))
 	}
 	if packageURI != "" {
