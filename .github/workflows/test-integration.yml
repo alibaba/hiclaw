@@ -49,7 +49,7 @@ env:
   COPAW_WORKER_IMAGE: hiclaw/copaw-worker:ci-test
   DOCKER_PROXY_IMAGE: hiclaw/docker-proxy:ci-test
   # Tests that do not require a GitHub token
-  NON_GITHUB_TESTS: "01 02 03 04 05 06 14 15 17 18 19 20 21"
+  NON_GITHUB_TESTS: "01 02 03 04 05 06 14 15 17 18 19 20 100"
 
 jobs:
   integration-tests:

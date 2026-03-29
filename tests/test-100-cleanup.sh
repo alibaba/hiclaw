@@ -1,5 +1,5 @@
 #!/bin/bash
-# test-21-cleanup.sh - Case 21: Clean up all test-created workers and teams
+# test-100-cleanup.sh - Case 100: Clean up all test-created workers and teams
 #
 # This test runs LAST and verifies that the delete flow properly cleans up
 # container resources (not just stops them). It:
@@ -12,7 +12,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/test-helpers.sh"
 
-test_setup "21-cleanup"
+test_setup "100-cleanup"
 
 STORAGE_PREFIX="hiclaw/hiclaw-storage"
 
@@ -34,7 +34,7 @@ log_info "Found ${WORKER_COUNT} test worker(s) and ${TEAM_COUNT} test team(s) to
 
 if [ "${WORKER_COUNT}" -eq 0 ] && [ "${TEAM_COUNT}" -eq 0 ]; then
     log_pass "No test resources to clean up"
-    test_teardown "21-cleanup"
+    test_teardown "100-cleanup"
     test_summary
     exit $?
 fi
@@ -236,5 +236,5 @@ done
 # ============================================================
 # Summary
 # ============================================================
-test_teardown "21-cleanup"
+test_teardown "100-cleanup"
 test_summary
