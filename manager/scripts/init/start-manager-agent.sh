@@ -355,6 +355,9 @@ else
     # Schedule welcome message in background (only on first boot)
     if [ -n "${DM_ROOM_ID}" ] && [ ! -f "/root/manager-workspace/soul-configured" ]; then
         log "Scheduling welcome message (background, waiting for OpenClaw to start)..."
+        # Double-fork so the welcome-message process is reparented to PID 1
+        # and does not become a zombie after `exec openclaw` replaces this shell.
+        (
         (
             _HICLAW_LANGUAGE="${HICLAW_LANGUAGE:-zh}"
             _HICLAW_TIMEZONE="${TZ:-Asia/Shanghai}"
@@ -424,8 +427,8 @@ The human admin will start chatting shortly."
             else
                 echo "[manager] WARNING: Failed to send welcome message (HTTP ${_http_code}): ${_send_resp}"
             fi
-        ) &
-        log "Welcome message background process started (PID: $!)"
+        ) & )
+        log "Welcome message background process started"
     fi
 fi
 
