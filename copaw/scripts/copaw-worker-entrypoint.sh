@@ -7,7 +7,7 @@
 #   - HICLAW_CONSOLE_PORT set   → standard mode (copaw-worker, PyPI CoPaw venv)
 #   - HICLAW_CONSOLE_PORT unset → lite mode (lite-copaw-worker, lite CoPaw venv)
 #
-# Environment variables (set by container_create_worker in container-api.sh):
+# Environment variables (set by orchestrator during worker creation):
 #   HICLAW_WORKER_NAME   - Worker name (required)
 #   HICLAW_FS_ENDPOINT   - MinIO endpoint (required in local mode)
 #   HICLAW_FS_ACCESS_KEY - MinIO access key (required in local mode)
@@ -72,6 +72,7 @@ _start_readiness_reporter() {
     [ -n "${HICLAW_WORKER_API_KEY:-}" ] && auth_header="Authorization: Bearer ${HICLAW_WORKER_API_KEY}"
 
     (
+        # Phase 1: Wait for initial readiness (with timeout)
         TIMEOUT=120; ELAPSED=0
         CONFIG_FILE="${INSTALL_DIR}/${WORKER_NAME}/.copaw/config.json"
         while [ "${ELAPSED}" -lt "${TIMEOUT}" ]; do
@@ -80,7 +81,7 @@ _start_readiness_reporter() {
                     if curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
                         ${auth_header:+-H "${auth_header}"} 2>/dev/null; then
                         log "Reported ready to orchestrator"
-                        exit 0
+                        break 2
                     fi
                     sleep 2
                 done
@@ -88,7 +89,20 @@ _start_readiness_reporter() {
             fi
             sleep 5; ELAPSED=$((ELAPSED + 5))
         done
-        log "WARNING: readiness reporter timed out after ${TIMEOUT}s"
+
+        if [ "${ELAPSED}" -ge "${TIMEOUT}" ]; then
+            log "WARNING: readiness reporter timed out after ${TIMEOUT}s"
+            exit 1
+        fi
+
+        # Phase 2: Periodic heartbeat (every 60s) — self-heals after orchestrator restart
+        while true; do
+            sleep 60
+            if [ -f "${CONFIG_FILE}" ] && grep -q '"channels"' "${CONFIG_FILE}" 2>/dev/null; then
+                curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
+                    ${auth_header:+-H "${auth_header}"} 2>/dev/null || true
+            fi
+        done
     ) &
     log "Background readiness reporter started (PID: $!)"
 }

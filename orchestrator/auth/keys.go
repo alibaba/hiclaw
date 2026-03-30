@@ -76,7 +76,11 @@ func (ks *KeyStore) GenerateWorkerKey(workerName string) string {
 	snapshot := ks.snapshotLocked()
 	ks.mu.Unlock()
 
+	// persist outside lock: avoids blocking ValidateKey() readers during network I/O.
+	// Trade-off: concurrent GenerateWorkerKey calls could persist stale snapshots,
+	// but key ops are rare and in-memory state is always correct.
 	ks.persist(snapshot)
+
 	return key
 }
 

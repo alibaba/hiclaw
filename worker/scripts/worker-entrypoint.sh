@@ -281,6 +281,7 @@ if [ -n "${HICLAW_ORCHESTRATOR_URL:-}" ]; then
         AUTH_HEADER=""
         [ -n "${HICLAW_WORKER_API_KEY:-}" ] && AUTH_HEADER="Authorization: Bearer ${HICLAW_WORKER_API_KEY}"
 
+        # Phase 1: Wait for initial readiness (with timeout)
         TIMEOUT=120; ELAPSED=0
         while [ "${ELAPSED}" -lt "${TIMEOUT}" ]; do
             if openclaw gateway health --json 2>/dev/null | grep -q '"ok"' 2>/dev/null; then
@@ -288,7 +289,7 @@ if [ -n "${HICLAW_ORCHESTRATOR_URL:-}" ]; then
                     if curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
                         ${AUTH_HEADER:+-H "${AUTH_HEADER}"} 2>/dev/null; then
                         log "Reported ready to orchestrator"
-                        exit 0
+                        break 2
                     fi
                     sleep 2
                 done
@@ -296,7 +297,20 @@ if [ -n "${HICLAW_ORCHESTRATOR_URL:-}" ]; then
             fi
             sleep 5; ELAPSED=$((ELAPSED + 5))
         done
-        log "WARNING: readiness reporter timed out after ${TIMEOUT}s"
+
+        if [ "${ELAPSED}" -ge "${TIMEOUT}" ]; then
+            log "WARNING: readiness reporter timed out after ${TIMEOUT}s"
+            exit 1
+        fi
+
+        # Phase 2: Periodic heartbeat (every 60s) — self-heals after orchestrator restart
+        while true; do
+            sleep 60
+            if openclaw gateway health --json 2>/dev/null | grep -q '"ok"' 2>/dev/null; then
+                curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
+                    ${AUTH_HEADER:+-H "${AUTH_HEADER}"} 2>/dev/null || true
+            fi
+        done
     ) &
     log "Background readiness reporter started (PID: $!)"
 fi

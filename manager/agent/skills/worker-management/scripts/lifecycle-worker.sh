@@ -329,19 +329,17 @@ action_delete() {
     _init_lifecycle_file
     _ensure_worker_entry "$worker"
 
-    local backend
-    backend=$(_detect_worker_backend)
-    if [ "$backend" = "none" ]; then
+    if ! container_api_available 2>/dev/null; then
         _log "ERROR: No worker backend available"
         return 1
     fi
 
     # Stop first (ignore errors — may already be stopped)
-    _log "Stopping worker $worker before delete (backend=$backend)"
+    _log "Stopping worker $worker before delete"
     worker_backend_stop "$worker" 2>/dev/null || true
 
     # Delete container
-    _log "Deleting worker $worker container (backend=$backend)"
+    _log "Deleting worker $worker container"
     if worker_backend_delete "$worker"; then
         _log "Worker $worker container deleted"
     else

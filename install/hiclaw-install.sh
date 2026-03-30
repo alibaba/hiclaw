@@ -837,6 +837,8 @@ detect_registry() {
 }
 
 HICLAW_REGISTRY="${HICLAW_REGISTRY:-$(detect_registry)}"
+# Backward compatibility: accept old env var names from previous versions
+HICLAW_INSTALL_ORCHESTRATOR_IMAGE="${HICLAW_INSTALL_ORCHESTRATOR_IMAGE:-${HICLAW_INSTALL_DOCKER_PROXY_IMAGE:-}}"
 # Image variables are resolved after version selection in step_version().
 # These placeholders allow early code paths to reference them without errors.
 MANAGER_IMAGE="${HICLAW_INSTALL_MANAGER_IMAGE:-}"
