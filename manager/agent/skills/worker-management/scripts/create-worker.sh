@@ -40,7 +40,6 @@ MCP_SERVERS=""
 WORKER_SKILLS=""
 REMOTE_MODE=false
 SKILLS_API_URL=""
-FIND_SKILL_BACKEND="${HICLAW_FIND_SKILL_BACKEND:-nacos}"
 WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"   # openclaw | copaw
 CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
 CUSTOM_IMAGE=""             # optional: custom Docker image for this worker
@@ -92,9 +91,16 @@ fi
 # copaw runtime supports both container and pip-installed modes
 # (previously forced REMOTE_MODE=true; now containers are supported)
 
-# Fallback: if HICLAW_SKILLS_API_URL env is set and no --skills-api-url was passed, use it
-if [ -z "${SKILLS_API_URL}" ] && [ -n "${HICLAW_SKILLS_API_URL}" ]; then
-    SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
+# Fallback: if HICLAW_SKILLS_API_URL env is set and no --skills-api-url was passed, use it.
+# Default to skills.sh when nothing is configured.
+if [ -z "${SKILLS_API_URL}" ]; then
+    if [ -n "${HICLAW_SKILLS_API_URL:-}" ]; then
+        SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
+    elif [ -n "${HICLAW_NACOS_HOST:-}" ]; then
+        SKILLS_API_URL="nacos://${HICLAW_NACOS_HOST}:${HICLAW_NACOS_PORT:-8848}"
+    else
+        SKILLS_API_URL="https://skills.sh"
+    fi
 fi
 
 MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN:-matrix-local.hiclaw.io:8080}"
@@ -754,26 +760,13 @@ _build_install_cmd() {
     if [ -n "${SKILLS_API_URL}" ]; then
         cmd="${cmd} --skills-api-url ${SKILLS_API_URL}"
     fi
-    if [ -n "${FIND_SKILL_BACKEND}" ]; then
-        cmd="${cmd} --find-skill-backend ${FIND_SKILL_BACKEND}"
-    fi
-
     echo "${cmd}"
 }
 
 # Build extra environment variables JSON for container creation
 _build_extra_env() {
     local items=()
-    if [ -n "${SKILLS_API_URL}" ]; then
-        items+=("SKILLS_API_URL=${SKILLS_API_URL}")
-    fi
-    items+=("HICLAW_FIND_SKILL_BACKEND=${FIND_SKILL_BACKEND}")
-    if [ -n "${HICLAW_NACOS_HOST:-}" ]; then
-        items+=("HICLAW_NACOS_HOST=${HICLAW_NACOS_HOST}")
-    fi
-    if [ -n "${HICLAW_NACOS_PORT:-}" ]; then
-        items+=("HICLAW_NACOS_PORT=${HICLAW_NACOS_PORT}")
-    fi
+    items+=("SKILLS_API_URL=${SKILLS_API_URL}")
     if [ -n "${HICLAW_NACOS_NAMESPACE:-}" ]; then
         items+=("HICLAW_NACOS_NAMESPACE=${HICLAW_NACOS_NAMESPACE}")
     fi

@@ -806,16 +806,13 @@ HICLAW_REGISTRATION_TOKEN=$($Config.REGISTRATION_TOKEN)
 HICLAW_GITHUB_TOKEN=$($Config.GITHUB_TOKEN)
 
 # Nacos defaults for Worker skill discovery / package import (optional)
-HICLAW_FIND_SKILL_BACKEND=$(if ($env:HICLAW_FIND_SKILL_BACKEND) { $env:HICLAW_FIND_SKILL_BACKEND } else { "nacos" })
-HICLAW_NACOS_HOST=$($env:HICLAW_NACOS_HOST)
-HICLAW_NACOS_PORT=$($env:HICLAW_NACOS_PORT)
 HICLAW_NACOS_NAMESPACE=$($env:HICLAW_NACOS_NAMESPACE)
 HICLAW_NACOS_USERNAME=$($env:HICLAW_NACOS_USERNAME)
 HICLAW_NACOS_PASSWORD=$($env:HICLAW_NACOS_PASSWORD)
 HICLAW_NACOS_TOKEN=$($env:HICLAW_NACOS_TOKEN)
 
 # Skills Registry (optional, default: https://skills.sh)
-HICLAW_SKILLS_API_URL=$($Config.SKILLS_API_URL)
+HICLAW_SKILLS_API_URL=$(if ($Config.SKILLS_API_URL) { $Config.SKILLS_API_URL } else { "https://skills.sh" })
 
 # Worker images (for direct container creation)
 HICLAW_WORKER_IMAGE=$($Config.WORKER_IMAGE)
@@ -2403,10 +2400,29 @@ function Install-Worker {
         "-e", "HICLAW_FS_SECRET_KEY=$FsSecret"
     )
 
-    # Add SKILLS_API_URL if find-skills is enabled and URL is specified
+    if (-not $SkillsApiUrl) {
+        if ($env:HICLAW_SKILLS_API_URL) {
+            $SkillsApiUrl = $env:HICLAW_SKILLS_API_URL
+        } else {
+            $SkillsApiUrl = "https://skills.sh"
+        }
+    }
+
     if ($FindSkills -and $SkillsApiUrl) {
         $dockerArgs += @("-e", "SKILLS_API_URL=$SkillsApiUrl")
         Write-Log (Get-Msg "worker.skills_url" -f $SkillsApiUrl)
+    }
+    if ($env:HICLAW_NACOS_NAMESPACE) {
+        $dockerArgs += @("-e", "HICLAW_NACOS_NAMESPACE=$($env:HICLAW_NACOS_NAMESPACE)")
+    }
+    if ($env:HICLAW_NACOS_USERNAME) {
+        $dockerArgs += @("-e", "HICLAW_NACOS_USERNAME=$($env:HICLAW_NACOS_USERNAME)")
+    }
+    if ($env:HICLAW_NACOS_PASSWORD) {
+        $dockerArgs += @("-e", "HICLAW_NACOS_PASSWORD=$($env:HICLAW_NACOS_PASSWORD)")
+    }
+    if ($env:HICLAW_NACOS_TOKEN) {
+        $dockerArgs += @("-e", "HICLAW_NACOS_TOKEN=$($env:HICLAW_NACOS_TOKEN)")
     }
 
     $dockerArgs += @("--restart", "unless-stopped", $workerImage)

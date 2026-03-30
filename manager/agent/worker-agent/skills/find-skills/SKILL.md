@@ -38,12 +38,16 @@ The Skills CLI (`skills`) is the package manager for the open agent skills ecosy
 ## Environment Variables
 
 ```bash
-HICLAW_FIND_SKILL_BACKEND  # Registry backend: nacos (default) or skills_sh
-SKILLS_API_URL             # Skills registry API endpoint for skills.sh backend
+SKILLS_API_URL         # https://... uses skills.sh, nacos://host[:port] uses Nacos
+HICLAW_NACOS_NAMESPACE # Optional Nacos namespace
+HICLAW_NACOS_USERNAME  # Optional Nacos username
+HICLAW_NACOS_PASSWORD  # Optional Nacos password
+HICLAW_NACOS_TOKEN     # Optional Nacos token
 ```
 
-The default backend is `nacos`, which uses your local/default `@nacos-group/cli` profile.
-Set `HICLAW_FIND_SKILL_BACKEND=skills_sh` to switch back to `skills find`.
+`SKILLS_API_URL` controls the backend:
+- `https://skills.sh` (or any `http://` / `https://` URL) uses `skills find`
+- `nacos://host` or `nacos://host:port` uses Nacos (`port` defaults to `8848`)
 
 ## How to Help Users Find Skills
 
@@ -152,10 +156,10 @@ skills init my-xyz-skill
 
 ## Enterprise Private Registry
 
-If your admin configured `HICLAW_FIND_SKILL_BACKEND=nacos`:
-- Searches use the local/default Nacos CLI profile
+If your admin configured `SKILLS_API_URL=nacos://...`:
+- Searches use Nacos directly
 - Public or internal skills published to Nacos will appear in results
 
-If your admin configured `HICLAW_FIND_SKILL_BACKEND=skills_sh`:
+If your admin configured `SKILLS_API_URL=https://...`:
 - Searches use `skills find` unchanged
 - `SKILLS_API_URL` can point to a private proxy registry

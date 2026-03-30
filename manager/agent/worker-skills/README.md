@@ -69,5 +69,4 @@ cat ~/workers-registry.json
 ### find-skills 配置
 
 环境变量：
-- `HICLAW_FIND_SKILL_BACKEND`：技能发现后端（可选，默认 `nacos`，可切换为 `skills_sh`）
-- `SKILLS_API_URL`：自定义技能库 API 端点（可选，默认 https://skills.sh）
+- `SKILLS_API_URL`：技能注册中心地址（可选，默认 `https://skills.sh`；使用 `nacos://host[:port]` 切换到 Nacos，端口默认 `8848`）

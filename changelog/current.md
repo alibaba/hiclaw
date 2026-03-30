@@ -76,6 +76,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 - Fix Worker Nacos skill discovery bootstrap — default Manager-created Workers to `HICLAW_FIND_SKILL_BACKEND=nacos`, propagate explicit Nacos connection envs during Worker creation/install, and let `hiclaw-find-skill` run `nacos-cli` non-interactively from `HICLAW_NACOS_HOST` / `HICLAW_NACOS_PORT` / `HICLAW_NACOS_NAMESPACE` / `HICLAW_NACOS_USERNAME` / `HICLAW_NACOS_PASSWORD` / `HICLAW_NACOS_TOKEN`.
 
+- Simplify skill registry configuration — infer `find-skills` backend from `HICLAW_SKILLS_API_URL` (`https://...` for skills.sh, `nacos://host:port` for Nacos), pass Workers a single registry URL plus Nacos credentials, and keep legacy backend/host envs only as compatibility fallback.
+
 ---
 
 **新增功能**
@@ -149,6 +151,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - 优化 Worker `find-skills` 在 Nacos 后端的相关性 —— 使用 `skill-list --name` 做过滤召回，本地精排改为基于 token 覆盖率和词边界感知打分，并补充 `react performance` / `pr review` 的回归测试。
 
 - 修复 Worker 的 Nacos 技能发现启动闭环 —— Manager 创建的 Worker 默认显式设置 `HICLAW_FIND_SKILL_BACKEND=nacos`，在创建/安装 Worker 时透传显式的 Nacos 连接环境变量，并让 `hiclaw-find-skill` 仅基于 `HICLAW_NACOS_HOST` / `HICLAW_NACOS_PORT` / `HICLAW_NACOS_NAMESPACE` / `HICLAW_NACOS_USERNAME` / `HICLAW_NACOS_PASSWORD` / `HICLAW_NACOS_TOKEN` 以非交互方式调用 `nacos-cli`。
+
+- 简化技能注册中心配置 —— 让 `find-skills` 直接根据 `HICLAW_SKILLS_API_URL` 推断后端（`https://...` 走 skills.sh，`nacos://host:port` 走 Nacos），向 Worker 透传统一的注册中心 URL 与 Nacos 凭证，并仅将旧的 backend/host 环境变量保留为兼容回退。
 
 ---
 

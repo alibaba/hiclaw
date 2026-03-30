@@ -77,8 +77,8 @@ bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
 
 The script handles everything: Matrix registration, room creation, Higress consumer, AI/MCP authorization, config generation, MinIO sync, skills push, and container startup.
 
-`find-skills` uses `HICLAW_FIND_SKILL_BACKEND` from the Manager environment when present.
-Default backend is `nacos`; set it to `skills_sh` to preserve the original `skills find` behavior.
+`find-skills` uses `HICLAW_SKILLS_API_URL` from the Manager environment when present.
+Use `https://...` to keep the original `skills find` behavior, or `nacos://host[:port]` to use the Nacos backend.
 
 ### MCP server short-circuit
 

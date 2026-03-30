@@ -2169,16 +2169,13 @@ HICLAW_REGISTRATION_TOKEN=${HICLAW_REGISTRATION_TOKEN}
 HICLAW_GITHUB_TOKEN=${HICLAW_GITHUB_TOKEN:-}
 
 # Nacos package import defaults (optional)
-HICLAW_FIND_SKILL_BACKEND=${HICLAW_FIND_SKILL_BACKEND:-nacos}
-HICLAW_NACOS_HOST=${HICLAW_NACOS_HOST:-}
-HICLAW_NACOS_PORT=${HICLAW_NACOS_PORT:-}
 HICLAW_NACOS_NAMESPACE=${HICLAW_NACOS_NAMESPACE:-}
 HICLAW_NACOS_USERNAME=${HICLAW_NACOS_USERNAME:-}
 HICLAW_NACOS_PASSWORD=${HICLAW_NACOS_PASSWORD:-}
 HICLAW_NACOS_TOKEN=${HICLAW_NACOS_TOKEN:-}
 
 # Skills Registry (optional, default: https://skills.sh)
-HICLAW_SKILLS_API_URL=${HICLAW_SKILLS_API_URL:-}
+HICLAW_SKILLS_API_URL=${HICLAW_SKILLS_API_URL:-https://skills.sh}
 
 # OpenClaw CMS plugin (optional)
 HICLAW_CMS_TRACES_ENABLED=${HICLAW_CMS_TRACES_ENABLED:-false}
@@ -2507,7 +2504,6 @@ install_worker() {
     local FS_SECRET=""
     local RESET=false
     local SKILLS_API_URL=""
-    local FIND_SKILL_BACKEND="${HICLAW_FIND_SKILL_BACKEND:-nacos}"
 
     # Parse arguments
     while [ $# -gt 0 ]; do
@@ -2517,7 +2513,6 @@ install_worker() {
             --fs-key)     FS_KEY="$2"; shift 2 ;;
             --fs-secret)  FS_SECRET="$2"; shift 2 ;;
             --skills-api-url) SKILLS_API_URL="$2"; shift 2 ;;
-            --find-skill-backend) FIND_SKILL_BACKEND="$2"; shift 2 ;;
             --reset)      RESET=true; shift ;;
             *)            error "$(msg error.unknown_option "$1")" ;;
         esac
@@ -2554,19 +2549,19 @@ install_worker() {
     DOCKER_ENV="${DOCKER_ENV} -e HICLAW_FS_ACCESS_KEY=${FS_KEY}"
     DOCKER_ENV="${DOCKER_ENV} -e HICLAW_FS_SECRET_KEY=${FS_SECRET}"
 
+    if [ -z "${SKILLS_API_URL}" ]; then
+        if [ -n "${HICLAW_SKILLS_API_URL:-}" ]; then
+            SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
+        elif [ -n "${HICLAW_NACOS_HOST:-}" ]; then
+            SKILLS_API_URL="nacos://${HICLAW_NACOS_HOST}:${HICLAW_NACOS_PORT:-8848}"
+        else
+            SKILLS_API_URL="https://skills.sh"
+        fi
+    fi
+
     # Add SKILLS_API_URL if specified
-    if [ -n "${SKILLS_API_URL}" ]; then
-        DOCKER_ENV="${DOCKER_ENV} -e SKILLS_API_URL=${SKILLS_API_URL}"
-        log "$(msg worker.skills_url "${SKILLS_API_URL}")"
-    fi
-    DOCKER_ENV="${DOCKER_ENV} -e HICLAW_FIND_SKILL_BACKEND=${FIND_SKILL_BACKEND}"
-    log "find-skills backend: ${FIND_SKILL_BACKEND}"
-    if [ -n "${HICLAW_NACOS_HOST:-}" ]; then
-        DOCKER_ENV="${DOCKER_ENV} -e HICLAW_NACOS_HOST=${HICLAW_NACOS_HOST}"
-    fi
-    if [ -n "${HICLAW_NACOS_PORT:-}" ]; then
-        DOCKER_ENV="${DOCKER_ENV} -e HICLAW_NACOS_PORT=${HICLAW_NACOS_PORT}"
-    fi
+    DOCKER_ENV="${DOCKER_ENV} -e SKILLS_API_URL=${SKILLS_API_URL}"
+    log "$(msg worker.skills_url "${SKILLS_API_URL}")"
     if [ -n "${HICLAW_NACOS_NAMESPACE:-}" ]; then
         DOCKER_ENV="${DOCKER_ENV} -e HICLAW_NACOS_NAMESPACE=${HICLAW_NACOS_NAMESPACE}"
     fi

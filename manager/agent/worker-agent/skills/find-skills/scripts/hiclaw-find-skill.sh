@@ -6,7 +6,6 @@
 
 set -eu
 
-BACKEND="${HICLAW_FIND_SKILL_BACKEND:-nacos}"
 MAX_RESULTS="${HICLAW_FIND_SKILL_MAX_RESULTS:-6}"
 PAGE_SIZE="${HICLAW_FIND_SKILL_NACOS_PAGE_SIZE:-100}"
 
@@ -38,9 +37,30 @@ Usage:
   hiclaw-find-skill install <skill>
 
 Environment:
-  HICLAW_FIND_SKILL_BACKEND=nacos|skills_sh   Default: nacos
-  SKILLS_API_URL                              Used by skills.sh backend when configured
+  SKILLS_API_URL=https://skills.sh            Use skills.sh backend (default)
+  SKILLS_API_URL=nacos://host:port            Use Nacos backend
 EOF
+}
+
+get_skills_api_url() {
+    if [ -n "${SKILLS_API_URL:-}" ]; then
+        printf '%s\n' "${SKILLS_API_URL}"
+        return
+    fi
+    if [ -n "${HICLAW_SKILLS_API_URL:-}" ]; then
+        printf '%s\n' "${HICLAW_SKILLS_API_URL}"
+        return
+    fi
+    printf '%s\n' "https://skills.sh"
+}
+
+detect_backend() {
+    api_url="$(get_skills_api_url)"
+    case "${api_url}" in
+        nacos://*) printf '%s\n' "nacos" ;;
+        http://*|https://*) printf '%s\n' "skills_sh" ;;
+        *) printf '%s\n' "skills_sh" ;;
+    esac
 }
 
 run_skills_find() {
@@ -64,12 +84,60 @@ run_nacos_install() {
 }
 
 derive_nacos_connection() {
+    api_url="$(get_skills_api_url)"
     host="${HICLAW_NACOS_HOST:-}"
     port="${HICLAW_NACOS_PORT:-}"
     namespace="${HICLAW_NACOS_NAMESPACE:-}"
     username="${HICLAW_NACOS_USERNAME:-}"
     password="${HICLAW_NACOS_PASSWORD:-}"
     token="${HICLAW_NACOS_TOKEN:-}"
+
+    if [ -n "${api_url}" ] && [ "${api_url#nacos://}" != "${api_url}" ]; then
+        api_url="${api_url#nacos://}"
+
+        auth_part="${api_url%%@*}"
+        if [ "${auth_part}" != "${api_url}" ]; then
+            if [ -z "${username}" ]; then
+                username="${auth_part%%:*}"
+            fi
+            if [ -z "${password}" ]; then
+                auth_rest="${auth_part#*:}"
+                if [ "${auth_rest}" != "${auth_part}" ]; then
+                    password="${auth_rest}"
+                fi
+            fi
+            api_url="${api_url#*@}"
+        fi
+
+        query_part=""
+        if [ "${api_url#*\?}" != "${api_url}" ]; then
+            query_part="${api_url#*\?}"
+            api_url="${api_url%%\?*}"
+        fi
+
+        if [ "${api_url#*/}" != "${api_url}" ]; then
+            path_part="${api_url#*/}"
+            api_url="${api_url%%/*}"
+            if [ -z "${namespace}" ] && [ -n "${path_part}" ]; then
+                namespace="${path_part%%/*}"
+            fi
+        fi
+
+        if [ -z "${host}" ]; then
+            host="${api_url%%:*}"
+        fi
+        if [ -z "${port}" ] && [ "${api_url#*:}" != "${api_url}" ]; then
+            port="${api_url##*:}"
+        fi
+        if [ -z "${port}" ]; then
+            port="8848"
+        fi
+
+        if [ -z "${namespace}" ] && [ -n "${query_part}" ]; then
+            namespace="$(printf '%s\n' "${query_part}" | sed -n 's/.*[?&]namespace=\([^&]*\).*/\1/p')"
+            [ -n "${namespace}" ] || namespace="$(printf '%s\n' "${query_part}" | sed -n 's/^namespace=\([^&]*\).*$/\1/p')"
+        fi
+    fi
 
     printf '%s\n%s\n%s\n%s\n%s\n%s\n' \
         "${host}" "${port}" "${namespace}" "${username}" "${password}" "${token}"
@@ -347,21 +415,23 @@ fi
 
 case "${command_name}" in
     find)
-        case "${BACKEND}" in
+        backend="$(detect_backend)"
+        case "${backend}" in
             skills_sh) run_skills_find "$@" ;;
             nacos) run_nacos_find "$@" ;;
             *)
-                echo "error: unsupported HICLAW_FIND_SKILL_BACKEND=${BACKEND}" >&2
+                echo "error: unsupported skill backend: ${backend}" >&2
                 exit 1
                 ;;
         esac
         ;;
     install|get)
-        case "${BACKEND}" in
+        backend="$(detect_backend)"
+        case "${backend}" in
             skills_sh) run_skills_install "$@" ;;
             nacos) run_nacos_install "$@" ;;
             *)
-                echo "error: unsupported HICLAW_FIND_SKILL_BACKEND=${BACKEND}" >&2
+                echo "error: unsupported skill backend: ${backend}" >&2
                 exit 1
                 ;;
         esac

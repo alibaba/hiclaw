@@ -153,27 +153,62 @@ EOF
     chmod +x "${mockbin}/npx"
 }
 
+create_mock_skills() {
+    local mockbin="$1"
+    cat > "${mockbin}/skills" <<'EOF'
+#!/bin/sh
+set -eu
+
+log_file="${TEST_SKILLS_LOG:?}"
+printf '%s\n' "$*" >> "${log_file}"
+
+command_name="${1:-}"
+shift || true
+
+case "${command_name}" in
+    find)
+        cat <<'OUT'
+skills.sh results
+skill: react-performance-toolkit
+OUT
+        ;;
+    add)
+        echo "installed"
+        ;;
+    *)
+        echo "unexpected skills command: ${command_name}" >&2
+        exit 1
+        ;;
+esac
+EOF
+    chmod +x "${mockbin}/skills"
+}
+
 run_case() {
     local script_path="$1" query="$2" log_file="$3"
     local mockbin="${TMPDIR_ROOT}/mockbin"
     create_mock_npx "${mockbin}"
+    create_mock_skills "${mockbin}"
 
     PATH="${mockbin}:${PATH}" \
     TEST_NPX_LOG="${log_file}" \
+    TEST_SKILLS_LOG="${TMPDIR_ROOT}/skills.log" \
+    SKILLS_API_URL="nacos://registry.local:8848" \
     HICLAW_FIND_SKILL_MAX_RESULTS=3 \
     HICLAW_FIND_SKILL_NACOS_PAGE_SIZE=50 \
     /bin/sh "${script_path}" find ${query}
 }
 
 run_case_with_env() {
-    local script_path="$1" query="$2" log_file="$3" nacos_host="$4" nacos_port="$5"
+    local script_path="$1" query="$2" log_file="$3" skills_api_url="$4" skills_log_file="$5"
     local mockbin="${TMPDIR_ROOT}/mockbin"
     create_mock_npx "${mockbin}"
+    create_mock_skills "${mockbin}"
 
     PATH="${mockbin}:${PATH}" \
     TEST_NPX_LOG="${log_file}" \
-    HICLAW_NACOS_HOST="${nacos_host}" \
-    HICLAW_NACOS_PORT="${nacos_port}" \
+    TEST_SKILLS_LOG="${skills_log_file}" \
+    SKILLS_API_URL="${skills_api_url}" \
     HICLAW_FIND_SKILL_MAX_RESULTS=3 \
     HICLAW_FIND_SKILL_NACOS_PAGE_SIZE=50 \
     /bin/sh "${script_path}" find ${query}
@@ -215,15 +250,30 @@ for script_path in "${WORKER_SCRIPT}" "${COPAW_SCRIPT}"; do
 done
 
 echo ""
-echo "=== TC3: nacos backend should use explicit HICLAW_NACOS host/port without interactive profile ==="
+echo "=== TC3: nacos backend should derive host/port from SKILLS_API_URL scheme ==="
 for script_path in "${WORKER_SCRIPT}" "${COPAW_SCRIPT}"; do
     {
         case_name="$(basename "$(dirname "$(dirname "${script_path}")")")"
         log_file="${TMPDIR_ROOT}/${case_name}-nacos-conn.log"
-        output="$(run_case_with_env "${script_path}" "review" "${log_file}" "host.containers.internal" "8848" | strip_ansi)"
-        assert_contains "${case_name}: should still return results with explicit nacos env" "requesting-code-review" "${output}"
-        assert_contains "${case_name}: should pass HICLAW_NACOS_HOST" "--host host.containers.internal" "$(cat "${log_file}")"
-        assert_contains "${case_name}: should pass HICLAW_NACOS_PORT" "--port 8848" "$(cat "${log_file}")"
+        skills_log="${TMPDIR_ROOT}/${case_name}-nacos-skills.log"
+        output="$(run_case_with_env "${script_path}" "review" "${log_file}" "nacos://host.containers.internal:8848" "${skills_log}" | strip_ansi)"
+        assert_contains "${case_name}: should still return results with nacos URL" "requesting-code-review" "${output}"
+        assert_contains "${case_name}: should derive host from SKILLS_API_URL" "--host host.containers.internal" "$(cat "${log_file}")"
+        assert_contains "${case_name}: should derive port from SKILLS_API_URL" "--port 8848" "$(cat "${log_file}")"
+    }
+done
+
+echo ""
+echo "=== TC4: https skills api should use skills CLI backend ==="
+for script_path in "${WORKER_SCRIPT}" "${COPAW_SCRIPT}"; do
+    {
+        case_name="$(basename "$(dirname "$(dirname "${script_path}")")")"
+        log_file="${TMPDIR_ROOT}/${case_name}-skills-sh.log"
+        skills_log="${TMPDIR_ROOT}/${case_name}-skills-cli.log"
+        output="$(run_case_with_env "${script_path}" "react performance" "${log_file}" "https://skills.sh" "${skills_log}" | strip_ansi)"
+        assert_contains "${case_name}: should use skills CLI output" "react-performance-toolkit" "${output}"
+        assert_contains "${case_name}: should call skills find" "find react performance" "$(cat "${skills_log}")"
+        assert_eq "${case_name}: nacos cli should not be used for https registry" "" "$(cat "${log_file}" 2>/dev/null || true)"
     }
 done
 
