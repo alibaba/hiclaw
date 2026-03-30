@@ -266,7 +266,20 @@ for script_path in "${WORKER_SCRIPT}" "${COPAW_SCRIPT}"; do
 done
 
 echo ""
-echo "=== TC4: https skills api should use skills CLI backend ==="
+echo "=== TC4: nacos backend should derive namespace from SKILLS_API_URL path ==="
+for script_path in "${WORKER_SCRIPT}" "${COPAW_SCRIPT}"; do
+    {
+        case_name="$(basename "$(dirname "$(dirname "${script_path}")")")"
+        log_file="${TMPDIR_ROOT}/${case_name}-nacos-namespace.log"
+        skills_log="${TMPDIR_ROOT}/${case_name}-nacos-namespace-skills.log"
+        output="$(run_case_with_env "${script_path}" "review" "${log_file}" "nacos://host.containers.internal:8848/team-a" "${skills_log}" | strip_ansi)"
+        assert_contains "${case_name}: should still return results with nacos namespace URL" "requesting-code-review" "${output}"
+        assert_contains "${case_name}: should pass derived namespace" "--namespace team-a" "$(cat "${log_file}")"
+    }
+done
+
+echo ""
+echo "=== TC5: https skills api should use skills CLI backend ==="
 for script_path in "${WORKER_SCRIPT}" "${COPAW_SCRIPT}"; do
     {
         case_name="$(basename "$(dirname "$(dirname "${script_path}")")")"

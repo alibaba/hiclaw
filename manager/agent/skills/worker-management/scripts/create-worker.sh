@@ -767,9 +767,6 @@ _build_install_cmd() {
 _build_extra_env() {
     local items=()
     items+=("SKILLS_API_URL=${SKILLS_API_URL}")
-    if [ -n "${HICLAW_NACOS_NAMESPACE:-}" ]; then
-        items+=("HICLAW_NACOS_NAMESPACE=${HICLAW_NACOS_NAMESPACE}")
-    fi
     if [ -n "${HICLAW_NACOS_USERNAME:-}" ]; then
         items+=("HICLAW_NACOS_USERNAME=${HICLAW_NACOS_USERNAME}")
     fi

@@ -806,7 +806,6 @@ HICLAW_REGISTRATION_TOKEN=$($Config.REGISTRATION_TOKEN)
 HICLAW_GITHUB_TOKEN=$($Config.GITHUB_TOKEN)
 
 # Nacos defaults for Worker skill discovery / package import (optional)
-HICLAW_NACOS_NAMESPACE=$($env:HICLAW_NACOS_NAMESPACE)
 HICLAW_NACOS_USERNAME=$($env:HICLAW_NACOS_USERNAME)
 HICLAW_NACOS_PASSWORD=$($env:HICLAW_NACOS_PASSWORD)
 HICLAW_NACOS_TOKEN=$($env:HICLAW_NACOS_TOKEN)
@@ -2411,9 +2410,6 @@ function Install-Worker {
     if ($FindSkills -and $SkillsApiUrl) {
         $dockerArgs += @("-e", "SKILLS_API_URL=$SkillsApiUrl")
         Write-Log (Get-Msg "worker.skills_url" -f $SkillsApiUrl)
-    }
-    if ($env:HICLAW_NACOS_NAMESPACE) {
-        $dockerArgs += @("-e", "HICLAW_NACOS_NAMESPACE=$($env:HICLAW_NACOS_NAMESPACE)")
     }
     if ($env:HICLAW_NACOS_USERNAME) {
         $dockerArgs += @("-e", "HICLAW_NACOS_USERNAME=$($env:HICLAW_NACOS_USERNAME)")

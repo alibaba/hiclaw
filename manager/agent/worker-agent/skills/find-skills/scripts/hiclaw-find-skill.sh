@@ -12,23 +12,6 @@ PAGE_SIZE="${HICLAW_FIND_SKILL_NACOS_PAGE_SIZE:-100}"
 RESET='[0m'
 DIM='[38;5;102m'
 TEXT='[38;5;145m'
-GRAY_0='[38;5;250m'
-GRAY_1='[38;5;248m'
-GRAY_2='[38;5;245m'
-GRAY_3='[38;5;243m'
-GRAY_4='[38;5;240m'
-GRAY_5='[38;5;238m'
-
-show_logo() {
-    printf '\n'
-    printf '%s%s%s\n' "${GRAY_0}" '███████╗██╗  ██╗██╗██╗     ██╗     ███████╗' "${RESET}"
-    printf '%s%s%s\n' "${GRAY_1}" '██╔════╝██║ ██╔╝██║██║     ██║     ██╔════╝' "${RESET}"
-    printf '%s%s%s\n' "${GRAY_2}" '███████╗█████╔╝ ██║██║     ██║     ███████╗' "${RESET}"
-    printf '%s%s%s\n' "${GRAY_3}" '╚════██║██╔═██╗ ██║██║     ██║     ╚════██║' "${RESET}"
-    printf '%s%s%s\n' "${GRAY_4}" '███████║██║  ██╗██║███████╗███████╗███████║' "${RESET}"
-    printf '%s%s%s\n' "${GRAY_5}" '╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚══════╝' "${RESET}"
-    printf '\n'
-}
 
 usage() {
     cat <<'EOF'
@@ -114,7 +97,7 @@ derive_nacos_connection() {
     api_url="$(get_skills_api_url)"
     host="${HICLAW_NACOS_HOST:-}"
     port="${HICLAW_NACOS_PORT:-}"
-    namespace="${HICLAW_NACOS_NAMESPACE:-}"
+    namespace=""
     username="${HICLAW_NACOS_USERNAME:-}"
     password="${HICLAW_NACOS_PASSWORD:-}"
     token="${HICLAW_NACOS_TOKEN:-}"
@@ -387,7 +370,6 @@ score_nacos_candidates() {
 
 run_nacos_find() {
     if [ $# -lt 1 ]; then
-        show_logo
         printf '%sTip:%s search with %shiclaw-find-skill find <query>%s\n' "${DIM}" "${RESET}" "${TEXT}" "${RESET}"
         exit 0
     fi
@@ -412,8 +394,6 @@ run_nacos_find() {
 
     score_nacos_candidates "${query}" "${candidates}" "${scored}"
     sort -r "${scored}" > "${sorted}"
-
-    show_logo
 
     if [ ! -s "${sorted}" ]; then
         printf '%sNo skills found for "%s"%s\n' "${DIM}" "${query}" "${RESET}"

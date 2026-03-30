@@ -39,7 +39,6 @@ The Skills CLI (`skills`) is the package manager for the open agent skills ecosy
 
 ```bash
 SKILLS_API_URL         # https://... uses skills.sh, nacos://host[:port] uses Nacos
-HICLAW_NACOS_NAMESPACE # Optional Nacos namespace
 HICLAW_NACOS_USERNAME  # Optional Nacos username
 HICLAW_NACOS_PASSWORD  # Optional Nacos password
 HICLAW_NACOS_TOKEN     # Optional Nacos token
@@ -47,7 +46,7 @@ HICLAW_NACOS_TOKEN     # Optional Nacos token
 
 `SKILLS_API_URL` controls the backend:
 - `https://skills.sh` (or any `http://` / `https://` URL) uses `skills find`
-- `nacos://host` or `nacos://host:port` uses Nacos (`port` defaults to `8848`)
+- `nacos://host`, `nacos://host:port`, or `nacos://host:port/namespace` uses Nacos (`port` defaults to `8848`; namespace comes from the URL path)
 
 ## How to Help Users Find Skills
 
