@@ -35,6 +35,14 @@ The Skills CLI (`skills`) is the package manager for the open agent skills ecosy
 
 **Browse skills at:** https://skills.sh/
 
+## Environment Variables
+
+```bash
+SKILLS_API_URL  # Skills registry API endpoint (default: https://skills.sh)
+```
+
+Can be configured by admin to point to an enterprise-private registry.
+
 ## How to Help Users Find Skills
 
 ### Step 1: Understand What They Need
@@ -68,12 +76,16 @@ vercel-react-best-practices
 └ React and Next.js performance guidance
 ```
 
+> **Critical**: Always use the exact install command shown in search results.
+> Never guess or shorten the package name or command, because that may fail.
+
 ### Step 3: Present Options to the User
 
 When you find relevant skills, present them to the user with:
 
 1. The skill name and what it does
-2. The install command they can run
+2. The install command they can run (copy exactly from search results)
+3. A link to learn more at skills.sh
 
 Example response:
 
