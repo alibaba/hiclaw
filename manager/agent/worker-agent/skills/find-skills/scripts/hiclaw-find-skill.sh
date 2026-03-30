@@ -154,19 +154,11 @@ build_nacos_patterns() {
             gsub(/[[:space:]]+/, " ", q)
 
             token_count = split(q, tokens, /[[:space:]]+/)
-            wildcard = ""
-            for (i = 1; i <= token_count; i++) {
-                token = tokens[i]
-                if (token == "") continue
-                if (wildcard == "") wildcard = token
-                else wildcard = wildcard "*" token
-            }
-
-            if (wildcard != "") add("*" wildcard "*")
+            add(q)
             for (i = 1; i <= token_count; i++) {
                 token = tokens[i]
                 if (length(token) < 2) continue
-                add("*" token "*")
+                add(token)
             }
         }
     ' > "${out_file}"

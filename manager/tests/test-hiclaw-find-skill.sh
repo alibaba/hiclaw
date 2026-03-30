@@ -105,27 +105,27 @@ if [ "${page}" != "1" ]; then
 fi
 
 case "${name}" in
-    "*react*performance*")
+    "react performance")
         cat <<'OUT'
 Search Results
 1. react-render-performance - Diagnose React rendering bottlenecks
 OUT
         ;;
-    "*react*")
+    "react")
         cat <<'OUT'
 Search Results
 1. react-best-practices - Improve React app architecture and performance
 2. react-render-performance - Diagnose React rendering bottlenecks
 OUT
         ;;
-    "*performance*")
+    "performance")
         cat <<'OUT'
 Search Results
 1. web-performance-debugging - Investigate runtime performance issues
 2. react-render-performance - Diagnose React rendering bottlenecks
 OUT
         ;;
-    "*pr*review*")
+    "pr review")
         cat <<'OUT'
 Search Results
 1. requesting-code-review - Ask for an effective code review
@@ -133,14 +133,14 @@ Search Results
 3. supabase-postgres-best-practices - Improve Postgres schema and query performance
 OUT
         ;;
-    "*pr*")
+    "pr")
         cat <<'OUT'
 Search Results
 1. supabase-postgres-best-practices - Improve Postgres schema and query performance
 2. pr-automation - Automate pull request metadata
 OUT
         ;;
-    "*review*")
+    "review")
         cat <<'OUT'
 Search Results
 1. supabase-postgres-best-practices - Improve Postgres schema and query performance
@@ -188,12 +188,13 @@ for script_path in "${WORKER_SCRIPT}" "${COPAW_SCRIPT}"; do
         output="$(run_case "${script_path}" "react performance" "${log_file}" | strip_ansi)"
         assert_not_contains "${case_name}: query should not be empty result" 'No skills found for "react performance"' "${output}"
         assert_contains "${case_name}: output should include a React skill" "react-render-performance" "${output}"
-        assert_contains "${case_name}: backend call should use --name filter" "--name *react*" "$(cat "${log_file}")"
+        assert_contains "${case_name}: backend call should use plain token filter" "--name react" "$(cat "${log_file}")"
         if grep -Eq 'skill-list( |$)' "${log_file}" && ! grep -q -- '--name' "${log_file}"; then
             fail "${case_name}: should not call unfiltered skill-list" "all skill-list calls include --name" "$(cat "${log_file}")"
         else
             pass "${case_name}: all skill-list calls include --name"
         fi
+        assert_not_contains "${case_name}: should not use wildcard filters" "--name *react*" "$(cat "${log_file}")"
     }
 done
 
