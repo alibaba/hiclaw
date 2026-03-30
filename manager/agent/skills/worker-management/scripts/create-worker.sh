@@ -96,8 +96,6 @@ fi
 if [ -z "${SKILLS_API_URL}" ]; then
     if [ -n "${HICLAW_SKILLS_API_URL:-}" ]; then
         SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
-    elif [ -n "${HICLAW_NACOS_HOST:-}" ]; then
-        SKILLS_API_URL="nacos://${HICLAW_NACOS_HOST}:${HICLAW_NACOS_PORT:-8848}"
     else
         SKILLS_API_URL="https://skills.sh"
     fi

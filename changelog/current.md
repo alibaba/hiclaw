@@ -74,6 +74,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 - Simplify Worker-facing `find-skills` guidance so registry/backend details stay internal to the runtime and are not exposed in Worker skill docs.
 
+- Restore `skills.sh` as the only implicit default for Worker skill discovery; Nacos is now used only when `HICLAW_SKILLS_API_URL` is explicitly set to a `nacos://...` registry URL.
+
 ---
 
 **新增功能**
@@ -147,6 +149,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - 重构 Worker `find-skills` 发现链路 —— 为 OpenClaw 和 CoPaw Worker 引入统一的 `hiclaw-find-skill` wrapper，按 `HICLAW_SKILLS_API_URL` 推断后端（`https://...` 走 skills.sh，`nacos://host[:port][/namespace]` 走 Nacos，默认端口 `8848`），在命令输出中明确展示实际 registry 来源，在安装与创建 Worker 时透传 registry / Nacos 鉴权配置，并优化 Nacos 检索召回与排序，补充 `react performance` / `pr review` 回归测试。
 
 - 简化 Worker 侧 `find-skills` 使用说明 —— 将 registry / backend 细节保留在运行时内部，不再在 Worker 技能文档中暴露这些实现信息。
+
+- 恢复 `skills.sh` 作为 Worker skill 发现的唯一隐式默认值；只有在显式将 `HICLAW_SKILLS_API_URL` 设为 `nacos://...` 时才会走 Nacos。
 
 ---
 
