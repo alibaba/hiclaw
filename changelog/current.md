@@ -68,6 +68,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 - Support `HICLAW_NACOS_USERNAME` and `HICLAW_NACOS_PASSWORD` as default Nacos credentials when `nacos://` URIs omit `user:pass@`; extract Nacos address from URI and add preflight validation.
 
+- Add dual-backend `find-skills` support for Workers — introduce `hiclaw-find-skill` wrapper with default Nacos-backed discovery, optional `skills_sh` fallback via `HICLAW_FIND_SKILL_BACKEND`, and runtime wrapper installation for both OpenClaw and CoPaw workers.
+
 ---
 
 **新增功能**
@@ -117,6 +119,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - 修复云端运行时检测 — 在 Dockerfile.aliyun 中显式设置 `HICLAW_RUNTIME=aliyun`；hiclaw-env.sh 中尊重预设的 `HICLAW_RUNTIME` 而非始终自动检测。
 
 - 修复云端部署中欢迎消息的可靠投递和运行时检测。
+
+- 为 Worker 新增双后端 `find-skills` 支持 —— 引入 `hiclaw-find-skill` 统一封装，默认使用 Nacos 发现技能，并可通过 `HICLAW_FIND_SKILL_BACKEND` 切回 `skills_sh`；同时为 OpenClaw 和 CoPaw Worker 安装运行时 wrapper。
 
 - 修复 Worker 导入：从 zip 部署 cron job 到 Worker；未安装 HiClaw 时添加安装命令提示；更新 migrate skill 导入命令的 CLI 用法。
 

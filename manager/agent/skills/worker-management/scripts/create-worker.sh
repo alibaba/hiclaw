@@ -40,6 +40,7 @@ MCP_SERVERS=""
 WORKER_SKILLS=""
 REMOTE_MODE=false
 SKILLS_API_URL=""
+FIND_SKILL_BACKEND="${HICLAW_FIND_SKILL_BACKEND:-}"
 WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"   # openclaw | copaw
 CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
 CUSTOM_IMAGE=""             # optional: custom Docker image for this worker
@@ -753,6 +754,9 @@ _build_install_cmd() {
     if [ -n "${SKILLS_API_URL}" ]; then
         cmd="${cmd} --skills-api-url ${SKILLS_API_URL}"
     fi
+    if [ -n "${FIND_SKILL_BACKEND}" ]; then
+        cmd="${cmd} --find-skill-backend ${FIND_SKILL_BACKEND}"
+    fi
 
     echo "${cmd}"
 }
@@ -762,6 +766,9 @@ _build_extra_env() {
     local items=()
     if [ -n "${SKILLS_API_URL}" ]; then
         items+=("SKILLS_API_URL=${SKILLS_API_URL}")
+    fi
+    if [ -n "${FIND_SKILL_BACKEND}" ]; then
+        items+=("HICLAW_FIND_SKILL_BACKEND=${FIND_SKILL_BACKEND}")
     fi
     if [ -n "${CONSOLE_PORT}" ]; then
         items+=("HICLAW_CONSOLE_PORT=${CONSOLE_PORT}")

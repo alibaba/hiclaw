@@ -2502,6 +2502,7 @@ install_worker() {
     local FS_SECRET=""
     local RESET=false
     local SKILLS_API_URL=""
+    local FIND_SKILL_BACKEND="${HICLAW_FIND_SKILL_BACKEND:-}"
 
     # Parse arguments
     while [ $# -gt 0 ]; do
@@ -2511,6 +2512,7 @@ install_worker() {
             --fs-key)     FS_KEY="$2"; shift 2 ;;
             --fs-secret)  FS_SECRET="$2"; shift 2 ;;
             --skills-api-url) SKILLS_API_URL="$2"; shift 2 ;;
+            --find-skill-backend) FIND_SKILL_BACKEND="$2"; shift 2 ;;
             --reset)      RESET=true; shift ;;
             *)            error "$(msg error.unknown_option "$1")" ;;
         esac
@@ -2551,6 +2553,10 @@ install_worker() {
     if [ -n "${SKILLS_API_URL}" ]; then
         DOCKER_ENV="${DOCKER_ENV} -e SKILLS_API_URL=${SKILLS_API_URL}"
         log "$(msg worker.skills_url "${SKILLS_API_URL}")"
+    fi
+    if [ -n "${FIND_SKILL_BACKEND}" ]; then
+        DOCKER_ENV="${DOCKER_ENV} -e HICLAW_FIND_SKILL_BACKEND=${FIND_SKILL_BACKEND}"
+        log "find-skills backend: ${FIND_SKILL_BACKEND}"
     fi
 
     # shellcheck disable=SC2086

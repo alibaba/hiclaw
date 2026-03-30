@@ -77,6 +77,9 @@ bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
 
 The script handles everything: Matrix registration, room creation, Higress consumer, AI/MCP authorization, config generation, MinIO sync, skills push, and container startup.
 
+`find-skills` uses `HICLAW_FIND_SKILL_BACKEND` from the Manager environment when present.
+Default backend is `nacos`; set it to `skills_sh` to preserve the original `skills find` behavior.
+
 ### MCP server short-circuit
 
 `create-worker.sh` authorizes the Worker on **existing** MCP servers only. If the admin requested MCP access (e.g. "GitHub MCP") but the server doesn't exist yet, **do NOT attempt to create it during worker creation**. Just note in your reply that the MCP server needs to be set up separately (via `mcp-server-management` skill) and proceed to Post-creation. This avoids wasting LLM rounds discovering there is no PAT/token configured.

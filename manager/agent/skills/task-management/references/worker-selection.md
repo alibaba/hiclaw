@@ -52,8 +52,9 @@ The `find-worker.sh` output already includes `container_status` and `availabilit
 
 If you already ran `find-worker.sh`, do NOT run a separate container check. Only run standalone check when assigning to an explicitly named Worker (Step 0 was skipped).
 
-## Skills API URL (only when creating a new Worker)
+## Skills Registry (only when creating a new Worker)
 
 Check default: `echo "${HICLAW_SKILLS_API_URL}"`
+Check backend: `echo "${HICLAW_FIND_SKILL_BACKEND:-nacos}"`
 
-`find-skills` is a builtin skill (always available). Optionally ask admin for a custom registry URL and pass to `create-worker.sh` via `--skills-api-url`.
+`find-skills` is a builtin skill (always available). By default it uses the Nacos backend. Set `HICLAW_FIND_SKILL_BACKEND=skills_sh` to switch back to `skills find`. If using `skills_sh`, you can optionally ask admin for a custom registry URL and pass to `create-worker.sh` via `--skills-api-url`.
