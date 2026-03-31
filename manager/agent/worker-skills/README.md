@@ -69,4 +69,4 @@ cat ~/workers-registry.json
 ### find-skills 配置
 
 环境变量：
-- `SKILLS_API_URL`：技能注册中心地址（可选，默认 `https://skills.sh`；使用 `nacos://host[:port][/namespace]` 切换到 Nacos，端口默认 `8848`，namespace 从 URL path 解析）
+- `SKILLS_API_URL`：技能注册中心地址（可选，默认 `nacos://nacos.market.hiclaw.io/public`；使用 `nacos://host[:port][/namespace]` 切换到其他 Nacos，端口默认 `8848`，namespace 从 URL path 解析）

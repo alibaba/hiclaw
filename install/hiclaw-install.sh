@@ -479,10 +479,10 @@ msg() {
         "github.token_prompt.zh") text="GitHub 个人访问令牌（可选）" ;;
         "github.token_prompt.en") text="GitHub Personal Access Token (optional)" ;;
         # --- Skills Registry ---
-        "skills.title.zh") text="--- Skills 注册中心（可选，按回车使用默认 https://skills.sh）---" ;;
-        "skills.title.en") text="--- Skills Registry (optional, press Enter for default https://skills.sh) ---" ;;
-        "skills.url_prompt.zh") text="Skills 注册中心 URL（留空使用默认 https://skills.sh）" ;;
-        "skills.url_prompt.en") text="Skills Registry URL (leave empty for default https://skills.sh)" ;;
+        "skills.title.zh") text="--- Skills 注册中心（可选，按回车使用默认 nacos://nacos.market.hiclaw.io/public）---" ;;
+        "skills.title.en") text="--- Skills Registry (optional, press Enter for default nacos://nacos.market.hiclaw.io/public) ---" ;;
+        "skills.url_prompt.zh") text="Skills 注册中心 URL（留空使用默认 nacos://nacos.market.hiclaw.io/public）" ;;
+        "skills.url_prompt.en") text="Skills Registry URL (leave empty for default nacos://nacos.market.hiclaw.io/public)" ;;
         # --- Data Persistence ---
         "data.title.zh") text="--- 数据持久化 ---" ;;
         "data.title.en") text="--- Data Persistence ---" ;;
@@ -2173,8 +2173,8 @@ HICLAW_NACOS_USERNAME=${HICLAW_NACOS_USERNAME:-}
 HICLAW_NACOS_PASSWORD=${HICLAW_NACOS_PASSWORD:-}
 HICLAW_NACOS_TOKEN=${HICLAW_NACOS_TOKEN:-}
 
-# Skills Registry (optional, default: https://skills.sh)
-HICLAW_SKILLS_API_URL=${HICLAW_SKILLS_API_URL:-https://skills.sh}
+# Skills Registry (optional, default: nacos://nacos.market.hiclaw.io/public)
+HICLAW_SKILLS_API_URL=${HICLAW_SKILLS_API_URL:-nacos://nacos.market.hiclaw.io/public}
 
 # OpenClaw CMS plugin (optional)
 HICLAW_CMS_TRACES_ENABLED=${HICLAW_CMS_TRACES_ENABLED:-false}
@@ -2552,7 +2552,7 @@ install_worker() {
         if [ -n "${HICLAW_SKILLS_API_URL:-}" ]; then
             SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
         else
-            SKILLS_API_URL="https://skills.sh"
+            SKILLS_API_URL="nacos://nacos.market.hiclaw.io/public"
         fi
     fi
 

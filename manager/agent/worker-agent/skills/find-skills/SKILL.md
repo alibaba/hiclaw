@@ -38,7 +38,7 @@ The Skills CLI (`skills`) is the package manager for the open agent skills ecosy
 ## Environment Variables
 
 ```bash
-SKILLS_API_URL  # Skills registry API endpoint (default: https://skills.sh)
+SKILLS_API_URL  # Skills registry API endpoint (default: nacos://nacos.market.hiclaw.io/public)
 ```
 
 Can be configured by admin to point to an enterprise-private registry.
