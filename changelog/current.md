@@ -26,6 +26,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 **Bug Fixes**
 
+- Fixed stale local declarative config after delete in embedded mode — `start-mc-mirror.sh` now mirrors `hiclaw-config/` with `--remove`, so deleting a resource removes the corresponding local watched YAML instead of leaving stale files under `/root/hiclaw-fs/hiclaw-config/`.
+
 - Fixed `hiclaw apply` silently ignoring all resources — `loadResources()` called `strings.TrimSpace(line)` first then checked `strings.HasPrefix(line, "  name:")` which could never match after trimming. Fixed by checking `strings.HasPrefix(line, "name:")` on the already-trimmed line.
 
 - Fixed stuck `Phase="Pending"` resources after failed package resolution — `r.Status().Update()` could silently fail due to resource version conflict, leaving workers permanently stuck. Fixed by refreshing the object via `r.Get()` before error-path status updates and treating `Phase="Pending"` with non-empty error `Message` as retriable.
@@ -91,6 +93,8 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - **多阶段协作协议** — 在 task-lifecycle 中新增多阶段协作协议，改进 Manager 与 Worker 在复杂任务上的协调。
 
 **Bug 修复**
+
+- 修复 embedded 模式删除后本地声明式配置残留问题 — `start-mc-mirror.sh` 现在对 `hiclaw-config/` 使用 `--remove`，删除资源时会同步移除本地被监听的 YAML，避免 `/root/hiclaw-fs/hiclaw-config/` 下残留 stale 文件。
 
 - 修复 `hiclaw apply` 静默忽略所有资源 — `loadResources()` 先调用 `strings.TrimSpace(line)` 再检查 `strings.HasPrefix(line, "  name:")`，去除空格后永远无法匹配。修复为对已 trim 的行检查 `strings.HasPrefix(line, "name:")`。
 
