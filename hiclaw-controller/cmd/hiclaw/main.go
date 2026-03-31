@@ -126,6 +126,7 @@ func applyWorkerCmd() *cobra.Command {
 	var skills string
 	var mcpServers string
 	var runtime string
+	var expose string
 	var dryRun bool
 
 	cmd := &cobra.Command{
@@ -136,7 +137,8 @@ func applyWorkerCmd() *cobra.Command {
   hiclaw apply worker --name alice --zip worker.zip
   hiclaw apply worker --name alice --model claude-sonnet-4-6 --package nacos://inst/ns/spec/v1
   hiclaw apply worker --name bob --model qwen3.5-plus
-  hiclaw apply worker --name charlie --model gpt-5-mini --skills github-operations --mcp-servers github`,
+  hiclaw apply worker --name charlie --model gpt-5-mini --skills github-operations --mcp-servers github
+  hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if name == "" {
 				return fmt.Errorf("--name is required")
@@ -152,7 +154,7 @@ func applyWorkerCmd() *cobra.Command {
 				model = "qwen3.5-plus"
 			}
 
-			return applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime, dryRun)
+			return applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime, expose, dryRun)
 		},
 	}
 
@@ -163,13 +165,14 @@ func applyWorkerCmd() *cobra.Command {
 	cmd.Flags().StringVar(&skills, "skills", "", "Comma-separated built-in skills")
 	cmd.Flags().StringVar(&mcpServers, "mcp-servers", "", "Comma-separated MCP servers")
 	cmd.Flags().StringVar(&runtime, "runtime", "openclaw", "Agent runtime (openclaw|copaw)")
+	cmd.Flags().StringVar(&expose, "expose", "", "Comma-separated ports to expose via Higress (e.g. 8080,3000)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show changes without applying")
 
 	return cmd
 }
 
 // applyWorkerFromParams generates a Worker YAML from CLI params and writes to MinIO
-func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime string, dryRun bool) error {
+func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime, expose string, dryRun bool) error {
 	// Preflight: validate nacos:// URI before persisting
 	if strings.HasPrefix(packageURI, "nacos://") {
 		fmt.Printf("  Validating nacos URI: %s\n", packageURI)
@@ -202,6 +205,15 @@ func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime 
 			m = strings.TrimSpace(m)
 			if m != "" {
 				specLines = append(specLines, fmt.Sprintf("    - %s", m))
+			}
+		}
+	}
+	if expose != "" {
+		specLines = append(specLines, "  expose:")
+		for _, p := range strings.Split(expose, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				specLines = append(specLines, fmt.Sprintf("    - port: %s", p))
 			}
 		}
 	}

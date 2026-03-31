@@ -85,6 +85,7 @@ spec:
 | `spec.skills` | []string | 否 | — | 内置 skills 列表，由 Manager 统一分发 |
 | `spec.mcpServers` | []string | 否 | — | 内置 MCP Servers 列表，通过 Higress 网关授权 |
 | `spec.package` | string | 否 | — | 自定义包 URI，支持 `file://`、`http(s)://`、`nacos://` |
+| `spec.expose` | []object | 否 | — | 通过 Higress 网关暴露的端口列表（见 [服务发布](#服务发布)） |
 
 ### identity / soul / agents 与 package 的关系
 
@@ -222,6 +223,7 @@ spec:
 | `workers[].skills` | []string | 否 | 内置 skills |
 | `workers[].mcpServers` | []string | 否 | 内置 MCP Servers |
 | `workers[].package` | string | 否 | 自定义包 URI |
+| `workers[].expose` | []object | 否 | 通过 Higress 网关暴露的端口列表（见 [服务发布](#服务发布)） |
 
 ### Team Leader 的特殊性
 
@@ -701,6 +703,95 @@ Reconciler 执行对应脚本（create-worker.sh / create-team.sh / create-human
 | Human | 注册 Matrix 账号 + 配置权限 + 发邮件 | permissionLevel 变化→重算 groupAllowFrom | 从所有 groupAllowFrom 移除→踢出 Room |
 
 所有资源使用 Kubernetes finalizer 模式，确保删除前完成清理。
+
+## 服务发布
+
+Worker 可以将容器内运行的 HTTP 服务通过 Higress 网关暴露到外部。在 Worker 配置中添加 `spec.expose` 即可发布容器端口——Controller 会自动创建所需的 Higress 域名、DNS 服务来源和路由。
+
+### 工作原理
+
+每个暴露的端口会自动生成一个域名：
+
+```
+worker-{name}-{port}-local.hiclaw.io
+```
+
+例如，worker `alice` 暴露 8080 端口后，可通过 `worker-alice-8080-local.hiclaw.io` 访问。
+
+Controller 为每个暴露端口创建三个 Higress 资源：
+1. **域名**：`worker-{name}-{port}-local.hiclaw.io`
+2. **DNS 服务来源**：通过网络别名 `{name}.local` 指向 worker 容器
+3. **路由**：将该域名的所有请求转发到 worker 的对应端口
+
+当 expose 配置被移除或 Worker 被删除时，所有关联的 Higress 资源会自动清理。
+
+### 配置方式
+
+```yaml
+apiVersion: hiclaw.io/v1beta1
+kind: Worker
+metadata:
+  name: alice
+spec:
+  model: qwen3.5-plus
+  expose:
+    - port: 8080
+    - port: 3000
+```
+
+**expose 字段说明：**
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `expose[].port` | int | 是 | — | 要暴露的容器端口 |
+| `expose[].protocol` | string | 否 | `http` | 协议：`http` 或 `grpc` |
+
+### Team Worker 支持
+
+Team Worker 同样支持 `expose`：
+
+```yaml
+apiVersion: hiclaw.io/v1beta1
+kind: Team
+metadata:
+  name: dev-team
+spec:
+  leader:
+    name: lead
+    model: qwen3.5-plus
+  workers:
+    - name: backend
+      model: qwen3.5-plus
+      expose:
+        - port: 8080
+    - name: frontend
+      model: qwen3.5-plus
+      expose:
+        - port: 3000
+```
+
+### CLI 用法
+
+```bash
+# 通过 CLI 参数暴露端口
+hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000
+
+# 取消暴露（不带 --expose 重新 apply）
+hiclaw apply worker --name alice --model qwen3.5-plus
+```
+
+### 使用场景
+
+- **Web 应用预览**：Worker 开发了一个 Web 应用，暴露给 Admin 或其他团队成员预览
+- **API 服务**：Worker 运行后端 API，供其他 Worker 或外部系统调用
+- **开发服务器**：暴露开发服务器，便于开发过程中实时测试
+
+### 注意事项
+
+- Worker 容器必须处于运行状态，且服务已在指定端口监听，才能被访问
+- 域名为自动生成，暂不支持自定义域名
+- 暴露的路由未配置认证（网络内公开访问）
+- 从 `spec.expose` 中移除端口并重新 apply，会自动清理对应的 Higress 资源
 
 ### 两种部署模式
 

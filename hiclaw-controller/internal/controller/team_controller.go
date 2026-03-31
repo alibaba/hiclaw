@@ -21,6 +21,7 @@ type TeamReconciler struct {
 	client.Client
 	Executor *executor.Shell
 	Packages *executor.PackageResolver
+	Higress  *HigressClient
 }
 
 func (r *TeamReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -221,6 +222,24 @@ func (r *TeamReconciler) handleCreate(ctx context.Context, t *v1beta1.Team) (rec
 			t.Status.TeamRoomID = rid
 		}
 	}
+
+	// Expose ports for team workers via Higress gateway
+	workerExposed := make(map[string][]v1beta1.ExposedPortStatus)
+	for _, w := range t.Spec.Workers {
+		if len(w.Expose) > 0 {
+			exposed, exposeErr := ReconcileExpose(r.Higress, w.Name, w.Expose, nil)
+			if exposeErr != nil {
+				logger.Error(exposeErr, "failed to expose ports for team worker (non-fatal)", "worker", w.Name)
+			}
+			if len(exposed) > 0 {
+				workerExposed[w.Name] = exposed
+			}
+		}
+	}
+	if len(workerExposed) > 0 {
+		t.Status.WorkerExposedPorts = workerExposed
+	}
+
 	if err := r.Status().Update(ctx, t); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -237,6 +256,27 @@ func (r *TeamReconciler) handleUpdate(ctx context.Context, t *v1beta1.Team) (rec
 func (r *TeamReconciler) handleDelete(ctx context.Context, t *v1beta1.Team) error {
 	logger := log.FromContext(ctx)
 	logger.Info("deleting team", "name", t.Name)
+
+	// Clean up exposed ports for team workers
+	for _, w := range t.Spec.Workers {
+		var currentExposed []v1beta1.ExposedPortStatus
+		if t.Status.WorkerExposedPorts != nil {
+			currentExposed = t.Status.WorkerExposedPorts[w.Name]
+		}
+		if len(currentExposed) == 0 && len(w.Expose) > 0 {
+			for _, ep := range w.Expose {
+				currentExposed = append(currentExposed, v1beta1.ExposedPortStatus{
+					Port:   ep.Port,
+					Domain: domainForExpose(w.Name, ep.Port),
+				})
+			}
+		}
+		if len(currentExposed) > 0 {
+			if _, err := ReconcileExpose(r.Higress, w.Name, nil, currentExposed); err != nil {
+				logger.Error(err, "failed to clean up exposed ports for team worker (non-fatal)", "worker", w.Name)
+			}
+		}
+	}
 
 	// Delete all team workers first, then leader
 	for _, w := range t.Spec.Workers {

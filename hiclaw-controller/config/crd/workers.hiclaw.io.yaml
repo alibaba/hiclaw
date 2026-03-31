@@ -48,6 +48,21 @@ spec:
                 package:
                   type: string
                   description: "Package URI: file://, http(s)://, nacos://, or packages/{name}.zip"
+                expose:
+                  type: array
+                  description: Ports to expose via Higress gateway. Each port gets an auto-generated domain.
+                  items:
+                    type: object
+                    required: [port]
+                    properties:
+                      port:
+                        type: integer
+                        description: Container port to expose
+                      protocol:
+                        type: string
+                        enum: [http, grpc]
+                        default: http
+                        description: Protocol (default http)
                 channelPolicy:
                   type: object
                   description: "Additive/subtractive overrides for communication policies (on top of defaults)"
@@ -89,6 +104,16 @@ spec:
                   format: date-time
                 message:
                   type: string
+                exposedPorts:
+                  type: array
+                  description: Ports currently exposed via Higress gateway
+                  items:
+                    type: object
+                    properties:
+                      port:
+                        type: integer
+                      domain:
+                        type: string
       subresources:
         status: {}
       additionalPrinterColumns:

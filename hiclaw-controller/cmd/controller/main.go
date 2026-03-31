@@ -143,10 +143,16 @@ func main() {
 	}
 
 	// 5. Register reconcilers
+	higressClient := &controller.HigressClient{
+		BaseURL:    "http://127.0.0.1:8001",
+		CookieFile: os.Getenv("HIGRESS_COOKIE_FILE"),
+	}
+
 	if err := (&controller.WorkerReconciler{
 		Client:   mgr.GetClient(),
 		Executor: shell,
 		Packages: packages,
+		Higress:  higressClient,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "failed to setup WorkerReconciler")
 		os.Exit(1)
@@ -156,6 +162,7 @@ func main() {
 		Client:   mgr.GetClient(),
 		Executor: shell,
 		Packages: packages,
+		Higress:  higressClient,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "failed to setup TeamReconciler")
 		os.Exit(1)

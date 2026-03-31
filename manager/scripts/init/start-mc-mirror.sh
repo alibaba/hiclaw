@@ -62,7 +62,7 @@ log "MinIO storage initialized and synced to ${HICLAW_FS_ROOT}/"
 (
     while true; do
         sleep 10
-        mc mirror "${HICLAW_STORAGE_PREFIX}/hiclaw-config/" "${HICLAW_FS_ROOT}/hiclaw-config/" --overwrite --newer-than "15s" 2>/dev/null || true
+        mc mirror "${HICLAW_STORAGE_PREFIX}/hiclaw-config/" "${HICLAW_FS_ROOT}/hiclaw-config/" --overwrite --remove --newer-than "15s" 2>/dev/null || true
     done
 ) &
 

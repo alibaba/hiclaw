@@ -117,6 +117,19 @@ spec:
                           type: string
                       package:
                         type: string
+                      expose:
+                        type: array
+                        description: Ports to expose via Higress gateway
+                        items:
+                          type: object
+                          required: [port]
+                          properties:
+                            port:
+                              type: integer
+                            protocol:
+                              type: string
+                              enum: [http, grpc]
+                              default: http
                       channelPolicy:
                         type: object
                         properties:
@@ -152,7 +165,10 @@ spec:
                   type: integer
                 message:
                   type: string
-      subresources:
+                workerExposedPorts:
+                  type: object
+                  description: Exposed ports per worker name
+                  x-kubernetes-preserve-unknown-fields: true
         status: {}
       additionalPrinterColumns:
         - name: Leader

@@ -30,7 +30,14 @@ type WorkerSpec struct {
 	Skills     []string        `json:"skills,omitempty"`
 	McpServers []string        `json:"mcpServers,omitempty"`
 	Package    string          `json:"package,omitempty"` // file://, http(s)://, or nacos:// URI
+	Expose     []ExposePort    `json:"expose,omitempty"`  // ports to expose via Higress gateway
 	ChannelPolicy *ChannelPolicySpec `json:"channelPolicy,omitempty"`
+}
+
+// ExposePort defines a container port to expose via the Higress gateway.
+type ExposePort struct {
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol,omitempty"` // http (default) | grpc
 }
 
 // ChannelPolicySpec defines additive/subtractive overrides on top of default
@@ -44,12 +51,19 @@ type ChannelPolicySpec struct {
 }
 
 type WorkerStatus struct {
-	Phase          string `json:"phase,omitempty"` // Pending/Running/Stopped/Failed
-	MatrixUserID   string `json:"matrixUserID,omitempty"`
-	RoomID         string `json:"roomID,omitempty"`
-	ContainerState string `json:"containerState,omitempty"`
-	LastHeartbeat  string `json:"lastHeartbeat,omitempty"`
-	Message        string `json:"message,omitempty"`
+	Phase          string              `json:"phase,omitempty"` // Pending/Running/Stopped/Failed
+	MatrixUserID   string              `json:"matrixUserID,omitempty"`
+	RoomID         string              `json:"roomID,omitempty"`
+	ContainerState string              `json:"containerState,omitempty"`
+	LastHeartbeat  string              `json:"lastHeartbeat,omitempty"`
+	Message        string              `json:"message,omitempty"`
+	ExposedPorts   []ExposedPortStatus `json:"exposedPorts,omitempty"`
+}
+
+// ExposedPortStatus records a port that has been exposed via Higress.
+type ExposedPortStatus struct {
+	Port   int    `json:"port"`
+	Domain string `json:"domain"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -106,6 +120,7 @@ type TeamWorkerSpec struct {
 	Skills     []string        `json:"skills,omitempty"`
 	McpServers []string        `json:"mcpServers,omitempty"`
 	Package    string          `json:"package,omitempty"`
+	Expose     []ExposePort    `json:"expose,omitempty"`
 	ChannelPolicy *ChannelPolicySpec `json:"channelPolicy,omitempty"`
 }
 
@@ -116,6 +131,7 @@ type TeamStatus struct {
 	ReadyWorkers int    `json:"readyWorkers,omitempty"`
 	TotalWorkers int    `json:"totalWorkers,omitempty"`
 	Message      string `json:"message,omitempty"`
+	WorkerExposedPorts map[string][]ExposedPortStatus `json:"workerExposedPorts,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
