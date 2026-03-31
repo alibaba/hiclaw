@@ -32,6 +32,33 @@ Manager @mentions Leader in Leader Room:
    Decompose and assign to your team. @mention me when complete."
 ```
 
+## Leader's Internal Handling
+
+The Team Leader now supports two modes for handling delegated tasks:
+
+### Simple Task Mode
+For straightforward tasks that a single team worker can complete:
+- Leader assigns directly to a worker
+- Sub-task tracked in `teams/{team}/tasks/`
+- Result aggregated and written back to `shared/tasks/{parent-task-id}/result.md`
+
+### Project Mode (DAG)
+For complex tasks requiring multiple workers with dependencies:
+- Leader creates a team project with DAG-based task plan
+- Tasks are orchestrated with parallel/serial execution based on dependencies
+- `resolve-dag.sh` automatically identifies which tasks can run in parallel
+- Result aggregated and written back to `shared/tasks/{parent-task-id}/result.md`
+
+The Leader decides which mode to use based on task complexity. Manager does not need to specify the mode.
+
+## Team Admin Direct Tasks
+
+Team Admin can also assign tasks directly to the Team Leader via Leader DM. These tasks:
+- Are handled entirely within the team's isolated storage (`teams/{team}/`)
+- Do not have a parent task in `shared/tasks/`
+- Completion is reported to Team Admin in Leader DM (not to Manager)
+- Manager is not involved unless the Leader escalates a blocker
+
 ## Monitoring Delegated Tasks
 
 During heartbeat, for tasks with `delegated_to_team`:
@@ -44,7 +71,7 @@ During heartbeat, for tasks with `delegated_to_team`:
 ```
 Leader aggregates team results → writes result.md
   ↓
-Leader pushes to MinIO
+Leader pushes to MinIO (shared/tasks/{parent-task-id}/)
   ↓
 Leader @mentions Manager in Leader Room:
   "@manager:domain Task {task-id} complete. Outcome: SUCCESS"
@@ -56,5 +83,6 @@ Manager processes completion (same as regular worker flow)
 
 1. **Never bypass the Leader** — all communication with team workers goes through the Leader
 2. **One task per delegation** — don't assign multiple unrelated tasks simultaneously
-3. **Trust the Leader's decomposition** — don't micromanage sub-task assignment
+3. **Trust the Leader's decomposition** — don't micromanage sub-task assignment or mode selection
 4. **Escalation path** — if Leader reports BLOCKED, Manager escalates to Admin
+5. **Team Admin tasks are independent** — Manager does not track or interfere with Team Admin-initiated tasks

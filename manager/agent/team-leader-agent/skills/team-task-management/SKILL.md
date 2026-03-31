@@ -5,27 +5,14 @@ description: Use when you need to assign tasks to team workers, track team task 
 
 # Team Task Management
 
-Manage tasks within your team. You are the Team Leader — decompose tasks from Manager into sub-tasks and assign to your team workers.
+Manage individual tasks within your team. For complex multi-worker tasks with dependencies, use `team-project-management` instead.
 
-## Task Lifecycle
+## Task Sources
 
-```
-Manager assigns task to you
-  ↓
-Decompose into sub-tasks
-  ↓
-find-team-worker.sh → check availability
-  ↓
-Create sub-task files + assign via @mention
-  ↓
-manage-team-state.sh --action add-finite
-  ↓
-Worker completes → @mentions you
-  ↓
-manage-team-state.sh --action complete
-  ↓
-All done → aggregate results → report to Manager
-```
+| Source | Channel | Result destination | Report to |
+|--------|---------|-------------------|-----------|
+| Manager | Leader Room @mention | `shared/tasks/{parent-task-id}/result.md` | Manager in Leader Room |
+| Team Admin | Leader DM message | `teams/{team}/tasks/{task-id}/result.md` | Team Admin in Leader DM |
 
 ## Key Scripts
 
@@ -33,37 +20,33 @@ All done → aggregate results → report to Manager
 # Find available team workers
 bash ~/skills/team-task-management/scripts/find-team-worker.sh
 
-# Add a sub-task
+# Add a task (use --source manager/team-admin, --parent-task-id, --requester as needed)
 bash ~/skills/team-task-management/scripts/manage-team-state.sh \
-  --action add-finite --task-id sub-01 --title "Implement auth" \
-  --assigned-to alice --room-id '!room:domain'
+  --action add-finite --task-id st-01 --title "Implement auth" \
+  --assigned-to alice --room-id '!room:domain' \
+  --source manager --parent-task-id task-xxx
 
-# Mark sub-task complete
+# Mark task complete
 bash ~/skills/team-task-management/scripts/manage-team-state.sh \
-  --action complete --task-id sub-01
+  --action complete --task-id st-01
 
-# List all active team tasks
+# List all active team tasks and projects
 bash ~/skills/team-task-management/scripts/manage-team-state.sh --action list
 ```
 
-## Sub-Task Directory Convention
+## Gotchas
 
-```
-shared/tasks/{parent-task-id}/sub-tasks/
-├── sub-01/
-│   ├── meta.json
-│   ├── spec.md
-│   └── result.md
-├── sub-02/
-│   ├── meta.json
-│   ├── spec.md
-│   └── result.md
-```
+- **Always push to MinIO before notifying workers** — workers need to file-sync to get specs
+- **Always pull from MinIO before reading results** — workers push results there
+- **Always use manage-team-state.sh** for state changes — never edit JSON manually
+- **Route completion by source** — check `source` field to decide where to report
 
 ## References
 
-| Topic | File |
-|-------|------|
-| Task creation & assignment | `references/finite-tasks.md` |
-| Worker selection logic | `references/worker-selection.md` |
-| State management | `references/state-management.md` |
+Read the relevant doc **before** executing. Do not load all of them.
+
+| Situation | Read |
+|---|---|
+| Assign a task or handle completion | `references/finite-tasks.md` |
+| Need to pick a worker | `references/worker-selection.md` |
+| State management details | `references/state-management.md` |

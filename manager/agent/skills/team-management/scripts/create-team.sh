@@ -460,6 +460,22 @@ else
 fi
 
 # ============================================================
+# Step 4c: Initialize team storage space in MinIO
+# Each team gets an isolated storage prefix: teams/{team-name}/
+# ============================================================
+log "Step 4c: Initializing team storage space..."
+TEAM_STORAGE_DIR="/root/hiclaw-fs/teams/${TEAM_NAME}"
+mkdir -p "${TEAM_STORAGE_DIR}/projects"
+mkdir -p "${TEAM_STORAGE_DIR}/tasks"
+mkdir -p "${TEAM_STORAGE_DIR}/shared"
+touch "${TEAM_STORAGE_DIR}/projects/.keep"
+touch "${TEAM_STORAGE_DIR}/tasks/.keep"
+touch "${TEAM_STORAGE_DIR}/shared/.keep"
+ensure_mc_credentials 2>/dev/null || true
+mc mirror "${TEAM_STORAGE_DIR}/" "${HICLAW_STORAGE_PREFIX}/teams/${TEAM_NAME}/" --overwrite 2>&1 | tail -3
+log "  Team storage initialized at ${HICLAW_STORAGE_PREFIX}/teams/${TEAM_NAME}/"
+
+# ============================================================
 # Step 5: Update teams-registry.json
 # ============================================================
 log "Step 5: Updating teams-registry.json..."

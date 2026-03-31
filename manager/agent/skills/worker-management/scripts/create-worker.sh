@@ -264,6 +264,15 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
     log "Step 1b: Creating MinIO user for ${WORKER_NAME}..."
     POLICY_NAME="worker-${WORKER_NAME}"
     POLICY_FILE=$(mktemp /tmp/minio-policy-XXXXXX.json)
+    # Build team storage entries if worker belongs to a team
+    TEAM_LIST_PREFIX=""
+    TEAM_RW_RESOURCE=""
+    if [ -n "${TEAM_NAME}" ]; then
+        TEAM_LIST_PREFIX=',
+            "teams/'"${TEAM_NAME}"'", "teams/'"${TEAM_NAME}"'/*"'
+        TEAM_RW_RESOURCE=',
+        "arn:aws:s3:::hiclaw-storage/teams/'"${TEAM_NAME}"'/*"'
+    fi
     cat > "${POLICY_FILE}" <<POLICY
 {
   "Version": "2012-10-17",
@@ -276,7 +285,7 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
         "StringLike": {
           "s3:prefix": [
             "agents/${WORKER_NAME}", "agents/${WORKER_NAME}/*",
-            "shared", "shared/*"
+            "shared", "shared/*"${TEAM_LIST_PREFIX}
           ]
         }
       }
@@ -286,7 +295,7 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": [
         "arn:aws:s3:::hiclaw-storage/agents/${WORKER_NAME}/*",
-        "arn:aws:s3:::hiclaw-storage/shared/*"
+        "arn:aws:s3:::hiclaw-storage/shared/*"${TEAM_RW_RESOURCE}
       ]
     }
   ]
