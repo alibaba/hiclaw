@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/hiclaw/hiclaw-controller/internal/executor"
@@ -173,6 +174,10 @@ func applyWorkerCmd() *cobra.Command {
 
 // applyWorkerFromParams generates a Worker YAML from CLI params and writes to MinIO
 func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime string, dryRun bool) error {
+	if err := validateWorkerName(name); err != nil {
+		return err
+	}
+
 	if packageURI != "" {
 		var err error
 		packageURI, err = expandPackageURI(packageURI)
@@ -287,6 +292,19 @@ func expandPackageURI(raw string) (string, error) {
 	return base + "/" + strings.Join(encoded, "/"), nil
 }
 
+var workerNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+func validateWorkerName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("invalid worker name: name is required")
+	}
+	if !workerNamePattern.MatchString(name) {
+		return fmt.Errorf("invalid worker name %q: must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens", name)
+	}
+	return nil
+}
+
 // applyEmbedded writes YAML files to MinIO hiclaw-config/{kind}s/{name}.yaml
 func applyEmbedded(resources []resource, prune, dryRun, yes bool) error {
 	applied := map[string]map[string]bool{
@@ -302,6 +320,9 @@ func applyEmbedded(resources []resource, prune, dryRun, yes bool) error {
 	for _, r := range ordered {
 		if strings.ToLower(r.Kind) != "worker" {
 			continue
+		}
+		if err := validateWorkerName(r.Name); err != nil {
+			return err
 		}
 		pkg := extractPackageField(r.Raw)
 		if strings.HasPrefix(pkg, "nacos://") {
@@ -644,6 +665,10 @@ func writeTempYAML(content string) (string, error) {
 // uploads the ZIP to MinIO hiclaw-config/packages/, and writes the YAML
 // to MinIO hiclaw-config/{kind}s/{name}.yaml.
 func applyZip(zipPath string, name string, dryRun bool) error {
+	if err := validateWorkerName(name); err != nil {
+		return err
+	}
+
 	// 1. Extract ZIP to temp dir
 	tmpDir, err := os.MkdirTemp("", "hiclaw-zip-*")
 	if err != nil {

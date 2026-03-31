@@ -65,6 +65,58 @@ func TestExpandPackageURI(t *testing.T) {
 	}
 }
 
+func TestValidateWorkerName(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		{
+			name:  "simple",
+			input: "alice",
+		},
+		{
+			name:  "hyphenated",
+			input: "dev-01",
+		},
+		{
+			name:    "empty",
+			input:   "",
+			wantErr: "name is required",
+		},
+		{
+			name:    "uppercase rejected",
+			input:   "Alice",
+			wantErr: "invalid worker name",
+		},
+		{
+			name:    "underscore rejected",
+			input:   "alice_dev",
+			wantErr: "invalid worker name",
+		},
+		{
+			name:    "leading hyphen rejected",
+			input:   "-alice",
+			wantErr: "invalid worker name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateWorkerName(tt.input)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("validateWorkerName() error = %v, want substring %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validateWorkerName() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestLoadResources_SingleWorker(t *testing.T) {
 	yaml := `apiVersion: hiclaw.io/v1beta1
 kind: Worker
