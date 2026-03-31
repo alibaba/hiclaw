@@ -40,7 +40,7 @@ If `skills` command is not found, install it: `npm install -g skills`
 ## Environment Variables
 
 ```bash
-SKILLS_API_URL  # Skills registry API endpoint (default: nacos://nacos.market.hiclaw.io/public)
+SKILLS_API_URL  # Skills registry API endpoint (default: nacos://market.hiclaw.io/public)
 ```
 
 Can be configured by admin to point to an enterprise-private registry.

@@ -355,8 +355,8 @@ $script:Messages = @{
     "github.token_prompt" = @{ zh = "GitHub 个人访问令牌（可选）"; en = "GitHub Personal Access Token (optional)" }
 
     # --- Skills Registry ---
-    "skills.title" = @{ zh = "--- Skills 注册中心（可选，按回车使用默认 nacos://nacos.market.hiclaw.io/public）---"; en = "--- Skills Registry (optional, press Enter for default nacos://nacos.market.hiclaw.io/public) ---" }
-    "skills.url_prompt" = @{ zh = "Skills 注册中心 URL（留空使用默认 nacos://nacos.market.hiclaw.io/public）"; en = "Skills Registry URL (leave empty for default nacos://nacos.market.hiclaw.io/public)" }
+    "skills.title" = @{ zh = "--- Skills 注册中心（可选，按回车使用默认 nacos://market.hiclaw.io/public）---"; en = "--- Skills Registry (optional, press Enter for default nacos://market.hiclaw.io/public) ---" }
+    "skills.url_prompt" = @{ zh = "Skills 注册中心 URL（留空使用默认 nacos://market.hiclaw.io/public）"; en = "Skills Registry URL (leave empty for default nacos://market.hiclaw.io/public)" }
 
     # --- Data Persistence ---
     "data.title" = @{ zh = "--- 数据持久化 ---"; en = "--- Data Persistence ---" }
@@ -810,8 +810,8 @@ HICLAW_NACOS_USERNAME=$($env:HICLAW_NACOS_USERNAME)
 HICLAW_NACOS_PASSWORD=$($env:HICLAW_NACOS_PASSWORD)
 HICLAW_NACOS_TOKEN=$($env:HICLAW_NACOS_TOKEN)
 
-# Skills Registry (optional, default: nacos://nacos.market.hiclaw.io/public)
-HICLAW_SKILLS_API_URL=$(if ($Config.SKILLS_API_URL) { $Config.SKILLS_API_URL } else { "nacos://nacos.market.hiclaw.io/public" })
+# Skills Registry (optional, default: nacos://market.hiclaw.io/public)
+HICLAW_SKILLS_API_URL=$(if ($Config.SKILLS_API_URL) { $Config.SKILLS_API_URL } else { "nacos://market.hiclaw.io/public" })
 
 # Worker images (for direct container creation)
 HICLAW_WORKER_IMAGE=$($Config.WORKER_IMAGE)
@@ -2403,7 +2403,7 @@ function Install-Worker {
         if ($env:HICLAW_SKILLS_API_URL) {
             $SkillsApiUrl = $env:HICLAW_SKILLS_API_URL
         } else {
-            $SkillsApiUrl = "nacos://nacos.market.hiclaw.io/public"
+            $SkillsApiUrl = "nacos://market.hiclaw.io/public"
         }
     }
 

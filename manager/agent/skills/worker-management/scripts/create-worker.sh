@@ -97,7 +97,7 @@ if [ -z "${SKILLS_API_URL}" ]; then
     if [ -n "${HICLAW_SKILLS_API_URL:-}" ]; then
         SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
     else
-        SKILLS_API_URL="nacos://nacos.market.hiclaw.io/public"
+        SKILLS_API_URL="nacos://market.hiclaw.io/public"
     fi
 fi
 
