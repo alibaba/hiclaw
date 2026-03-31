@@ -14,14 +14,15 @@ DIM='[38;5;102m'
 TEXT='[38;5;145m'
 
 usage() {
-    cat <<'EOF'
+    local cmd="${0:-scripts/hiclaw-find-skill.sh}"
+    cat <<EOF
 Usage:
-  hiclaw-find-skill find <query>
-  hiclaw-find-skill install <skill>
+  ${cmd} find <query>
+  ${cmd} install <skill>
 
 Environment:
-  SKILLS_API_URL=https://skills.sh            Use skills.sh backend (default)
-  SKILLS_API_URL=nacos://host:port            Use Nacos backend
+  SKILLS_API_URL=https://skills.sh            Use skills.sh backend
+  SKILLS_API_URL=nacos://host:port            Use Nacos backend (default)
 EOF
 }
 
@@ -370,7 +371,7 @@ score_nacos_candidates() {
 
 run_nacos_find() {
     if [ $# -lt 1 ]; then
-        printf '%sTip:%s search with %shiclaw-find-skill find <query>%s\n' "${DIM}" "${RESET}" "${TEXT}" "${RESET}"
+        printf '%sTip:%s search with %s%s find <query>%s\n' "${DIM}" "${RESET}" "${TEXT}" "${0}" "${RESET}"
         exit 0
     fi
 
@@ -403,8 +404,8 @@ run_nacos_find() {
     first_name="$(awk -F '\t' 'NR == 1 { print $2; exit }' "${sorted}")"
 
     printf '%sRegistry:%s %s\n\n' "${DIM}" "${RESET}" "$(get_registry_label "nacos")"
-    printf '%sInstall with%s %shiclaw-find-skill install %s%s\n\n' \
-        "${DIM}" "${RESET}" "${TEXT}" "${first_name}" "${RESET}"
+    printf '%sInstall with%s %s%s install %s%s\n\n' \
+        "${DIM}" "${RESET}" "${TEXT}" "${0}" "${first_name}" "${RESET}"
 
     sed -n "1,${MAX_RESULTS}p" "${sorted}" | while IFS="$(printf '\t')" read -r score name desc; do
         if [ -z "${desc}" ]; then

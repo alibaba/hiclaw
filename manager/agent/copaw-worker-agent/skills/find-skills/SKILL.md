@@ -30,8 +30,8 @@ If `skills` command is not found, install it: `npm install -g skills`
 
 **Key commands:**
 
-- `hiclaw-find-skill find [query]` - Search for relevant skills
-- `hiclaw-find-skill install <skill>` - Install a skill
+- `scripts/hiclaw-find-skill.sh find [query]` - Search for relevant skills
+- `scripts/hiclaw-find-skill.sh install <skill>` - Install a skill
 - `skills check` - Check for skill updates
 - `skills update` - Update all installed skills
 
@@ -60,19 +60,19 @@ When a user asks for help with something, identify:
 Run the find command with a relevant query:
 
 ```bash
-hiclaw-find-skill find [query]
+scripts/hiclaw-find-skill.sh find [query]
 ```
 
 For example:
 
-- User asks "how do I make my React app faster?" → `hiclaw-find-skill find react performance`
-- User asks "can you help me with PR reviews?" → `hiclaw-find-skill find pr review`
-- User asks "I need to create a changelog" → `hiclaw-find-skill find changelog`
+- User asks "how do I make my React app faster?" → `scripts/hiclaw-find-skill.sh find react performance`
+- User asks "can you help me with PR reviews?" → `scripts/hiclaw-find-skill.sh find pr review`
+- User asks "I need to create a changelog" → `scripts/hiclaw-find-skill.sh find changelog`
 
 The command will return results like:
 
 ```
-Install with hiclaw-find-skill install <skill>
+Install with scripts/hiclaw-find-skill.sh install <skill>
 
 vercel-react-best-practices
 └ React and Next.js performance guidance
@@ -96,7 +96,7 @@ I found a skill that might help! The "remotion-best-practices" skill provides
 best practices for Remotion video creation in React.
 
 To install it:
-hiclaw-find-skill install remotion-best-practices
+scripts/hiclaw-find-skill.sh install remotion-best-practices
 ```
 
 ### Step 4: Offer to Install
@@ -104,7 +104,7 @@ hiclaw-find-skill install remotion-best-practices
 If the user wants to proceed, you can install the skill for them:
 
 ```bash
-hiclaw-find-skill install <skill>
+scripts/hiclaw-find-skill.sh install <skill>
 ```
 
 The default install location for `skills add -g` is `~/.agents/skills/`. In container mode this is symlinked to the worker's MinIO-synced skills directory. In host mode (non-container), you need to check `~/.agents/skills/` for installed skills and load them manually.
@@ -146,3 +146,7 @@ I can still help you with this task directly! Would you like me to proceed?
 If this is something you do often, you could create your own skill:
 skills init my-xyz-skill
 ```
+
+## Skill Resources
+
+`scripts/hiclaw-find-skill.sh` is a resource that belongs to this skill. Treat the `scripts/` path as relative to the current skill directory when you use it.

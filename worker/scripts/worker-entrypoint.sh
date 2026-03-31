@@ -126,13 +126,6 @@ printf '#!/bin/bash\nexec /bin/sh "%s/skills/file-sync/scripts/hiclaw-sync.sh" "
     "${WORKSPACE}" > /usr/local/bin/hiclaw-sync
 chmod +x /usr/local/bin/hiclaw-sync
 
-# Ensure hiclaw-find-skill wrapper is functional
-# Use /bin/sh to invoke the script so it works even without +x permission
-# (MinIO object storage does not preserve Unix permission bits)
-printf '#!/bin/bash\nexec /bin/sh "%s/skills/find-skills/scripts/hiclaw-find-skill.sh" "$@"\n' \
-    "${WORKSPACE}" > /usr/local/bin/hiclaw-find-skill
-chmod +x /usr/local/bin/hiclaw-find-skill
-
 # Defensive symlink: /opt/hiclaw/agent/skills -> actual skills directory
 mkdir -p /opt/hiclaw/agent
 ln -sfn "${WORKSPACE}/skills" /opt/hiclaw/agent/skills

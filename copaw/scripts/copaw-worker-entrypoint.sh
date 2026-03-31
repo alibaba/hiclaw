@@ -63,12 +63,6 @@ mkdir -p "${WORKER_SKILLS_DIR}"
 mkdir -p "${HOME}/.agents"
 ln -sfn "${WORKER_SKILLS_DIR}" "${HOME}/.agents/skills"
 
-# Ensure hiclaw-find-skill wrapper is functional for CoPaw workers.
-# Use /bin/sh so the wrapper still works after MinIO sync strips execute bits.
-printf '#!/bin/bash\nexec /bin/sh "%s/%s/skills/find-skills/scripts/hiclaw-find-skill.sh" "$@"\n' \
-    "${INSTALL_DIR}" "${WORKER_NAME}" > /usr/local/bin/hiclaw-find-skill
-chmod +x /usr/local/bin/hiclaw-find-skill
-
 if [ -n "${CONSOLE_PORT}" ]; then
     # ---------- Standard mode: copaw-worker (PyPI CoPaw venv, with console) ----------
     VENV="/opt/venv/standard"
