@@ -39,8 +39,7 @@
 #   HICLAW_PORT_GATEWAY       Host port for Higress gateway (default: 18080)
 #   HICLAW_PORT_CONSOLE       Host port for Higress console (default: 18001)
 #   HICLAW_PORT_ELEMENT_WEB   Host port for Element Web direct access (default: 18088)
-#   HICLAW_PORT_OPENCLAW_CONSOLE  Host port for OpenClaw console (default: 18888)
-#   HICLAW_PORT_COPAW_APP     Host port for CoPaw app API (default: 18799)
+#   HICLAW_PORT_MANAGER_CONSOLE  Host port for Manager console (default: 18888)
 #   HICLAW_WORKER_IDLE_TIMEOUT  Worker idle timeout in minutes (default: 720, i.e. 12 hours)
 
 set -e
@@ -439,8 +438,8 @@ msg() {
         "port.console_prompt.en") text="Host port for Higress console (8001 inside container)" ;;
         "port.element_prompt.zh") text="Element Web 直接访问主机端口（容器内 8088）" ;;
         "port.element_prompt.en") text="Host port for Element Web direct access (8088 inside container)" ;;
-        "port.openclaw_console_prompt.zh") text="OpenClaw 控制台主机端口（容器内 18888）" ;;
-        "port.openclaw_console_prompt.en") text="Host port for OpenClaw console (18888 inside container)" ;;
+        "port.manager_console_prompt.zh") text="Manager 控制台主机端口（容器内 18888）" ;;
+        "port.manager_console_prompt.en") text="Host port for Manager console (18888 inside container)" ;;
         "port.copaw_app_prompt.zh") text="CoPaw App API 主机端口（容器内 18799）" ;;
         "port.copaw_app_prompt.en") text="Host port for CoPaw App API (18799 inside container)" ;;
         # --- Local-only binding ---
@@ -475,8 +474,8 @@ msg() {
         "domain.gateway_prompt.en") text="AI Gateway Domain" ;;
         "domain.fs_prompt.zh") text="文件系统域名" ;;
         "domain.fs_prompt.en") text="File System Domain" ;;
-        "domain.console_prompt.zh") text="OpenClaw 控制台域名" ;;
-        "domain.console_prompt.en") text="OpenClaw Console Domain" ;;
+        "domain.console_prompt.zh") text="Manager 控制台域名" ;;
+        "domain.console_prompt.en") text="Manager Console Domain" ;;
         # --- GitHub Integration ---
         "github.title.zh") text="--- GitHub 集成（可选，按回车跳过）---" ;;
         "github.title.en") text="--- GitHub Integration (optional, press Enter to skip) ---" ;;
@@ -761,10 +760,10 @@ msg() {
         "success.other_consoles.en") text="--- Other Consoles ---" ;;
         "success.higress_console.zh") text="  Higress 控制台: http://localhost:%s（用户名: %s / 密码: %s）" ;;
         "success.higress_console.en") text="  Higress Console: http://localhost:%s (Username: %s / Password: %s)" ;;
-        "success.openclaw_console.zh") text="  OpenClaw 控制台（本地）: http://localhost:%s（无需登录）" ;;
-        "success.openclaw_console.en") text="  OpenClaw Console (local): http://localhost:%s (no login required)" ;;
-        "success.openclaw_console_gateway.zh") text="  OpenClaw 控制台（网关）: http://console-local.hiclaw.io（用户名: %s / 密码: %s）" ;;
-        "success.openclaw_console_gateway.en") text="  OpenClaw Console (gateway): http://console-local.hiclaw.io (Username: %s / Password: %s)" ;;
+        "success.manager_console.zh") text="  Manager 控制台（本地）: http://localhost:%s（无需登录）" ;;
+        "success.manager_console.en") text="  Manager Console (local): http://localhost:%s (no login required)" ;;
+        "success.manager_console_gateway.zh") text="  Manager 控制台（网关）: http://console-local.hiclaw.io（用户名: %s / 密码: %s）" ;;
+        "success.manager_console_gateway.en") text="  Manager Console (gateway): http://console-local.hiclaw.io (Username: %s / Password: %s)" ;;
         "success.copaw_console.zh") text="  CoPaw App API: http://localhost:%s（无需登录）" ;;
         "success.copaw_console.en") text="  CoPaw App API: http://localhost:%s (no login required)" ;;
         "success.switch_llm.title.zh") text="--- 切换 LLM 提供商 ---" ;;
@@ -1274,7 +1273,6 @@ should_skip_step() {
             ;;
         step_manager_runtime)
             [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
-            [ "${HICLAW_QUICKSTART}" = "1" ] && [ "${HICLAW_UPGRADE}" != "1" ] && return 0
             ;;
         step_hostshare)
             [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
@@ -1300,7 +1298,7 @@ clear_step_vars() {
         step_network) unset HICLAW_LOCAL_ONLY ;;
         step_ports)
             unset HICLAW_PORT_GATEWAY HICLAW_PORT_CONSOLE
-            unset HICLAW_PORT_ELEMENT_WEB HICLAW_PORT_OPENCLAW_CONSOLE HICLAW_PORT_COPAW_APP
+            unset HICLAW_PORT_ELEMENT_WEB HICLAW_PORT_MANAGER_CONSOLE
             ;;
         step_domains)
             unset HICLAW_MATRIX_DOMAIN HICLAW_MATRIX_CLIENT_DOMAIN
@@ -1800,11 +1798,7 @@ step_ports() {
     prompt HICLAW_PORT_GATEWAY "$(msg port.gateway_prompt)" "18080" || return 0
     prompt HICLAW_PORT_CONSOLE "$(msg port.console_prompt)" "18001" || return 0
     prompt HICLAW_PORT_ELEMENT_WEB "$(msg port.element_prompt)" "18088" || return 0
-    if [ "${HICLAW_MANAGER_RUNTIME}" = "copaw" ]; then
-        prompt HICLAW_PORT_COPAW_APP "$(msg port.copaw_app_prompt)" "18799" || return 0
-    else
-        prompt HICLAW_PORT_OPENCLAW_CONSOLE "$(msg port.openclaw_console_prompt)" "18888" || return 0
-    fi
+    prompt HICLAW_PORT_MANAGER_CONSOLE "$(msg port.manager_console_prompt)" "18888" || return 0
     log ""
 }
 
@@ -2222,8 +2216,7 @@ HICLAW_LOCAL_ONLY=${HICLAW_LOCAL_ONLY}
 HICLAW_PORT_GATEWAY=${HICLAW_PORT_GATEWAY}
 HICLAW_PORT_CONSOLE=${HICLAW_PORT_CONSOLE}
 HICLAW_PORT_ELEMENT_WEB=${HICLAW_PORT_ELEMENT_WEB}
-HICLAW_PORT_OPENCLAW_CONSOLE=${HICLAW_PORT_OPENCLAW_CONSOLE:-18888}
-HICLAW_PORT_COPAW_APP=${HICLAW_PORT_COPAW_APP:-18799}
+HICLAW_PORT_MANAGER_CONSOLE=${HICLAW_PORT_MANAGER_CONSOLE:-18888}
 
 # Manager runtime (openclaw | copaw)
 HICLAW_MANAGER_RUNTIME=${HICLAW_MANAGER_RUNTIME:-openclaw}
@@ -2492,8 +2485,7 @@ EOF
         -p "${_port_prefix}${HICLAW_PORT_GATEWAY}:8080" \
         -p "${_port_prefix}${HICLAW_PORT_CONSOLE}:8001" \
         -p "${_port_prefix}${HICLAW_PORT_ELEMENT_WEB:-18088}:8088" \
-        -p "127.0.0.1:${HICLAW_PORT_OPENCLAW_CONSOLE:-18888}:18888" \
-        -p "127.0.0.1:${HICLAW_PORT_COPAW_APP:-18799}:18799" \
+        -p "127.0.0.1:${HICLAW_PORT_MANAGER_CONSOLE:-18888}:18888" \
         ${DATA_MOUNT_ARGS} \
         ${WORKSPACE_MOUNT_ARGS} \
         ${HOST_SHARE_MOUNT_ARGS} \
@@ -2559,12 +2551,8 @@ EOF
     log ""
     log "$(msg success.other_consoles)"
     log "$(msg success.higress_console "${HICLAW_PORT_CONSOLE}" "${HICLAW_ADMIN_USER}" "${HICLAW_ADMIN_PASSWORD}")"
-    if [ "${HICLAW_MANAGER_RUNTIME}" = "copaw" ]; then
-        log "$(msg success.copaw_console "${HICLAW_PORT_COPAW_APP:-18799}")"
-    else
-        log "$(msg success.openclaw_console "${HICLAW_PORT_OPENCLAW_CONSOLE:-18888}")"
-        log "$(msg success.openclaw_console_gateway "${HICLAW_ADMIN_USER}" "${HICLAW_ADMIN_PASSWORD}")"
-    fi
+    log "$(msg success.manager_console "${HICLAW_PORT_MANAGER_CONSOLE:-18888}")"
+    log "$(msg success.manager_console_gateway "${HICLAW_ADMIN_USER}" "${HICLAW_ADMIN_PASSWORD}")"
     log ""
     log "$(msg success.switch_llm.title)"
     log "$(msg success.switch_llm.hint)"

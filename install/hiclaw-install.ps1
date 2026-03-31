@@ -331,7 +331,7 @@ $script:Messages = @{
     "port.gateway_prompt" = @{ zh = "网关主机端口（容器内 8080）"; en = "Host port for gateway (8080 inside container)" }
     "port.console_prompt" = @{ zh = "Higress 控制台主机端口（容器内 8001）"; en = "Host port for Higress console (8001 inside container)" }
     "port.element_prompt" = @{ zh = "Element Web 直接访问主机端口（容器内 8088）"; en = "Host port for Element Web direct access (8088 inside container)" }
-    "port.openclaw_console_prompt" = @{ zh = "OpenClaw 控制台主机端口（容器内 18888）"; en = "Host port for OpenClaw console (18888 inside container)" }
+    "port.manager_console_prompt" = @{ zh = "Manager 控制台主机端口（容器内 18888）"; en = "Host port for Manager console (18888 inside container)" }
     "port.local_only.title" = @{ zh = "--- 网络访问模式 ---"; en = "--- Network Access Mode ---" }
     "port.local_only.hint_yes" = @{ zh = "  仅本机使用，无需开放外部端口（推荐）"; en = "  Local use only, no external port exposure (recommended)" }
     "port.local_only.hint_no" = @{ zh = "  允许外部访问（局域网 / 公网）"; en = "  Allow external access (LAN / public network)" }
@@ -348,7 +348,7 @@ $script:Messages = @{
     "domain.element_prompt" = @{ zh = "Element Web 域名"; en = "Element Web Domain" }
     "domain.gateway_prompt" = @{ zh = "AI 网关域名"; en = "AI Gateway Domain" }
     "domain.fs_prompt" = @{ zh = "文件系统域名"; en = "File System Domain" }
-    "domain.console_prompt" = @{ zh = "OpenClaw 控制台域名"; en = "OpenClaw Console Domain" }
+    "domain.console_prompt" = @{ zh = "Manager 控制台域名"; en = "Manager Console Domain" }
 
     # --- GitHub Integration ---
     "github.title" = @{ zh = "--- GitHub 集成（可选，按回车跳过）---"; en = "--- GitHub Integration (optional, press Enter to skip) ---" }
@@ -380,6 +380,14 @@ $script:Messages = @{
     "worker_runtime.choice" = @{ zh = "请选择 [1/2]"; en = "Enter choice [1/2]" }
     "worker_runtime.selected" = @{ zh = "默认 Worker 运行时: {0}"; en = "Default Worker runtime: {0}" }
     "worker_runtime.title_short" = @{ zh = "默认 Worker 运行时"; en = "Default Worker Runtime" }
+
+    # --- Manager runtime ---
+    "manager_runtime.title" = @{ zh = "--- Manager 运行时 ---"; en = "--- Manager Runtime ---" }
+    "manager_runtime.openclaw" = @{ zh = "OpenClaw（Node.js）"; en = "OpenClaw (Node.js)" }
+    "manager_runtime.copaw" = @{ zh = "CoPaw（Python，AgentScope 框架）"; en = "CoPaw (Python, AgentScope framework)" }
+    "manager_runtime.choice" = @{ zh = "请选择 [1/2]"; en = "Enter choice [1/2]" }
+    "manager_runtime.selected" = @{ zh = "Manager 运行时: {0}"; en = "Manager runtime: {0}" }
+    "manager_runtime.title_short" = @{ zh = "Manager 运行时"; en = "Manager Runtime" }
 
     # --- Matrix E2EE ---
     "matrix_e2ee.title" = @{ zh = "--- Matrix 端到端加密（E2EE）---"; en = "--- Matrix End-to-End Encryption (E2EE) ---" }
@@ -519,8 +527,9 @@ $script:Messages = @{
     # --- Other consoles and tips ---
     "success.other_consoles" = @{ zh = "--- 其他控制台 ---"; en = "--- Other Consoles ---" }
     "success.higress_console" = @{ zh = "  Higress 控制台: http://localhost:{0}（用户名: {1} / 密码: {2}）"; en = "  Higress Console: http://localhost:{0} (Username: {1} / Password: {2})" }
-    "success.openclaw_console" = @{ zh = "  OpenClaw 控制台（本地）: http://localhost:{0}（无需登录）"; en = "  OpenClaw Console (local): http://localhost:{0} (no login required)" }
-    "success.openclaw_console_gateway" = @{ zh = "  OpenClaw 控制台（网关）: http://console-local.hiclaw.io（用户名: {0} / 密码: {1}）"; en = "  OpenClaw Console (gateway): http://console-local.hiclaw.io (Username: {0} / Password: {1})" }
+    "success.manager_console" = @{ zh = "  Manager 控制台（本地）: http://localhost:{0}（无需登录）"; en = "  Manager Console (local): http://localhost:{0} (no login required)" }
+    "success.manager_console_gateway" = @{ zh = "  Manager 控制台（网关）: http://console-local.hiclaw.io（用户名: {0} / 密码: {1}）"; en = "  Manager Console (gateway): http://console-local.hiclaw.io (Username: {0} / Password: {1})" }
+    "success.copaw_console" = @{ zh = "  CoPaw 控制台（本地）: http://localhost:{0}（无需登录）"; en = "  CoPaw Console (local): http://localhost:{0} (no login required)" }
     "success.switch_llm.title" = @{ zh = "--- 切换 LLM 提供商 ---"; en = "--- Switch LLM Providers ---" }
     "success.switch_llm.hint" = @{ zh = "  您可以通过 Higress 控制台切换到其他 LLM 提供商（OpenAI、Anthropic 等）。"; en = "  You can switch to other LLM providers (OpenAI, Anthropic, etc.) via Higress Console." }
     "success.switch_llm.docs" = @{ zh = "  详细说明请参阅:"; en = "  For detailed instructions, see:" }
@@ -782,7 +791,7 @@ HICLAW_LOCAL_ONLY=$($Config.LOCAL_ONLY)
 HICLAW_PORT_GATEWAY=$($Config.PORT_GATEWAY)
 HICLAW_PORT_CONSOLE=$($Config.PORT_CONSOLE)
 HICLAW_PORT_ELEMENT_WEB=$($Config.PORT_ELEMENT_WEB)
-HICLAW_PORT_OPENCLAW_CONSOLE=$($Config.PORT_OPENCLAW_CONSOLE)
+HICLAW_PORT_MANAGER_CONSOLE=$($Config.PORT_MANAGER_CONSOLE)
 
 # Matrix
 HICLAW_MATRIX_DOMAIN=$($Config.MATRIX_DOMAIN)
@@ -811,6 +820,9 @@ HICLAW_SKILLS_API_URL=$($Config.SKILLS_API_URL)
 # Worker images (for direct container creation)
 HICLAW_WORKER_IMAGE=$($Config.WORKER_IMAGE)
 HICLAW_COPAW_WORKER_IMAGE=$($Config.COPAW_WORKER_IMAGE)
+
+# Manager runtime (openclaw | copaw)
+HICLAW_MANAGER_RUNTIME=$($Config.MANAGER_RUNTIME)
 
 # Default Worker runtime (openclaw | copaw)
 HICLAW_DEFAULT_WORKER_RUNTIME=$($Config.DEFAULT_WORKER_RUNTIME)
@@ -1170,7 +1182,7 @@ function Clear-StepVars {
             [Environment]::SetEnvironmentVariable("HICLAW_LOCAL_ONLY", $null, "Process")
         }
         "Step-Ports" {
-            foreach ($k in @("HICLAW_PORT_GATEWAY","HICLAW_PORT_CONSOLE","HICLAW_PORT_ELEMENT_WEB","HICLAW_PORT_OPENCLAW_CONSOLE")) {
+            foreach ($k in @("HICLAW_PORT_GATEWAY","HICLAW_PORT_CONSOLE","HICLAW_PORT_ELEMENT_WEB","HICLAW_PORT_MANAGER_CONSOLE")) {
                 [Environment]::SetEnvironmentVariable($k, $null, "Process")
             }
         }
@@ -1193,6 +1205,9 @@ function Clear-StepVars {
         }
         "Step-Runtime" {
             [Environment]::SetEnvironmentVariable("HICLAW_DEFAULT_WORKER_RUNTIME", $null, "Process")
+        }
+        "Step-ManagerRuntime" {
+            [Environment]::SetEnvironmentVariable("HICLAW_MANAGER_RUNTIME", $null, "Process")
         }
         "Step-E2ee" {
             [Environment]::SetEnvironmentVariable("HICLAW_MATRIX_E2EE", $null, "Process")
@@ -1638,7 +1653,7 @@ function Step-Ports {
     if ($script:StepResult -eq "back") { return }
     $script:config.PORT_ELEMENT_WEB = Read-Prompt -VarName "HICLAW_PORT_ELEMENT_WEB" -PromptText (Get-Msg "port.element_prompt") -Default "18088"
     if ($script:StepResult -eq "back") { return }
-    $script:config.PORT_OPENCLAW_CONSOLE = Read-Prompt -VarName "HICLAW_PORT_OPENCLAW_CONSOLE" -PromptText (Get-Msg "port.openclaw_console_prompt") -Default "18888"
+    $script:config.PORT_MANAGER_CONSOLE = Read-Prompt -VarName "HICLAW_PORT_MANAGER_CONSOLE" -PromptText (Get-Msg "port.manager_console_prompt") -Default "18888"
     if ($script:StepResult -eq "back") { return }
     Write-Log ""
 }
@@ -1719,6 +1734,35 @@ function Step-Runtime {
         $script:config.DEFAULT_WORKER_RUNTIME = if ($rtChoice -eq "2") { "copaw" } else { "openclaw" }
     }
     Write-Log (Get-Msg "worker_runtime.selected" -f $script:config.DEFAULT_WORKER_RUNTIME)
+}
+
+function Step-ManagerRuntime {
+    Write-Log (Get-Msg "manager_runtime.title")
+    Write-Host ""
+    Write-Host "  1) $(Get-Msg 'manager_runtime.openclaw')"
+    Write-Host "  2) $(Get-Msg 'manager_runtime.copaw')"
+    Write-Host ""
+
+    if ($script:HICLAW_NON_INTERACTIVE) {
+        $script:config.MANAGER_RUNTIME = if ($env:HICLAW_MANAGER_RUNTIME) { $env:HICLAW_MANAGER_RUNTIME } else { "openclaw" }
+    } elseif ($script:HICLAW_UPGRADE -and $env:HICLAW_MANAGER_RUNTIME) {
+        Write-Log (Get-Msg "prompt.upgrade_keep" -f (Get-Msg "manager_runtime.title_short"), $env:HICLAW_MANAGER_RUNTIME)
+        $mrChoice = Read-Host (Get-Msg "manager_runtime.choice")
+        if ($mrChoice -eq "b") { $script:StepResult = "back"; return }
+        if ($mrChoice) {
+            $script:config.MANAGER_RUNTIME = if ($mrChoice -eq "2") { "copaw" } else { "openclaw" }
+        } else {
+            $script:config.MANAGER_RUNTIME = $env:HICLAW_MANAGER_RUNTIME
+        }
+    } elseif ($env:HICLAW_MANAGER_RUNTIME) {
+        $script:config.MANAGER_RUNTIME = $env:HICLAW_MANAGER_RUNTIME
+    } else {
+        $mrChoice = Read-Host (Get-Msg "manager_runtime.choice")
+        if ($mrChoice -eq "b") { $script:StepResult = "back"; return }
+        $mrChoice = if ($mrChoice) { $mrChoice } else { "1" }
+        $script:config.MANAGER_RUNTIME = if ($mrChoice -eq "2") { "copaw" } else { "openclaw" }
+    }
+    Write-Log (Get-Msg "manager_runtime.selected" -f $script:config.MANAGER_RUNTIME)
 }
 
 function Step-E2ee {
@@ -1896,6 +1940,12 @@ function Install-Manager {
         "$($script:HICLAW_REGISTRY)/higress/hiclaw-copaw-worker:$($script:HICLAW_VERSION)"
     }
 
+    $script:MANAGER_COPAW_IMAGE = if ($env:HICLAW_INSTALL_MANAGER_COPAW_IMAGE) {
+        $env:HICLAW_INSTALL_MANAGER_COPAW_IMAGE
+    } else {
+        "$($script:HICLAW_REGISTRY)/higress/hiclaw-manager-copaw:$($script:HICLAW_VERSION)"
+    }
+
     $script:DOCKER_PROXY_IMAGE = if ($env:HICLAW_INSTALL_DOCKER_PROXY_IMAGE) {
         $env:HICLAW_INSTALL_DOCKER_PROXY_IMAGE
     } else {
@@ -1975,7 +2025,7 @@ function Install-Manager {
     # ── State machine ─────────────────────────────────────────────────────────
     $_steps = @("Step-Lang", "Step-Mode", "Step-Existing", "Step-Llm", "Step-Admin",
                 "Step-Network", "Step-Ports", "Step-Domains", "Step-Github", "Step-Skills",
-                "Step-Volume", "Step-Workspace", "Step-Runtime", "Step-E2ee", "Step-DockerProxy", "Step-Idle",
+                "Step-Volume", "Step-Workspace", "Step-ManagerRuntime", "Step-Runtime", "Step-E2ee", "Step-DockerProxy", "Step-Idle",
                 "Step-Hostshare")
     $_stepHistory = [System.Collections.Generic.List[int]]::new()
     $_stepIdx = 0
@@ -2033,11 +2083,14 @@ function Install-Manager {
     if (-not $script:config.LOCAL_ONLY) {
         $script:config.LOCAL_ONLY = if ($env:HICLAW_LOCAL_ONLY) { $env:HICLAW_LOCAL_ONLY } else { "1" }
     }
+    if (-not $script:config.MANAGER_RUNTIME) {
+        $script:config.MANAGER_RUNTIME = if ($env:HICLAW_MANAGER_RUNTIME) { $env:HICLAW_MANAGER_RUNTIME } else { "openclaw" }
+    }
     if (-not $script:config.PORT_GATEWAY) {
         $script:config.PORT_GATEWAY = if ($env:HICLAW_PORT_GATEWAY) { $env:HICLAW_PORT_GATEWAY } else { "18080" }
         $script:config.PORT_CONSOLE = if ($env:HICLAW_PORT_CONSOLE) { $env:HICLAW_PORT_CONSOLE } else { "18001" }
         $script:config.PORT_ELEMENT_WEB = if ($env:HICLAW_PORT_ELEMENT_WEB) { $env:HICLAW_PORT_ELEMENT_WEB } else { "18088" }
-        $script:config.PORT_OPENCLAW_CONSOLE = if ($env:HICLAW_PORT_OPENCLAW_CONSOLE) { $env:HICLAW_PORT_OPENCLAW_CONSOLE } else { "18888" }
+        $script:config.PORT_MANAGER_CONSOLE = if ($env:HICLAW_PORT_MANAGER_CONSOLE) { $env:HICLAW_PORT_MANAGER_CONSOLE } else { "18888" }
     }
     if (-not $script:config.MATRIX_DOMAIN) {
         $script:config.MATRIX_DOMAIN = if ($env:HICLAW_MATRIX_DOMAIN) { $env:HICLAW_MATRIX_DOMAIN } else { "matrix-local.hiclaw.io:$($script:config.PORT_GATEWAY)" }
@@ -2062,6 +2115,7 @@ function Install-Manager {
     $config.REGISTRY = $script:HICLAW_REGISTRY
     $config.WORKER_IMAGE = $script:WORKER_IMAGE
     $config.COPAW_WORKER_IMAGE = $script:COPAW_WORKER_IMAGE
+    $config.MANAGER_COPAW_IMAGE = $script:MANAGER_COPAW_IMAGE
 
     # Write env file
     New-EnvFile -Config $config -Path $script:HICLAW_ENV_FILE
@@ -2073,7 +2127,8 @@ function Install-Manager {
         "--env-file", $script:HICLAW_ENV_FILE,
         "-e", "HOME=/root/manager-workspace",
         "-w", "/root/manager-workspace",
-        "-e", "HOST_ORIGINAL_HOME=$($config.HOST_SHARE_DIR)"
+        "-e", "HOST_ORIGINAL_HOME=$($config.HOST_SHARE_DIR)",
+        "-e", "HICLAW_MANAGER_RUNTIME=$($config.MANAGER_RUNTIME)"
     )
 
     # Timezone
@@ -2143,7 +2198,7 @@ function Install-Manager {
     $dockerArgs += @("-p", "${portPrefix}$($config.PORT_GATEWAY):8080")
     $dockerArgs += @("-p", "${portPrefix}$($config.PORT_CONSOLE):8001")
     $dockerArgs += @("-p", "${portPrefix}$($config.PORT_ELEMENT_WEB):8088")
-    $dockerArgs += @("-p", "127.0.0.1:$($config.PORT_OPENCLAW_CONSOLE):18888")
+    $dockerArgs += @("-p", "127.0.0.1:$($config.PORT_MANAGER_CONSOLE):18888")
 
     # Data mount: Docker volume
     $dockerArgs += @("-v", "$($config.DATA_DIR):/data")
@@ -2166,8 +2221,9 @@ function Install-Manager {
     # Restart policy
     $dockerArgs += @("--restart", "unless-stopped")
 
-    # Image
-    $dockerArgs += $script:MANAGER_IMAGE
+    # Image (select based on Manager runtime)
+    $managerImage = if ($config.MANAGER_RUNTIME -eq "copaw") { $script:MANAGER_COPAW_IMAGE } else { $script:MANAGER_IMAGE }
+    $dockerArgs += $managerImage
 
     # Check if the Docker volume exists; create if not (reuse on reinstall)
     $volumeExists = docker volume ls -q 2>$null | Select-String "^$($config.DATA_DIR)$"
@@ -2179,17 +2235,17 @@ function Install-Manager {
     # For local images (prefix "hiclaw/"), skip pull if exists
     # For remote images, always pull to get updates
     $LocalImagePrefix = "hiclaw/"
-    if ($script:MANAGER_IMAGE.StartsWith($LocalImagePrefix)) {
-        $managerImageExists = docker image inspect $script:MANAGER_IMAGE 2>$null
+    if ($managerImage.StartsWith($LocalImagePrefix)) {
+        $managerImageExists = docker image inspect $managerImage 2>$null
         if ($LASTEXITCODE -eq 0) {
-            Write-Log (Get-Msg "install.image.exists" -f $script:MANAGER_IMAGE)
+            Write-Log (Get-Msg "install.image.exists" -f $managerImage)
         } else {
-            Write-Log (Get-Msg "install.image.pulling_manager" -f $script:MANAGER_IMAGE)
-            & docker pull $script:MANAGER_IMAGE
+            Write-Log (Get-Msg "install.image.pulling_manager" -f $managerImage)
+            & docker pull $managerImage
         }
     } else {
-        Write-Log (Get-Msg "install.image.pulling_manager" -f $script:MANAGER_IMAGE)
-        & docker pull $script:MANAGER_IMAGE
+        Write-Log (Get-Msg "install.image.pulling_manager" -f $managerImage)
+        & docker pull $managerImage
     }
 
     # Pull the worker image matching the selected runtime (on upgrade, also pull the other if present locally)
@@ -2307,8 +2363,8 @@ function Install-Manager {
     Write-Log ""
     Write-Log (Get-Msg "success.other_consoles")
     Write-Log (Get-Msg "success.higress_console" -f $config.PORT_CONSOLE, $config.ADMIN_USER, $config.ADMIN_PASSWORD)
-    Write-Log (Get-Msg "success.openclaw_console" -f $config.PORT_OPENCLAW_CONSOLE)
-    Write-Log (Get-Msg "success.openclaw_console_gateway" -f $config.ADMIN_USER, $config.ADMIN_PASSWORD)
+    Write-Log (Get-Msg "success.manager_console" -f $config.PORT_MANAGER_CONSOLE)
+    Write-Log (Get-Msg "success.manager_console_gateway" -f $config.ADMIN_USER, $config.ADMIN_PASSWORD)
     Write-Log ""
     Write-Log (Get-Msg "success.switch_llm.title")
     Write-Log (Get-Msg "success.switch_llm.hint")
