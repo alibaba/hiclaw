@@ -97,6 +97,9 @@ def post_process_config(
         "AGENTS.md", "SOUL.md", "PROFILE.md", "TOOLS.md"
     ]
 
+    # --- console channel: enable for Manager (base bridge disables it for Workers) ---
+    config.setdefault("channels", {}).setdefault("console", {})["enabled"] = True
+
     with open(config_path, "w") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
