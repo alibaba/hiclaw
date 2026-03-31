@@ -166,7 +166,7 @@ class MatrixConfig(BaseChannelConfig):
     sync_timeout_ms: int = Field(default=30000, ge=5000, le=300000)
     # When True, prepend HTML pill to formatted_body for outbound mentions.
     # Default False: m.mentions is always set for push, but pill is omitted.
-    mention_pill_in_body: bool = False
+    mention_pill_in_body: bool = True
     # When True, apply m.mentions + optional pill on outbound messages.
     outbound_structured_mentions: bool = True
 

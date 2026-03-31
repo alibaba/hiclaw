@@ -475,12 +475,12 @@ REGISTRY_FILE_EARLY="${HOME}/workers-registry.json"
 # ============================================================
 # Step 7: Update Manager groupAllowFrom
 # ============================================================
+MANAGER_CONFIG="${HOME}/openclaw.json"
 # For team workers, do NOT add to Manager's groupAllowFrom — they only talk to their Leader.
 if [ -n "${TEAM_LEADER_NAME}" ]; then
     log "Step 7: Skipping Manager groupAllowFrom (team worker reports to leader ${TEAM_LEADER_NAME})"
 else
     log "Step 7: Updating Manager groupAllowFrom..."
-    MANAGER_CONFIG="${HOME}/openclaw.json"
     WORKER_MATRIX_ID="@${WORKER_NAME}:${MATRIX_DOMAIN}"
     if [ -f "${MANAGER_CONFIG}" ]; then
         ALREADY_IN=$(jq -r --arg w "${WORKER_MATRIX_ID}" \
