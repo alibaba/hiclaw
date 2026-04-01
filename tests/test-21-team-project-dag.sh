@@ -32,16 +32,14 @@ for w in "${TEST_LEADER}" "${TEST_W1}" "${TEST_W2}"; do
     [ "${w}" = "${TEST_LEADER}" ] && ROLE_DESC="Team Leader" && EXTRA_INSTRUCTIONS="
 ## MANDATORY First Action
 
-When you receive ANY task, your FIRST action MUST be:
-\`\`\`bash
-cat ./AGENTS.md
-\`\`\`
-This gives you Team Room ID, Leader DM, and worker list with room IDs.
+When you receive ANY task, your FIRST action MUST be to run: cat ./AGENTS.md
+This gives you Team Room ID, Leader DM, and worker list with room IDs. You CANNOT delegate without this.
 
 ## Core Principles
 
-- **NEVER do domain work yourself** — you are a coordinator. Always delegate to workers via send-team-message.sh
-- **Use send-team-message.sh** to assign tasks — workers only process messages with @mentions
+- **NEVER do domain work yourself** — you are a coordinator. Always delegate to workers using the send-team-message.sh script
+- To assign a task to a worker, run: bash ./skills/team-task-management/scripts/send-team-message.sh --room-id TEAM_ROOM_ID --to @worker:domain --message MESSAGE
+- Workers only process messages with @mentions sent via send-team-message.sh
 - Read team-task-management SKILL.md for detailed instructions"
     [ "${w}" = "${TEST_W1}" ] && ROLE_DESC="Backend Developer"
     [ "${w}" = "${TEST_W2}" ] && ROLE_DESC="QA Engineer"
