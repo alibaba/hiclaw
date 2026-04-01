@@ -267,14 +267,11 @@ LEADER_MERGED_POLICY=$(jq -n \
         dmDenyExtra:     ((($team.dmDenyExtra // [])     + ($member.dmDenyExtra // []))     | unique)
     } | with_entries(select(.value | length > 0))')
 if [ -n "${LEADER_MERGED_POLICY}" ] && [ "${LEADER_MERGED_POLICY}" != "{}" ]; then
-    LEADER_ARGS+=(--channel-policy "${LEADER_MERGED_POLICY}")
-fi
-# Also add Team Admin to Leader's dm.allowFrom via dmAllowExtra
-if [ -n "${TEAM_ADMIN_MID}" ]; then
-    # Re-merge with dmAllowExtra including Team Admin
-    LEADER_MERGED_POLICY=$(echo "${LEADER_MERGED_POLICY}" | jq --arg a "${TEAM_ADMIN_MID}" \
-        '.dmAllowExtra = ((.dmAllowExtra // []) + [$a] | unique)')
-    LEADER_ARGS=("${LEADER_ARGS[@]/%--channel-policy*/}")
+    # Add Team Admin to dm.allowFrom
+    if [ -n "${TEAM_ADMIN_MID}" ]; then
+        LEADER_MERGED_POLICY=$(echo "${LEADER_MERGED_POLICY}" | jq --arg a "${TEAM_ADMIN_MID}" \
+            '.dmAllowExtra = ((.dmAllowExtra // []) + [$a] | unique)')
+    fi
     LEADER_ARGS+=(--channel-policy "${LEADER_MERGED_POLICY}")
 fi
 
