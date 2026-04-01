@@ -192,10 +192,33 @@ class FileSync:
         except subprocess.CalledProcessError as exc:
             logger.warning("mirror_all: shared/ mirror failed (non-fatal): %s", exc.stderr)
 
+        # Also mirror teams/{team_id}/ if worker belongs to a team
+        team_id = self._get_team_id()
+        if team_id:
+            team_remote = f"{_MC_ALIAS}/{self.bucket}/teams/{team_id}/"
+            team_local = str(self.local_dir / "teams" / team_id) + "/"
+            os.makedirs(team_local, exist_ok=True)
+            try:
+                _mc("mirror", team_remote, team_local, "--overwrite", check=True)
+                logger.info("mirror_all: teams/%s/ mirror completed", team_id)
+            except subprocess.CalledProcessError as exc:
+                logger.warning("mirror_all: teams/%s/ mirror failed (non-fatal): %s", team_id, exc.stderr)
+
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def _get_team_id(self) -> Optional[str]:
+        """Read team_id from local openclaw.json (injected by create-worker.sh)."""
+        config_path = self.local_dir / "openclaw.json"
+        if not config_path.exists():
+            return None
+        try:
+            config = json.loads(config_path.read_text())
+            return config.get("team_id") or None
+        except Exception:
+            return None
 
     def get_config(self) -> dict[str, Any]:
         """Pull openclaw.json and return parsed dict."""
@@ -309,6 +332,29 @@ class FileSync:
                 logger.warning("mc mirror failed for shared/: %s", result.stderr)
         except Exception as exc:
             logger.warning("Failed to mirror shared/: %s", exc)
+
+        # Team storage: teams/{team_id}/
+        # If this worker belongs to a team (team_id in openclaw.json),
+        # also mirror the team's isolated storage space.
+        team_id = self._get_team_id()
+        if team_id:
+            team_remote = f"{_MC_ALIAS}/{self.bucket}/teams/{team_id}/"
+            team_local = self.local_dir / "teams" / team_id
+            team_local.mkdir(parents=True, exist_ok=True)
+            try:
+                result = _mc(
+                    "mirror",
+                    team_remote,
+                    str(team_local) + "/",
+                    "--overwrite",
+                    check=False,
+                )
+                if result.returncode == 0:
+                    changed.append(f"teams/{team_id}/")
+                else:
+                    logger.warning("mc mirror failed for teams/%s/: %s", team_id, result.stderr)
+            except Exception as exc:
+                logger.warning("Failed to mirror teams/%s/: %s", team_id, exc)
 
         # Clean up local skill dirs removed from MinIO
         local_skills_dir = self.local_dir / "skills"

@@ -490,6 +490,16 @@ if [ -n "${CHANNEL_POLICY_JSON}" ]; then
 fi
 bash /opt/hiclaw/agent/skills/worker-management/scripts/generate-worker-config.sh "${GEN_ARGS[@]}"
 
+# Inject team_id into openclaw.json so CoPaw FileSync can mirror teams/{team}/ storage
+if [ -n "${TEAM_NAME}" ]; then
+    WORKER_CONFIG="/root/hiclaw-fs/agents/${WORKER_NAME}/openclaw.json"
+    if [ -f "${WORKER_CONFIG}" ]; then
+        jq --arg t "${TEAM_NAME}" '. + {team_id: $t}' "${WORKER_CONFIG}" > "${WORKER_CONFIG}.tmp" \
+            && mv "${WORKER_CONFIG}.tmp" "${WORKER_CONFIG}"
+        log "  Injected team_id=${TEAM_NAME} into openclaw.json"
+    fi
+fi
+
 # Generate mcporter-servers.json if MCP servers are authorized
 if [ -n "${TARGET_MCP_LIST}" ]; then
     log "  Generating mcporter-servers.json..."
