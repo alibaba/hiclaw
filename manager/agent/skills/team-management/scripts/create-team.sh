@@ -613,8 +613,22 @@ if mc cp "${_leader_agents_minio}" "${_leader_agents_tmp}" 2>/dev/null; then
     fi
 
     mc cp "${_leader_final}" "${_leader_agents_minio}" 2>/dev/null \
-        && log "  Leader team-context updated with room IDs" \
-        || log "  WARNING: Failed to update Leader team-context"
+        && log "  Leader team-context updated with room IDs in MinIO" \
+        || log "  WARNING: Failed to update Leader team-context in MinIO"
+
+    # Also push directly into the running Leader container (FileSync won't pull AGENTS.md)
+    LEADER_CONTAINER="hiclaw-worker-${LEADER_NAME}"
+    LEADER_COPAW_DIR="/root/.copaw-worker/${LEADER_NAME}"
+    if docker exec "${LEADER_CONTAINER}" true 2>/dev/null; then
+        docker cp "${_leader_final}" "${LEADER_CONTAINER}:${LEADER_COPAW_DIR}/AGENTS.md" 2>/dev/null \
+            && log "  Leader AGENTS.md pushed to container working dir" \
+            || log "  WARNING: Failed to push AGENTS.md to Leader container"
+        docker cp "${_leader_final}" "${LEADER_CONTAINER}:${LEADER_COPAW_DIR}/.copaw/AGENTS.md" 2>/dev/null \
+            || true  # .copaw/ copy is best-effort
+    else
+        log "  WARNING: Leader container not running, skipping direct push"
+    fi
+
     rm -f "${_leader_clean}" "${_leader_final}"
 fi
 rm -f "${_leader_agents_tmp}" "${_leader_ctx_tmp}"
