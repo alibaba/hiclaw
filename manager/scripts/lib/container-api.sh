@@ -22,7 +22,7 @@ if [ -z "${CONTAINER_API_BASE}" ]; then
 fi
 WORKER_IMAGE="${HICLAW_WORKER_IMAGE:-hiclaw/worker-agent:latest}"
 COPAW_WORKER_IMAGE="${HICLAW_COPAW_WORKER_IMAGE:-hiclaw/copaw-worker:latest}"
-WORKER_CONTAINER_PREFIX="hiclaw-worker-"
+WORKER_CONTAINER_PREFIX="${HICLAW_PROXY_CONTAINER_PREFIX:-hiclaw-worker-}"
 
 _log() {
     echo "[hiclaw-container $(date '+%Y-%m-%d %H:%M:%S')] $1"
