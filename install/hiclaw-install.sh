@@ -2386,7 +2386,12 @@ EOF
 
     # Always pull copaw worker image — team workers require copaw runtime
     if [ "${HICLAW_DEFAULT_WORKER_RUNTIME}" != "copaw" ]; then
-        _pull_image "${COPAW_WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker"
+        if ${DOCKER_CMD} image inspect "${COPAW_WORKER_IMAGE}" >/dev/null 2>&1; then
+            log "$(msg "install.image.worker_exists" "${COPAW_WORKER_IMAGE}")"
+        else
+            _pull_image "${COPAW_WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker" || \
+                log "Warning: copaw worker image not available, team features may not work"
+        fi
     fi
 
     # During upgrade, also pull the other worker image if containers using it exist locally.

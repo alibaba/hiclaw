@@ -2270,17 +2270,16 @@ function Install-Manager {
 
     # Always pull copaw worker image — team workers require copaw runtime
     if ($config.DEFAULT_WORKER_RUNTIME -ne "copaw") {
-        if ($script:COPAW_WORKER_IMAGE.StartsWith($LocalImagePrefix)) {
-            $copawExists = docker image inspect $script:COPAW_WORKER_IMAGE 2>$null
-            if ($LASTEXITCODE -eq 0) {
-                Write-Log (Get-Msg "install.image.worker_exists" -f $script:COPAW_WORKER_IMAGE)
-            } else {
+        $copawExists = docker image inspect $script:COPAW_WORKER_IMAGE 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log (Get-Msg "install.image.worker_exists" -f $script:COPAW_WORKER_IMAGE)
+        } else {
+            try {
                 Write-Log (Get-Msg "install.image.pulling_worker" -f $script:COPAW_WORKER_IMAGE)
                 & docker pull $script:COPAW_WORKER_IMAGE
+            } catch {
+                Write-Log "Warning: copaw worker image not available, team features may not work"
             }
-        } else {
-            Write-Log (Get-Msg "install.image.pulling_worker" -f $script:COPAW_WORKER_IMAGE)
-            & docker pull $script:COPAW_WORKER_IMAGE
         }
     }
 
