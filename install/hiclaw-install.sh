@@ -1267,7 +1267,7 @@ should_skip_step() {
             [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
             [ "${HICLAW_QUICKSTART}" = "1" ] && return 0
             ;;
-        step_e2ee|step_idle|step_docker_proxy|step_matrix_provider)
+        step_e2ee|step_idle|step_docker_proxy)
             [ "${HICLAW_NON_INTERACTIVE}" = "1" ] && return 0
             [ "${HICLAW_QUICKSTART}" = "1" ] && [ "${HICLAW_UPGRADE}" != "1" ] && return 0
             ;;
@@ -1960,73 +1960,6 @@ step_e2ee() {
     fi
 }
 
-step_matrix_provider() {
-    log ""
-    log "  Matrix Server Provider"
-    echo ""
-    echo "  Select which Matrix homeserver to use:"
-    echo ""
-    echo "  1) Tuwunel (default) — embedded, zero dependencies, uses RocksDB"
-    echo "  2) Synapse — requires external PostgreSQL, supports horizontal scaling"
-    echo ""
-    if [ "${HICLAW_UPGRADE}" = "1" ]; then
-        HICLAW_MATRIX_PROVIDER="${HICLAW_MATRIX_PROVIDER:-tuwunel}"
-        log "  Current: ${HICLAW_MATRIX_PROVIDER} (locked during upgrade)"
-        export HICLAW_MATRIX_PROVIDER
-        return 0
-    elif [ -z "${HICLAW_MATRIX_PROVIDER+x}" ]; then
-        local _provider_choice
-        read -e -p "  Choose [1-2] (default: 1): " _provider_choice
-        if [ "${_provider_choice}" = "b" ]; then STEP_RESULT="back"; return 0; fi
-        _provider_choice="${_provider_choice:-1}"
-        case "${_provider_choice}" in
-            2) HICLAW_MATRIX_PROVIDER="synapse" ;;
-            *) HICLAW_MATRIX_PROVIDER="tuwunel" ;;
-        esac
-    fi
-    HICLAW_MATRIX_PROVIDER="${HICLAW_MATRIX_PROVIDER:-tuwunel}"
-    export HICLAW_MATRIX_PROVIDER
-    log "  Matrix provider: ${HICLAW_MATRIX_PROVIDER}"
-
-    # If Synapse selected, collect PostgreSQL connection parameters
-    if [ "${HICLAW_MATRIX_PROVIDER}" = "synapse" ]; then
-        if [ -z "${HICLAW_PG_HOST+x}" ]; then
-            echo ""
-            echo "  Synapse requires an external PostgreSQL database."
-            echo ""
-            local _pg_host
-            while true; do
-                read -e -p "  PostgreSQL host (required): " _pg_host
-                [ -n "${_pg_host}" ] && break
-                log "  PostgreSQL host is required for Synapse."
-            done
-            HICLAW_PG_HOST="${_pg_host}"
-            local _pg_port _pg_user _pg_password _pg_database
-            read -e -p "  PostgreSQL port (default: 5432): " _pg_port
-            read -e -p "  PostgreSQL user (default: synapse): " _pg_user
-            read -e -s -p "  PostgreSQL password: " _pg_password
-            echo ""
-            read -e -p "  PostgreSQL database (default: synapse): " _pg_database
-            HICLAW_PG_PORT="${_pg_port:-5432}"
-            HICLAW_PG_USER="${_pg_user:-synapse}"
-            HICLAW_PG_PASSWORD="${_pg_password}"
-            HICLAW_PG_DATABASE="${_pg_database:-synapse}"
-        fi
-        export HICLAW_PG_HOST HICLAW_PG_PORT HICLAW_PG_USER HICLAW_PG_PASSWORD HICLAW_PG_DATABASE
-
-        # Validate PostgreSQL connectivity
-        if ! echo "${HICLAW_PG_HOST}" | grep -qE '^[a-zA-Z0-9._-]+$'; then
-            log "  WARNING: Invalid PostgreSQL host format: ${HICLAW_PG_HOST}"
-        elif timeout 5 nc -z "${HICLAW_PG_HOST}" "${HICLAW_PG_PORT:-5432}" 2>/dev/null; then
-            log "  PostgreSQL connection OK"
-        else
-            log "  WARNING: Cannot reach PostgreSQL at ${HICLAW_PG_HOST}:${HICLAW_PG_PORT:-5432}"
-            log "  Installation will continue, but Synapse may fail to start."
-            log "  Please verify your PostgreSQL settings."
-        fi
-    fi
-}
-
 step_docker_proxy() {
     # Only relevant when socket mounting is enabled
     if [ "${HICLAW_MOUNT_SOCKET}" != "1" ]; then
@@ -2195,7 +2128,7 @@ install_manager() {
     # ── State machine ─────────────────────────────────────────────────────────
     local _STEPS=( step_lang step_mode step_version step_existing step_llm step_admin step_network \
                    step_ports step_domains step_github step_skills step_volume \
-                   step_workspace step_manager_runtime step_runtime step_e2ee step_matrix_provider step_docker_proxy step_idle step_hostshare )
+                   step_workspace step_manager_runtime step_runtime step_e2ee step_docker_proxy step_idle step_hostshare )
     local _STEP_HISTORY=()
     local _step_idx=0
     while [ "${_step_idx}" -lt "${#_STEPS[@]}" ]; do
