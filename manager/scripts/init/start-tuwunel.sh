@@ -2,7 +2,7 @@
 # start-tuwunel.sh - Start Tuwunel Matrix Homeserver
 # NOTE: Tuwunel is a conduwuit fork. Environment variables use CONDUWUIT_ prefix.
 
-# Skip if using external Matrix provider (e.g., Synapse sidecar)
+# Skip if using external Matrix provider (e.g., Synapse)
 if [ "${HICLAW_MATRIX_PROVIDER:-tuwunel}" != "tuwunel" ]; then
     echo "[hiclaw] Matrix provider is '${HICLAW_MATRIX_PROVIDER}', skipping Tuwunel"
     exec sleep infinity

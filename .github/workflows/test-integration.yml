@@ -42,14 +42,6 @@ on:
         description: 'LLM model to use'
         required: false
         default: 'qwen3.5-plus'
-      matrix_provider:
-        description: 'Matrix server provider (tuwunel=embedded, synapse=sidecar+PostgreSQL)'
-        required: false
-        type: choice
-        options:
-          - tuwunel
-          - synapse
-        default: 'tuwunel'
 
 env:
   MANAGER_IMAGE: hiclaw/manager-agent:ci-test
@@ -61,51 +53,9 @@ env:
   NON_GITHUB_TESTS: "01 02 03 04 05 06 14 15 17 18 19 20 100"
 
 jobs:
-  # Determine which Matrix providers to test based on changed files
-  detect-providers:
-    runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || inputs.baseline_version == ''
-    outputs:
-      providers: ${{ steps.detect.outputs.providers }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          fetch-depth: 0
-
-      - name: Detect providers to test
-        id: detect
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Manual dispatch: use selected provider
-            echo 'providers=["${{ inputs.matrix_provider || 'tuwunel' }}"]' >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Release tag: test both providers
-            echo 'providers=["tuwunel","synapse"]' >> $GITHUB_OUTPUT
-          else
-            # PR or push: always test tuwunel, add synapse if related files changed
-            PROVIDERS='["tuwunel"]'
-            BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
-            CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
-            if echo "$CHANGED" | grep -qE "^(manager/scripts/init/start-synapse\.sh|manager/Dockerfile|manager/supervisord\.conf|shared/lib/hiclaw-env\.sh|install/hiclaw-install\.(sh|ps1))$"; then
-              PROVIDERS='["tuwunel","synapse"]'
-              echo "Synapse-related files changed, testing both providers"
-            fi
-            echo "providers=${PROVIDERS}" >> $GITHUB_OUTPUT
-          fi
-          echo "Testing providers: $(cat $GITHUB_OUTPUT | grep providers)"
-
   integration-tests:
-    needs: detect-providers
-    if: needs.detect-providers.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        provider: ${{ fromJson(needs.detect-providers.outputs.providers) }}
     permissions:
       contents: write
       pull-requests: write
@@ -155,7 +105,6 @@ jobs:
         run: |
           RUNTIME="${{ inputs.worker_runtime || 'openclaw' }}"
           MODEL="${{ inputs.model || 'qwen3.5-plus' }}"
-          PROVIDER="${{ matrix.provider }}"
           if [ "$RUNTIME" = "copaw" ]; then
             WORKER_IMG="${{ env.COPAW_WORKER_IMAGE }}"
             MANAGER_IMG="${{ env.MANAGER_COPAW_IMAGE }}"
@@ -169,7 +118,6 @@ jobs:
           HICLAW_VERSION=ci-test \
           HICLAW_MOUNT_SOCKET=1 \
           HICLAW_MATRIX_E2EE=0 \
-          HICLAW_MATRIX_PROVIDER="$PROVIDER" \
           HICLAW_LLM_PROVIDER=qwen \
           HICLAW_MANAGER_RUNTIME="$MANAGER_RUNTIME" \
           HICLAW_DEFAULT_WORKER_RUNTIME="$RUNTIME" \
@@ -410,11 +358,7 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: |
-          make uninstall || true
-          docker rm -f hiclaw-synapse-pg 2>/dev/null || true
-          docker volume rm hiclaw-synapse-pg-data 2>/dev/null || true
-          docker system prune -af || true
+        run: make uninstall || true && docker system prune -af || true
 
       - name: Test Summary
         if: always()
@@ -424,7 +368,6 @@ jobs:
           echo "- Manager Image: \`${{ env.MANAGER_IMAGE }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Worker Runtime: \`${{ inputs.worker_runtime || 'openclaw' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Model: \`${{ inputs.model || 'qwen3.5-plus' }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Matrix Provider: \`${{ matrix.provider }}\`" >> $GITHUB_STEP_SUMMARY
 
 # ============================================================
 # Manual baseline re-generation for a specific release version

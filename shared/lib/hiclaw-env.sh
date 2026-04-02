@@ -66,8 +66,19 @@ export HICLAW_RUNTIME HICLAW_MATRIX_SERVER HICLAW_MATRIX_PROVIDER HICLAW_AI_GATE
 matrix_register_user() {
     local username="$1"
     local password="$2"
-    matrix_register_user_raw "${username}" "${password}" > /dev/null 2>&1 \
-        || { type log >/dev/null 2>&1 && log "Account ${username} may already exist" || echo "[hiclaw] Account ${username} may already exist"; }
+    local resp
+    resp=$(matrix_register_user_raw "${username}" "${password}" 2>&1) || true
+    if echo "${resp}" | jq -e '.access_token' > /dev/null 2>&1; then
+        return 0
+    fi
+    local errcode
+    errcode=$(echo "${resp}" | jq -r '.errcode // empty' 2>/dev/null)
+    if [ "${errcode}" = "M_USER_IN_USE" ]; then
+        { type log >/dev/null 2>&1 && log "Account ${username} already exists" || echo "[hiclaw] Account ${username} already exists"; }
+        return 0
+    fi
+    { type log >/dev/null 2>&1 && log "WARNING: Failed to register ${username}: ${resp}" || echo "[hiclaw] WARNING: Failed to register ${username}: ${resp}"; }
+    return 1
 }
 
 # Register a Matrix user and return the raw JSON response.

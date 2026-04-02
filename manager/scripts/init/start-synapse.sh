@@ -26,8 +26,12 @@ if [ ! -f "${SYNAPSE_CONFIG}" ]; then
 fi
 
 # Patch config on every startup (passwords/secrets may change between restarts)
+if [ -z "${HICLAW_PG_HOST}" ]; then
+    echo "[hiclaw] ERROR: HICLAW_PG_HOST is required for Synapse provider"
+    exit 1
+fi
 echo "[hiclaw] Patching Synapse config..."
-HICLAW_PG_HOST="${HICLAW_PG_HOST:-hiclaw-synapse-pg}" \
+HICLAW_PG_HOST="${HICLAW_PG_HOST:-}" \
 HICLAW_PG_USER="${HICLAW_PG_USER:-synapse}" \
 HICLAW_PG_PASSWORD="${HICLAW_PG_PASSWORD}" \
 HICLAW_PG_DATABASE="${HICLAW_PG_DATABASE:-synapse}" \

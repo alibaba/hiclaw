@@ -566,7 +566,7 @@ else
 fi
 
 # Overlay: ensure openclaw.json homeserver matches the actual Matrix server URL.
-# Covers cloud mode (external NLB), Synapse sidecar, and any HICLAW_MATRIX_URL override.
+# Covers cloud mode (external NLB), Synapse, and any HICLAW_MATRIX_URL override.
 # Tuwunel local mode uses the template default (http://127.0.0.1:6167), so no overlay needed.
 _current_homeserver=$(jq -r '.channels.matrix.homeserver // ""' /root/manager-workspace/openclaw.json 2>/dev/null)
 if [ "${_current_homeserver}" != "${HICLAW_MATRIX_SERVER}" ]; then

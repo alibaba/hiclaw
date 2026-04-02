@@ -541,9 +541,6 @@ uninstall: ## Stop and remove Manager + all Worker containers
 		docker rm -f "$$c" 2>/dev/null || true; \
 	done
 	-docker volume rm hiclaw-data 2>/dev/null && echo "  Removed volume: hiclaw-data" || true
-	@# Clean up Synapse PostgreSQL sidecar (if provider=synapse was used)
-	-@docker rm -f hiclaw-synapse-pg 2>/dev/null && echo "  Removed Synapse PostgreSQL container" || true
-	-@docker volume rm hiclaw-synapse-pg-data 2>/dev/null && echo "  Removed Synapse PostgreSQL volume" || true
 	@ENV_FILE="$${HICLAW_ENV_FILE:-$${HOME}/hiclaw-manager.env}"; \
 	[ -f "$$ENV_FILE" ] || ENV_FILE="./hiclaw-manager.env"; \
 	if [ -f "$$ENV_FILE" ]; then \

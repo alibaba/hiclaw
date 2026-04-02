@@ -1365,9 +1365,6 @@ function Step-Existing {
                 docker rm $_ *>$null
                 Write-Log (Get-Msg "install.reinstall.removed_worker" -f $_)
             }
-            # Remove Synapse PostgreSQL sidecar
-            docker rm -f hiclaw-synapse-pg *>$null
-            docker volume rm hiclaw-synapse-pg-data *>$null
             if (docker volume ls -q 2>$null | Select-String "^hiclaw-data$") {
                 Write-Log (Get-Msg "install.reinstall.removing_volume")
                 docker volume rm hiclaw-data *>$null
@@ -1820,18 +1817,14 @@ function Step-MatrixProvider {
     Write-Host "  Select which Matrix homeserver to use:"
     Write-Host ""
     Write-Host "  1) Tuwunel (default) - embedded, zero dependencies, uses RocksDB"
-    Write-Host "  2) Synapse - sidecar container, requires PostgreSQL, supports horizontal scaling"
+    Write-Host "  2) Synapse - requires external PostgreSQL, supports horizontal scaling"
     Write-Host ""
 
-    if ($script:HICLAW_UPGRADE -and $env:HICLAW_MATRIX_PROVIDER) {
-        Write-Log "  Current: $($env:HICLAW_MATRIX_PROVIDER) (press Enter to keep)"
-        $providerChoice = Read-Host "  Choose [1-2]"
-        if ($providerChoice -eq "b") { $script:StepResult = "back"; return }
-        if ($providerChoice) {
-            $script:config.MATRIX_PROVIDER = if ($providerChoice -eq "2") { "synapse" } else { "tuwunel" }
-        } else {
-            $script:config.MATRIX_PROVIDER = $env:HICLAW_MATRIX_PROVIDER
-        }
+    if ($script:HICLAW_UPGRADE) {
+        $provider = if ($env:HICLAW_MATRIX_PROVIDER) { $env:HICLAW_MATRIX_PROVIDER } else { "tuwunel" }
+        Write-Log "  Current: $provider (locked during upgrade)"
+        $script:config.MATRIX_PROVIDER = $provider
+        return
     } elseif (-not $env:HICLAW_MATRIX_PROVIDER) {
         $providerChoice = Read-Host "  Choose [1-2] (default: 1)"
         if ($providerChoice -eq "b") { $script:StepResult = "back"; return }
@@ -1844,30 +1837,25 @@ function Step-MatrixProvider {
     if (-not $script:config.MATRIX_PROVIDER) { $script:config.MATRIX_PROVIDER = "tuwunel" }
     Write-Log "  Matrix provider: $($script:config.MATRIX_PROVIDER)"
 
-    # If Synapse selected, prompt for optional external PostgreSQL
+    # If Synapse selected, collect PostgreSQL connection parameters
     if ($script:config.MATRIX_PROVIDER -eq "synapse") {
         if (-not $env:HICLAW_PG_HOST) {
             Write-Host ""
-            Write-Host "  Synapse requires PostgreSQL."
-            Write-Host "  Leave blank to auto-start a PostgreSQL container, or provide an external host."
+            Write-Host "  Synapse requires an external PostgreSQL database."
             Write-Host ""
-            $pgHost = Read-Host "  PostgreSQL host (blank = auto)"
-            if ($pgHost) {
-                $script:config.PG_HOST = $pgHost
-                $pgPort = Read-Host "  PostgreSQL port (default: 5432)"
-                $pgUser = Read-Host "  PostgreSQL user (default: synapse)"
-                $pgPassword = Read-Host "  PostgreSQL password" -MaskInput
-                $pgDatabase = Read-Host "  PostgreSQL database (default: synapse)"
-                $script:config.PG_PORT = if ($pgPort) { $pgPort } else { "5432" }
-                $script:config.PG_USER = if ($pgUser) { $pgUser } else { "synapse" }
-                $script:config.PG_PASSWORD = $pgPassword
-                $script:config.PG_DATABASE = if ($pgDatabase) { $pgDatabase } else { "synapse" }
-            } else {
-                $script:config.PG_HOST = ""
-                $script:config.PG_PORT = "5432"
-                $script:config.PG_USER = "synapse"
-                $script:config.PG_DATABASE = "synapse"
-            }
+            do {
+                $pgHost = Read-Host "  PostgreSQL host (required)"
+                if (-not $pgHost) { Write-Host "  PostgreSQL host is required for Synapse." }
+            } while (-not $pgHost)
+            $script:config.PG_HOST = $pgHost
+            $pgPort = Read-Host "  PostgreSQL port (default: 5432)"
+            $pgUser = Read-Host "  PostgreSQL user (default: synapse)"
+            $pgPassword = Read-Host "  PostgreSQL password" -MaskInput
+            $pgDatabase = Read-Host "  PostgreSQL database (default: synapse)"
+            $script:config.PG_PORT = if ($pgPort) { $pgPort } else { "5432" }
+            $script:config.PG_USER = if ($pgUser) { $pgUser } else { "synapse" }
+            $script:config.PG_PASSWORD = $pgPassword
+            $script:config.PG_DATABASE = if ($pgDatabase) { $pgDatabase } else { "synapse" }
         } else {
             $script:config.PG_HOST = $env:HICLAW_PG_HOST
             $script:config.PG_PORT = if ($env:HICLAW_PG_PORT) { $env:HICLAW_PG_PORT } else { "5432" }
@@ -1876,8 +1864,10 @@ function Step-MatrixProvider {
             $script:config.PG_DATABASE = if ($env:HICLAW_PG_DATABASE) { $env:HICLAW_PG_DATABASE } else { "synapse" }
         }
 
-        # Validate external PostgreSQL connectivity (lightweight TCP check)
-        if ($script:config.PG_HOST) {
+        # Validate host format and PostgreSQL connectivity
+        if ($script:config.PG_HOST -notmatch '^[a-zA-Z0-9._-]+$') {
+            Write-Host "  WARNING: Invalid PostgreSQL host format: $($script:config.PG_HOST)" -ForegroundColor Yellow
+        } else {
             Write-Log "  Testing PostgreSQL connection..."
             try {
                 $tcp = New-Object System.Net.Sockets.TcpClient
@@ -2210,7 +2200,6 @@ function Install-Manager {
     if (-not $config.MATRIX_PROVIDER) { $config.MATRIX_PROVIDER = if ($env:HICLAW_MATRIX_PROVIDER) { $env:HICLAW_MATRIX_PROVIDER } else { "tuwunel" } }
     if ($config.MATRIX_PROVIDER -eq "synapse") {
         $config.SYNAPSE_SHARED_SECRET = if ($env:HICLAW_SYNAPSE_SHARED_SECRET) { $env:HICLAW_SYNAPSE_SHARED_SECRET } else { New-RandomKey }
-        if (-not $config.PG_PASSWORD) { $config.PG_PASSWORD = if ($env:HICLAW_PG_PASSWORD) { $env:HICLAW_PG_PASSWORD } else { New-RandomKey } }
     }
 
     # Store additional config
@@ -2294,43 +2283,6 @@ function Install-Manager {
                 }
             }
         }
-    }
-
-    # Start PostgreSQL sidecar if provider=synapse
-    if ($config.MATRIX_PROVIDER -eq "synapse") {
-        if (-not $config.PG_HOST) {
-            # Ensure network exists (PG sidecar needs it even without socket mount)
-            docker network inspect hiclaw-net *>$null
-            if ($LASTEXITCODE -ne 0) { docker network create hiclaw-net *>$null }
-            Write-Log "Starting PostgreSQL for Synapse..."
-            docker rm -f hiclaw-synapse-pg *>$null
-            docker run -d --name hiclaw-synapse-pg `
-                --network hiclaw-net `
-                -e "POSTGRES_USER=$($config.PG_USER)" `
-                -e "POSTGRES_PASSWORD=$($config.PG_PASSWORD)" `
-                -e "POSTGRES_DB=$($config.PG_DATABASE)" `
-                -e "POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C" `
-                -v hiclaw-synapse-pg-data:/var/lib/postgresql/data `
-                --restart unless-stopped `
-                postgres:15-alpine
-
-            Write-Log "Waiting for PostgreSQL to be ready..."
-            $pgElapsed = 0
-            while ($pgElapsed -lt 60) {
-                $pgReady = docker exec hiclaw-synapse-pg pg_isready -U $config.PG_USER 2>$null
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Log "PostgreSQL is ready"
-                    break
-                }
-                Start-Sleep -Seconds 2
-                $pgElapsed += 2
-            }
-            if ($pgElapsed -ge 60) {
-                Write-Error "PostgreSQL did not become ready within 60s"
-                exit 1
-            }
-        }
-        Write-Log "PostgreSQL ready for Synapse"
     }
 
     # Port mappings
