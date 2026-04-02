@@ -741,7 +741,7 @@ function Wait-MatrixReady {
 
     while ($elapsed -lt $Timeout) {
         try {
-            $result = docker exec $Container curl -sf http://127.0.0.1:6167/_tuwunel/server_version 2>$null
+            $result = docker exec $Container curl -sf http://127.0.0.1:6167/_matrix/client/versions 2>$null
             if ($result) {
                 Write-Log (Get-Msg "install.wait_matrix.ok")
                 return $true
@@ -834,6 +834,15 @@ HICLAW_DEFAULT_WORKER_RUNTIME=$($Config.DEFAULT_WORKER_RUNTIME)
 
 # Matrix E2EE (0=disabled, 1=enabled; default: 0)
 HICLAW_MATRIX_E2EE=$($Config.MATRIX_E2EE)
+
+# Matrix provider (tuwunel | synapse; default: tuwunel)
+HICLAW_MATRIX_PROVIDER=$($Config.MATRIX_PROVIDER)
+HICLAW_SYNAPSE_SHARED_SECRET=$($Config.SYNAPSE_SHARED_SECRET)
+HICLAW_PG_HOST=$($Config.PG_HOST)
+HICLAW_PG_PORT=$($Config.PG_PORT)
+HICLAW_PG_USER=$($Config.PG_USER)
+HICLAW_PG_PASSWORD=$($Config.PG_PASSWORD)
+HICLAW_PG_DATABASE=$($Config.PG_DATABASE)
 
 # Docker API proxy (0=disabled, 1=enabled; default: 1)
 HICLAW_DOCKER_PROXY=$($Config.DOCKER_PROXY)
@@ -2114,6 +2123,10 @@ function Install-Manager {
     $config.MINIO_USER = if ($env:HICLAW_MINIO_USER) { $env:HICLAW_MINIO_USER } else { $config.ADMIN_USER }
     $config.MINIO_PASSWORD = if ($env:HICLAW_MINIO_PASSWORD) { $env:HICLAW_MINIO_PASSWORD } else { $config.ADMIN_PASSWORD }
     $config.MANAGER_GATEWAY_KEY = if ($env:HICLAW_MANAGER_GATEWAY_KEY) { $env:HICLAW_MANAGER_GATEWAY_KEY } else { New-RandomKey }
+    if (-not $config.MATRIX_PROVIDER) { $config.MATRIX_PROVIDER = if ($env:HICLAW_MATRIX_PROVIDER) { $env:HICLAW_MATRIX_PROVIDER } else { "tuwunel" } }
+    if ($config.MATRIX_PROVIDER -eq "synapse") {
+        $config.SYNAPSE_SHARED_SECRET = if ($env:HICLAW_SYNAPSE_SHARED_SECRET) { $env:HICLAW_SYNAPSE_SHARED_SECRET } else { New-RandomKey }
+    }
 
     # Store additional config
     $config.LANGUAGE = $script:HICLAW_LANGUAGE

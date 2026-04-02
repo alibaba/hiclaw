@@ -142,7 +142,8 @@ fi
 
 _fail() {
     local err_msg="$1"
-    echo '{"error": "'"${err_msg}"'"}'
+    local step="${2:-unknown}"
+    echo '{"error": "'"${err_msg}"'", "step": "'"${step}"'", "worker": "'"${WORKER_NAME:-unknown}"'"}'
 
     # If a room was already created, notify it about the failure
     if [ -n "${ROOM_ID:-}" ] && [ -n "${MANAGER_MATRIX_TOKEN:-}" ]; then
@@ -217,36 +218,31 @@ else
 fi
 [ -z "${WORKER_MINIO_PASSWORD}" ] && WORKER_MINIO_PASSWORD=$(generateKey 24)
 
-REG_RESP=$(curl -s -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/register \
-    -H 'Content-Type: application/json' \
-    -d '{
-        "username": "'"${WORKER_NAME}"'",
-        "password": "'"${WORKER_PASSWORD}"'",
-        "auth": {
-            "type": "m.login.registration_token",
-            "token": "'"${HICLAW_REGISTRATION_TOKEN}"'"
-        }
-    }' 2>/dev/null) || true
+REG_RESP=$(matrix_register_user_raw "${WORKER_NAME}" "${WORKER_PASSWORD}" 2>&1) || true
 
 if echo "${REG_RESP}" | jq -e '.access_token' > /dev/null 2>&1; then
     WORKER_MATRIX_TOKEN=$(echo "${REG_RESP}" | jq -r '.access_token')
     log "  Registered new account: ${WORKER_USER_ID}"
 else
+    # Log the actual error for diagnostics
+    _reg_err=$(echo "${REG_RESP}" | jq -r '.error // .errcode // empty' 2>/dev/null)
+    log "  Registration failed: ${_reg_err:-no response} (full: ${REG_RESP:0:200})"
     # Account already exists — login with persisted password
-    log "  Account exists, logging in..."
+    log "  Attempting login..."
     LOGIN_RESP=$(curl -s -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/login \
         -H 'Content-Type: application/json' \
         -d '{
             "type": "m.login.password",
             "identifier": {"type": "m.id.user", "user": "'"${WORKER_NAME}"'"},
             "password": "'"${WORKER_PASSWORD}"'"
-        }' 2>/dev/null) || true
+        }') || true
 
     if echo "${LOGIN_RESP}" | jq -e '.access_token' > /dev/null 2>&1; then
         WORKER_MATRIX_TOKEN=$(echo "${LOGIN_RESP}" | jq -r '.access_token')
         log "  Logged in: ${WORKER_USER_ID}"
     else
-        _fail "Failed to register or login Matrix account for ${WORKER_NAME}. If re-creating, delete /data/worker-creds/${WORKER_NAME}.env and try again."
+        _login_err=$(echo "${LOGIN_RESP}" | jq -r '.error // .errcode // "unknown"' 2>/dev/null)
+        _fail "Failed to register or login Matrix account for ${WORKER_NAME}: ${_login_err}. If re-creating, delete /data/worker-creds/${WORKER_NAME}.env and try again." "step1_matrix_registration"
     fi
 fi
 
@@ -334,17 +330,35 @@ if [ -n "${WORKER_ROOM_ID:-}" ]; then
     ROOM_ID="${WORKER_ROOM_ID}"
     log "  Reusing existing room from persisted state: ${ROOM_ID}"
 else
-    ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
+    # Try to recover room_id from registry (previous failed attempt may have created a room)
+    if [ -z "${WORKER_ROOM_ID:-}" ]; then
+        _reg_room=$(jq -r --arg w "${WORKER_NAME}" '.workers[$w].room_id // empty' "${HOME}/workers-registry.json" 2>/dev/null)
+        if [ -n "${_reg_room}" ]; then
+            WORKER_ROOM_ID="${_reg_room}"
+            ROOM_ID="${_reg_room}"
+            log "  Recovered room_id from registry: ${_reg_room}"
+        fi
+    fi
+fi
+
+if [ -z "${ROOM_ID:-}" ]; then
+    # Build invite list — exclude the room creator (Manager) to avoid Synapse
+    # rejecting with "already in the room" (Tuwunel silently ignores this).
+    _invite_list=""
+    _first=true
+    for _uid in "${ADMIN_MATRIX_ID}" "${ROOM_AUTHORITY_ID}" "@${WORKER_NAME}:${MATRIX_DOMAIN}"; do
+        [ "${_uid}" = "${MANAGER_MATRIX_ID}" ] && continue
+        if [ "${_first}" = true ]; then _first=false; else _invite_list="${_invite_list},"; fi
+        _invite_list="${_invite_list}\"${_uid}\""
+    done
+
+    ROOM_RESP=$(curl -s -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
         -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
         -H 'Content-Type: application/json' \
         -d '{
             "name": "'"${ROOM_NAME_PREFIX}: ${WORKER_NAME}"'",
             "topic": "Communication channel for '"${WORKER_NAME}"'",
-            "invite": [
-                "'"${ADMIN_MATRIX_ID}"'",
-                "'"${ROOM_AUTHORITY_ID}"'",
-                "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
-            ],
+            "invite": ['"${_invite_list}"'],
             "preset": "trusted_private_chat",
             "power_level_content_override": {
                 "users": {
@@ -354,11 +368,12 @@ else
                     "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
                 }
             }'"${ROOM_E2EE_INITIAL_STATE}"'
-        }' 2>/dev/null) || _fail "Failed to create Matrix room"
+        }') || true
 
     ROOM_ID=$(echo "${ROOM_RESP}" | jq -r '.room_id // empty')
     if [ -z "${ROOM_ID}" ]; then
-        _fail "Failed to create Matrix room: ${ROOM_RESP}"
+        _room_err=$(echo "${ROOM_RESP}" | jq -r '.error // .errcode // "unknown"' 2>/dev/null)
+        _fail "Failed to create Matrix room: ${_room_err}" "step2_room_creation"
     fi
     log "  Room created with all members (Human + Manager + Worker): ${ROOM_ID} — no manual room creation needed"
 

@@ -101,8 +101,8 @@ if [ ! -f "${SETUP_MARKER}" ]; then
     log "First boot: configuring Higress static resources..."
 
     # 0. Local service sources
-    higress_api POST /v1/service-sources "Registering Tuwunel service source" \
-        '{"name":"tuwunel","type":"static","domain":"127.0.0.1:6167","port":6167,"properties":{},"authN":{"enabled":false}}'
+    higress_api POST /v1/service-sources "Registering Matrix service source" \
+        '{"name":"matrix-server","type":"static","domain":"127.0.0.1:6167","port":6167,"properties":{},"authN":{"enabled":false}}'
     higress_api POST /v1/service-sources "Registering Element Web service source" \
         '{"name":"element-web","type":"static","domain":"127.0.0.1:8088","port":8088,"properties":{},"authN":{"enabled":false}}'
     higress_api POST /v1/service-sources "Registering MinIO service source" \
@@ -129,7 +129,7 @@ if [ ! -f "${SETUP_MARKER}" ]; then
 
     # 3. Matrix Homeserver Route
     higress_api POST /v1/routes "Creating Matrix Homeserver route" \
-        '{"name":"matrix-homeserver","domains":[],"path":{"matchType":"PRE","matchValue":"/_matrix"},"services":[{"name":"tuwunel.static","port":6167,"weight":100}]}'
+        '{"name":"matrix-homeserver","domains":[],"path":{"matchType":"PRE","matchValue":"/_matrix"},"services":[{"name":"matrix-server.static","port":6167,"weight":100}]}'
 
     # 4. Element Web Route
     higress_api POST /v1/routes "Creating Element Web route" \

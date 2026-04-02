@@ -34,9 +34,9 @@ _MGMT_CTR="${TEST_MANAGER_CONTAINER:-hiclaw-manager-test}"
 MATRIX_CODE=$(docker exec "${_MGMT_CTR}" curl -s -o /dev/null -w '%{http_code}' \
     "http://127.0.0.1:6167/_matrix/client/versions" 2>/dev/null || echo "000")
 if [ "${MATRIX_CODE}" = "200" ]; then
-    log_pass "Tuwunel Matrix is healthy (internal port 6167)"
+    log_pass "Matrix server is healthy (internal port 6167)"
 else
-    log_fail "Tuwunel Matrix is healthy (internal port 6167, got HTTP ${MATRIX_CODE})"
+    log_fail "Matrix server is healthy (internal port 6167, got HTTP ${MATRIX_CODE})"
 fi
 
 MINIO_CODE=$(docker exec "${_MGMT_CTR}" curl -s -o /dev/null -w '%{http_code}' \

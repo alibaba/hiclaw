@@ -18,18 +18,38 @@ source "${_MATRIX_LIB_DIR}/test-helpers.sh" 2>/dev/null || true
 matrix_register() {
     local username="$1"
     local password="$2"
-    local token="${TEST_REGISTRATION_TOKEN}"
 
-    exec_in_manager curl -sf -X POST "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/register" \
-        -H 'Content-Type: application/json' \
-        -d '{
-            "username": "'"${username}"'",
-            "password": "'"${password}"'",
-            "auth": {
-                "type": "m.login.registration_token",
-                "token": "'"${token}"'"
-            }
-        }'
+    if [ "${TEST_MATRIX_PROVIDER:-tuwunel}" = "synapse" ]; then
+        # Synapse: shared-secret registration via admin API
+        local nonce_resp nonce mac
+        nonce_resp=$(exec_in_manager curl -sf "${TEST_MATRIX_DIRECT_URL}/_synapse/admin/v1/register")
+        nonce=$(echo "${nonce_resp}" | jq -r '.nonce')
+        mac=$(exec_in_manager bash -c "printf '%s\0%s\0%s\0notadmin' '${nonce}' '${username}' '${password}' \
+            | openssl dgst -sha1 -hmac '${TEST_SYNAPSE_SHARED_SECRET}' 2>/dev/null \
+            | sed 's/^.* //'")
+        exec_in_manager curl -sf -X POST "${TEST_MATRIX_DIRECT_URL}/_synapse/admin/v1/register" \
+            -H 'Content-Type: application/json' \
+            -d '{
+                "nonce": "'"${nonce}"'",
+                "username": "'"${username}"'",
+                "password": "'"${password}"'",
+                "mac": "'"${mac}"'",
+                "admin": false
+            }'
+    else
+        # Tuwunel: registration_token auth
+        local token="${TEST_REGISTRATION_TOKEN}"
+        exec_in_manager curl -sf -X POST "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/register" \
+            -H 'Content-Type: application/json' \
+            -d '{
+                "username": "'"${username}"'",
+                "password": "'"${password}"'",
+                "auth": {
+                    "type": "m.login.registration_token",
+                    "token": "'"${token}"'"
+                }
+            }'
+    fi
 }
 
 # Login to Matrix

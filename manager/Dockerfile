@@ -59,8 +59,12 @@ COPY --from=hiclaw-controller /usr/local/bin/hiclaw /usr/local/bin/hiclaw
 COPY --from=hiclaw-controller /usr/local/bin/kube-apiserver /usr/local/bin/kube-apiserver
 COPY --from=hiclaw-controller /opt/hiclaw/config/crd/ /opt/hiclaw/config/crd/
 
+# Synapse Matrix server runtime (installed via pip into base Python 3.10)
+# Only active when HICLAW_MATRIX_PROVIDER=synapse; otherwise start-synapse.sh sleeps.
 # zip/unzip needed by hiclaw CLI for --zip package handling
-RUN apt-get update -qq && apt-get install -y -qq zip unzip > /dev/null 2>&1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -qq && apt-get install -y -qq libpq5 python3-pip zip unzip > /dev/null 2>&1 \
+    && pip3 install --no-cache-dir 'matrix-synapse==1.150.0' psycopg2-binary \
+    && rm -rf /var/lib/apt/lists/*
 
 # ---- Built-in observability plugin (bundled unconditionally, enabled at runtime) ----
 # Plugin is small; runtime toggles HICLAW_CMS_TRACES_ENABLED / HICLAW_CMS_METRICS_ENABLED

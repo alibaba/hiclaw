@@ -1018,7 +1018,7 @@ wait_matrix_ready() {
     log "$(msg install.wait_matrix "${timeout}")"
 
     while [ "${elapsed}" -lt "${timeout}" ]; do
-        if ${DOCKER_CMD} exec "${container}" curl -sf http://127.0.0.1:6167/_tuwunel/server_version >/dev/null 2>&1; then
+        if ${DOCKER_CMD} exec "${container}" curl -sf http://127.0.0.1:6167/_matrix/client/versions >/dev/null 2>&1; then
             log "$(msg install.wait_matrix.ok)"
             return 0
         fi
@@ -2186,6 +2186,10 @@ install_manager() {
     HICLAW_MINIO_USER="${HICLAW_MINIO_USER:-${HICLAW_ADMIN_USER}}"
     HICLAW_MINIO_PASSWORD="${HICLAW_MINIO_PASSWORD:-${HICLAW_ADMIN_PASSWORD}}"
     HICLAW_MANAGER_GATEWAY_KEY="${HICLAW_MANAGER_GATEWAY_KEY:-$(generate_key)}"
+    HICLAW_MATRIX_PROVIDER="${HICLAW_MATRIX_PROVIDER:-tuwunel}"
+    if [ "${HICLAW_MATRIX_PROVIDER}" = "synapse" ]; then
+        HICLAW_SYNAPSE_SHARED_SECRET="${HICLAW_SYNAPSE_SHARED_SECRET:-$(generate_key)}"
+    fi
 
     # Write .env file
     ENV_FILE="${HICLAW_ENV_FILE:-${HOME}/hiclaw-manager.env}"
@@ -2271,6 +2275,15 @@ HICLAW_DEFAULT_WORKER_RUNTIME=${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}
 
 # Matrix E2EE (0=disabled, 1=enabled; default: 0)
 HICLAW_MATRIX_E2EE=${HICLAW_MATRIX_E2EE:-0}
+
+# Matrix provider (tuwunel | synapse; default: tuwunel)
+HICLAW_MATRIX_PROVIDER=${HICLAW_MATRIX_PROVIDER:-tuwunel}
+HICLAW_SYNAPSE_SHARED_SECRET=${HICLAW_SYNAPSE_SHARED_SECRET:-}
+HICLAW_PG_HOST=${HICLAW_PG_HOST:-}
+HICLAW_PG_PORT=${HICLAW_PG_PORT:-5432}
+HICLAW_PG_USER=${HICLAW_PG_USER:-synapse}
+HICLAW_PG_PASSWORD=${HICLAW_PG_PASSWORD:-}
+HICLAW_PG_DATABASE=${HICLAW_PG_DATABASE:-synapse}
 
 # Docker API proxy (0=disabled, 1=enabled; default: 1)
 HICLAW_DOCKER_PROXY=${HICLAW_DOCKER_PROXY:-1}

@@ -80,24 +80,24 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
     # Wait for local infrastructure
     waitForService "Higress Gateway" "127.0.0.1" 8080 180
     waitForService "Higress Console" "127.0.0.1" 8001 180
-    waitForService "Tuwunel" "127.0.0.1" 6167 120
-    waitForHTTP "Tuwunel Matrix API" "${HICLAW_MATRIX_SERVER}/_tuwunel/server_version" 120
+    waitForService "Matrix Server" "127.0.0.1" 6167 120
+    waitForHTTP "Matrix API" "${HICLAW_MATRIX_SERVER}/_matrix/client/versions" 120
     waitForService "MinIO" "127.0.0.1" 9000 120
 else
-    # Cloud mode: wait for external Tuwunel
-    log "Waiting for Tuwunel Matrix server at ${HICLAW_MATRIX_SERVER}..."
+    # Cloud mode: wait for external Matrix server
+    log "Waiting for Matrix server at ${HICLAW_MATRIX_SERVER}..."
     _retry=0
     while [ "${_retry}" -lt 30 ]; do
         if curl -sf "${HICLAW_MATRIX_SERVER}/_matrix/client/versions" > /dev/null 2>&1; then
-            log "Tuwunel is ready"
+            log "Matrix server is ready"
             break
         fi
         _retry=$((_retry + 1))
-        log "  Waiting for Tuwunel (attempt ${_retry}/30)..."
+        log "  Waiting for Matrix server (attempt ${_retry}/30)..."
         sleep 5
     done
     if [ "${_retry}" -ge 30 ]; then
-        log "ERROR: Tuwunel not reachable at ${HICLAW_MATRIX_SERVER}"
+        log "ERROR: Matrix server not reachable at ${HICLAW_MATRIX_SERVER}"
         exit 1
     fi
 fi
@@ -181,31 +181,13 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
 fi
 
 # ============================================================
-# Register Matrix users via Registration API (single-step, no UIAA)
+# Register Matrix users via provider-aware registration
 # ============================================================
 log "Registering human admin Matrix account..."
-curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/register \
-    -H 'Content-Type: application/json' \
-    -d '{
-        "username": "'"${HICLAW_ADMIN_USER}"'",
-        "password": "'"${HICLAW_ADMIN_PASSWORD}"'",
-        "auth": {
-            "type": "m.login.registration_token",
-            "token": "'"${HICLAW_REGISTRATION_TOKEN}"'"
-        }
-    }' > /dev/null 2>&1 || log "Admin account may already exist"
+matrix_register_user "${HICLAW_ADMIN_USER}" "${HICLAW_ADMIN_PASSWORD}"
 
 log "Registering Manager Agent Matrix account..."
-curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/register \
-    -H 'Content-Type: application/json' \
-    -d '{
-        "username": "manager",
-        "password": "'"${HICLAW_MANAGER_PASSWORD}"'",
-        "auth": {
-            "type": "m.login.registration_token",
-            "token": "'"${HICLAW_REGISTRATION_TOKEN}"'"
-        }
-    }' > /dev/null 2>&1 || log "Manager account may already exist"
+matrix_register_user "manager" "${HICLAW_MANAGER_PASSWORD}"
 
 # Get Manager Agent's Matrix access token
 log "Obtaining Manager Matrix access token..."
@@ -583,14 +565,24 @@ else
     log "Matrix token written from template (prefix: ${_written_token:0:10}...)"
 fi
 
+# Overlay: ensure openclaw.json homeserver matches the actual Matrix server URL.
+# Covers cloud mode (external NLB), Synapse, and any HICLAW_MATRIX_URL override.
+# Tuwunel local mode uses the template default (http://127.0.0.1:6167), so no overlay needed.
+_current_homeserver=$(jq -r '.channels.matrix.homeserver // ""' /root/manager-workspace/openclaw.json 2>/dev/null)
+if [ "${_current_homeserver}" != "${HICLAW_MATRIX_SERVER}" ]; then
+    log "Updating openclaw.json homeserver: ${_current_homeserver} -> ${HICLAW_MATRIX_SERVER}"
+    jq --arg homeserver "${HICLAW_MATRIX_SERVER}" \
+       '.channels.matrix.homeserver = $homeserver' \
+       /root/manager-workspace/openclaw.json > /tmp/openclaw-homeserver.json && \
+        mv /tmp/openclaw-homeserver.json /root/manager-workspace/openclaw.json
+fi
+
 # Cloud mode: overlay cloud-specific settings onto generated config
 if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
     log "Applying cloud overlay to openclaw.json..."
-    jq --arg homeserver "${HICLAW_MATRIX_SERVER}" \
-       --arg gateway "${HICLAW_AI_GATEWAY_URL}/v1" \
+    jq --arg gateway "${HICLAW_AI_GATEWAY_URL}/v1" \
        --arg key "${HICLAW_MANAGER_GATEWAY_KEY}" \
-       '.channels.matrix.homeserver = $homeserver
-        | .models.providers["hiclaw-gateway"].baseUrl = $gateway
+       '.models.providers["hiclaw-gateway"].baseUrl = $gateway
         | .models.providers["hiclaw-gateway"].apiKey = $key
         | ((.hooks.token // "") as $ht | if $ht == $key or $ht == ($key + "-hooks" | @base64) then del(.hooks) else . end)
         | .commands.restart = false

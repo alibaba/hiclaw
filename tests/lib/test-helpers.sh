@@ -25,6 +25,8 @@ export TEST_CONSOLE_PORT="${TEST_CONSOLE_PORT:-18001}"
 export TEST_ELEMENT_PORT="${TEST_ELEMENT_PORT:-18088}"
 
 # Internal container URLs — always fixed; all callers use exec_in_manager
+# Both Tuwunel and Synapse listen on port 6167 inside the Manager container
+export TEST_MATRIX_PROVIDER="${TEST_MATRIX_PROVIDER:-tuwunel}"
 export TEST_MATRIX_DIRECT_URL="http://127.0.0.1:6167"
 export TEST_MINIO_URL="http://127.0.0.1:9000"
 
@@ -229,7 +231,7 @@ wait_for_manager_agent_ready() {
             local members
             members=$(docker exec "${manager_container}" curl -sf -X GET \
                 -H "Authorization: Bearer ${access_token}" \
-                "http://127.0.0.1:6167/_matrix/client/v3/rooms/${room_enc}/members" 2>/dev/null | \
+                "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${room_enc}/members" 2>/dev/null | \
                 jq -r '.chunk[].state_key' 2>/dev/null) || true
 
             if echo "${members}" | grep -q "${manager_full_id}"; then
@@ -301,6 +303,15 @@ detect_manager_config() {
     detected_gateway_port=$(  _cenv HICLAW_PORT_GATEWAY)
     detected_console_port=$(  _cenv HICLAW_PORT_CONSOLE)
     detected_element_port=$(  _cenv HICLAW_PORT_ELEMENT_WEB)
+
+    # Detect Matrix provider
+    local detected_provider
+    detected_provider=$(_cenv HICLAW_MATRIX_PROVIDER)
+    [ -n "${detected_provider}" ] && export TEST_MATRIX_PROVIDER="${detected_provider}"
+
+    local detected_synapse_secret
+    detected_synapse_secret=$(_cenv HICLAW_SYNAPSE_SHARED_SECRET)
+    [ -n "${detected_synapse_secret}" ] && export TEST_SYNAPSE_SHARED_SECRET="${detected_synapse_secret}"
 
     [ -n "${detected_gateway_port}" ] && export TEST_GATEWAY_PORT="${detected_gateway_port}"
     [ -n "${detected_console_port}" ] && export TEST_CONSOLE_PORT="${detected_console_port}"

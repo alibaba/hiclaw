@@ -89,28 +89,20 @@ fi
 log "Step 1: Registering Matrix account..."
 HUMAN_PASSWORD=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p)
 
-REG_RESP=$(curl -s -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/register \
-    -H 'Content-Type: application/json' \
-    -d '{
-        "username": "'"${HUMAN_USERNAME}"'",
-        "password": "'"${HUMAN_PASSWORD}"'",
-        "auth": {
-            "type": "m.login.registration_token",
-            "token": "'"${HICLAW_REGISTRATION_TOKEN}"'"
-        }
-    }' 2>/dev/null) || true
+REG_RESP=$(matrix_register_user_raw "${HUMAN_USERNAME}" "${HUMAN_PASSWORD}" 2>&1) || true
 
 if echo "${REG_RESP}" | jq -e '.access_token' > /dev/null 2>&1; then
     HUMAN_TOKEN=$(echo "${REG_RESP}" | jq -r '.access_token')
     log "  Registered new account: ${MATRIX_ID}"
 else
-    log "  Account may already exist (registration response: ${REG_RESP:0:100})"
-    log "  Proceeding with permission configuration..."
+    _reg_err=$(echo "${REG_RESP}" | jq -r '.error // .errcode // empty' 2>/dev/null)
+    log "  Registration failed: ${_reg_err:-no response} (full: ${REG_RESP:0:200})"
+    log "  Attempting login..."
     # Try to login to get a token for auto-joining rooms
-    HUMAN_TOKEN=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/login \
+    HUMAN_TOKEN=$(curl -s -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/login \
         -H 'Content-Type: application/json' \
         -d '{"type":"m.login.password","identifier":{"type":"m.id.user","user":"'"${HUMAN_USERNAME}"'"},"password":"'"${HUMAN_PASSWORD}"'"}' \
-        2>/dev/null | jq -r '.access_token // empty')
+        | jq -r '.access_token // empty')
 fi
 
 # ============================================================
