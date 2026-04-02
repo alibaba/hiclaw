@@ -226,6 +226,13 @@ action_check_idle() {
             continue
         fi
 
+        # Skip team workers — they must stay running for team coordination
+        local _team_id
+        _team_id=$(jq -r --arg w "$worker" '.workers[$w].team_id // empty' "$REGISTRY_FILE" 2>/dev/null)
+        if [ -n "$_team_id" ]; then
+            continue
+        fi
+
         if _worker_has_any_tasks "$worker"; then
             # Worker is active (finite or infinite task) — clear idle_since
             local current_idle

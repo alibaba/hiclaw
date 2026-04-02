@@ -2384,6 +2384,16 @@ EOF
         _pull_image "${WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker"
     fi
 
+    # Always pull copaw worker image — team workers require copaw runtime
+    if [ "${HICLAW_DEFAULT_WORKER_RUNTIME}" != "copaw" ]; then
+        if ${DOCKER_CMD} image inspect "${COPAW_WORKER_IMAGE}" >/dev/null 2>&1; then
+            log "$(msg "install.image.worker_exists" "${COPAW_WORKER_IMAGE}")"
+        else
+            _pull_image "${COPAW_WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker" || \
+                log "Warning: copaw worker image not available, team features may not work"
+        fi
+    fi
+
     # During upgrade, also pull the other worker image if containers using it exist locally.
     # This ensures ALL worker containers get updated, not just the ones matching the selected runtime.
     if [ "${HICLAW_UPGRADE:-0}" = "1" ]; then
@@ -2391,11 +2401,6 @@ EOF
             # Selected copaw, check if any openclaw worker image exists locally
             if ${DOCKER_CMD} image inspect "${WORKER_IMAGE}" >/dev/null 2>&1; then
                 _pull_image "${WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker"
-            fi
-        else
-            # Selected openclaw, check if any copaw worker image exists locally
-            if ${DOCKER_CMD} image inspect "${COPAW_WORKER_IMAGE}" >/dev/null 2>&1; then
-                _pull_image "${COPAW_WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker"
             fi
         fi
     fi

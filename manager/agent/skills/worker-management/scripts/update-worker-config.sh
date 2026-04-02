@@ -178,16 +178,28 @@ if [ -n "${PACKAGE_DIR}" ] && [ -d "${PACKAGE_DIR}" ]; then
 TEAMCTX
     elif [ "${_role}" = "team_leader" ]; then
         _team_workers=$(jq -r --arg t "${_team_id}" '.teams[$t].workers // [] | join(", ")' "${HOME}/teams-registry.json" 2>/dev/null)
+        _team_room_id=$(jq -r --arg t "${_team_id}" '.teams[$t].team_room_id // empty' "${HOME}/teams-registry.json" 2>/dev/null)
+        _leader_dm_room_id=$(jq -r --arg t "${_team_id}" '.teams[$t].leader_dm_room_id // empty' "${HOME}/teams-registry.json" 2>/dev/null)
+        _team_admin_mid=$(jq -r --arg t "${_team_id}" '.teams[$t].admin.matrix_user_id // empty' "${HOME}/teams-registry.json" 2>/dev/null)
+        _worker_rooms=$(jq -r --arg t "${_team_id}" '
+            [.workers | to_entries[] | select(.value.team_id == $t and .value.role == "worker") |
+             "  - @\(.key):__DOMAIN__ — Room: \(.value.room_id // "unknown")"] | join("\n")' "${REGISTRY_FILE}" 2>/dev/null)
+        _worker_rooms=$(echo "${_worker_rooms}" | sed "s/__DOMAIN__/${MATRIX_DOMAIN}/g")
         cat > "${_ctx_tmp}" <<LEADERCTX
 
 <!-- hiclaw-team-context-start -->
 ## Coordination
 
 - **Upstream coordinator**: @manager:${MATRIX_DOMAIN} (Manager) — you receive tasks from Manager
+$([ -n "${_team_admin_mid}" ] && echo "- **Team Admin**: ${_team_admin_mid} — can assign tasks and make decisions within the team")
 - **Team**: ${_team_id}
-- **Workers**: ${_team_workers}
-- You decompose tasks from Manager and assign sub-tasks to your team workers
-- Report aggregated results to Manager when all sub-tasks complete
+$([ -n "${_team_room_id}" ] && echo "- **Team Room**: ${_team_room_id} — @mention workers here for task assignment")
+$([ -n "${_leader_dm_room_id}" ] && echo "- **Leader DM**: ${_leader_dm_room_id} — Team Admin communicates with you here")
+$([ -n "${_worker_rooms}" ] && echo "- **Team Workers**:" && echo "${_worker_rooms}")
+- You decompose tasks from Manager or Team Admin and assign sub-tasks to your team workers
+- @mention workers in the Team Room for task assignment
+- Report results to Manager (in Leader Room) or Team Admin (in Leader DM) based on task source
+- @mention Manager only for: task completion, blockers, escalations
 <!-- hiclaw-team-context-end -->
 LEADERCTX
     else

@@ -91,7 +91,8 @@ jobs:
           if [ "$RUNTIME" = "copaw" ]; then
             BUILD_TARGETS="build-manager-copaw build-copaw-worker build-docker-proxy"
           else
-            BUILD_TARGETS="build-manager build-worker build-docker-proxy"
+            # Build copaw-worker too — team workers always use copaw runtime
+            BUILD_TARGETS="build-manager build-worker build-copaw-worker build-docker-proxy"
           fi
           make ${BUILD_TARGETS} VERSION=ci-test HIGRESS_REGISTRY=higress-registry.us-west-1.cr.aliyuncs.com \
             DOCKER_BUILD_ARGS="--build-arg APT_MIRROR= --build-arg PIP_INDEX_URL=https://pypi.org/simple/"
@@ -125,6 +126,7 @@ jobs:
           HICLAW_INSTALL_MANAGER_IMAGE="$MANAGER_IMG" \
           HICLAW_INSTALL_MANAGER_COPAW_IMAGE="${{ env.MANAGER_COPAW_IMAGE }}" \
           HICLAW_INSTALL_WORKER_IMAGE="$WORKER_IMG" \
+          HICLAW_INSTALL_COPAW_WORKER_IMAGE=${{ env.COPAW_WORKER_IMAGE }} \
           HICLAW_INSTALL_DOCKER_PROXY_IMAGE=${{ env.DOCKER_PROXY_IMAGE }} \
           bash ./install/hiclaw-install.sh manager
 

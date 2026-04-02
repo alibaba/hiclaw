@@ -1017,5 +1017,9 @@ else
     log "Cleaned Matrix crypto storage (will re-establish E2EE sessions)"
 
     # Launch OpenClaw
+    # Disable full-process respawn so the CLI uses its internal restart loop.
+    # Without this, config reload spawns a detached child and exits, then
+    # supervisord restarts the CLI — resulting in two gateway processes.
+    export OPENCLAW_NO_RESPAWN=1
     exec openclaw gateway run --verbose --force
 fi

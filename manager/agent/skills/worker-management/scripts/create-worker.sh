@@ -47,6 +47,8 @@ WORKER_ROLE="worker"        # worker | team_leader
 TEAM_NAME=""                # optional: team this worker belongs to
 TEAM_LEADER_NAME=""         # optional: for team workers, who their leader is
 TEAM_ADMIN_MATRIX_ID=""     # optional: team admin Matrix ID for team-context injection
+TEAM_ROOM_ID=""             # optional: pre-created Team Room ID (for team-context injection)
+LEADER_DM_ROOM_ID=""        # optional: pre-created Leader DM Room ID (for team-context injection)
 CHANNEL_POLICY_JSON=""         # optional: JSON string of ChannelPolicySpec overrides
 
 while [ $# -gt 0 ]; do
@@ -64,6 +66,8 @@ while [ $# -gt 0 ]; do
         --team)       TEAM_NAME="$2"; shift 2 ;;
         --team-leader) TEAM_LEADER_NAME="$2"; shift 2 ;;
         --team-admin-matrix-id) TEAM_ADMIN_MATRIX_ID="$2"; shift 2 ;;
+        --team-room-id) TEAM_ROOM_ID="$2"; shift 2 ;;
+        --leader-dm-room-id) LEADER_DM_ROOM_ID="$2"; shift 2 ;;
         --channel-policy) CHANNEL_POLICY_JSON="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -269,6 +273,15 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
     log "Step 1b: Creating MinIO user for ${WORKER_NAME}..."
     POLICY_NAME="worker-${WORKER_NAME}"
     POLICY_FILE=$(mktemp /tmp/minio-policy-XXXXXX.json)
+    # Build team storage entries if worker belongs to a team
+    TEAM_LIST_PREFIX=""
+    TEAM_RW_RESOURCE=""
+    if [ -n "${TEAM_NAME}" ]; then
+        TEAM_LIST_PREFIX=',
+            "teams/'"${TEAM_NAME}"'", "teams/'"${TEAM_NAME}"'/*"'
+        TEAM_RW_RESOURCE=',
+        "arn:aws:s3:::hiclaw-storage/teams/'"${TEAM_NAME}"'/*"'
+    fi
     cat > "${POLICY_FILE}" <<POLICY
 {
   "Version": "2012-10-17",
@@ -281,7 +294,7 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
         "StringLike": {
           "s3:prefix": [
             "agents/${WORKER_NAME}", "agents/${WORKER_NAME}/*",
-            "shared", "shared/*"
+            "shared", "shared/*"${TEAM_LIST_PREFIX}
           ]
         }
       }
@@ -291,7 +304,7 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": [
         "arn:aws:s3:::hiclaw-storage/agents/${WORKER_NAME}/*",
-        "arn:aws:s3:::hiclaw-storage/shared/*"
+        "arn:aws:s3:::hiclaw-storage/shared/*"${TEAM_RW_RESOURCE}
       ]
     }
   ]
@@ -334,33 +347,69 @@ if [ -n "${WORKER_ROOM_ID:-}" ]; then
     ROOM_ID="${WORKER_ROOM_ID}"
     log "  Reusing existing room from persisted state: ${ROOM_ID}"
 else
-    ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
-        -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
-        -H 'Content-Type: application/json' \
-        -d '{
-            "name": "'"${ROOM_NAME_PREFIX}: ${WORKER_NAME}"'",
-            "topic": "Communication channel for '"${WORKER_NAME}"'",
-            "invite": [
-                "'"${ADMIN_MATRIX_ID}"'",
-                "'"${ROOM_AUTHORITY_ID}"'",
-                "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
-            ],
-            "preset": "trusted_private_chat",
-            "power_level_content_override": {
-                "users": {
-                    "'"${MANAGER_MATRIX_ID}"'": 100,
-                    "'"${ADMIN_MATRIX_ID}"'": 100,
-                    "'"${ROOM_AUTHORITY_ID}"'": 100,
-                    "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
-                }
-            }'"${ROOM_E2EE_INITIAL_STATE}"'
-        }' 2>/dev/null) || _fail "Failed to create Matrix room"
+    if [ -n "${TEAM_LEADER_NAME}" ]; then
+        # Team worker: Manager creates room but will leave after creation
+        ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
+            -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+                "name": "'"${ROOM_NAME_PREFIX}: ${WORKER_NAME}"'",
+                "topic": "Communication channel for '"${WORKER_NAME}"'",
+                "invite": [
+                    "'"${ADMIN_MATRIX_ID}"'",
+                    "'"${ROOM_AUTHORITY_ID}"'",
+                    "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
+                ],
+                "preset": "trusted_private_chat",
+                "power_level_content_override": {
+                    "users": {
+                        "'"${MANAGER_MATRIX_ID}"'": 100,
+                        "'"${ADMIN_MATRIX_ID}"'": 100,
+                        "'"${ROOM_AUTHORITY_ID}"'": 100,
+                        "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
+                    }
+                }'"${ROOM_E2EE_INITIAL_STATE}"'
+            }' 2>/dev/null) || _fail "Failed to create Matrix room"
+    else
+        # Standalone worker: Manager stays in room
+        ROOM_RESP=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/createRoom \
+            -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+                "name": "'"${ROOM_NAME_PREFIX}: ${WORKER_NAME}"'",
+                "topic": "Communication channel for '"${WORKER_NAME}"'",
+                "invite": [
+                    "'"${ADMIN_MATRIX_ID}"'",
+                    "'"${ROOM_AUTHORITY_ID}"'",
+                    "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
+                ],
+                "preset": "trusted_private_chat",
+                "power_level_content_override": {
+                    "users": {
+                        "'"${MANAGER_MATRIX_ID}"'": 100,
+                        "'"${ADMIN_MATRIX_ID}"'": 100,
+                        "'"${ROOM_AUTHORITY_ID}"'": 100,
+                        "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'": 0
+                    }
+                }'"${ROOM_E2EE_INITIAL_STATE}"'
+            }' 2>/dev/null) || _fail "Failed to create Matrix room"
+    fi
 
     ROOM_ID=$(echo "${ROOM_RESP}" | jq -r '.room_id // empty')
     if [ -z "${ROOM_ID}" ]; then
         _fail "Failed to create Matrix room: ${ROOM_RESP}"
     fi
     log "  Room created with all members (Human + Manager + Worker): ${ROOM_ID} — no manual room creation needed"
+
+    # Manager leaves team worker rooms (delegation boundary)
+    if [ -n "${TEAM_LEADER_NAME}" ]; then
+        ROOM_ID_ENC=$(echo "${ROOM_ID}" | sed 's/!/%21/g')
+        curl -sf -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${ROOM_ID_ENC}/leave" \
+            -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
+            -H 'Content-Type: application/json' -d '{}' > /dev/null 2>&1 \
+            && log "  Manager left team worker room (delegation boundary)" \
+            || log "  WARNING: Manager failed to leave team worker room"
+    fi
 
     # Persist room_id early so retries can reuse it (registry update is at Step 8.5)
     WORKER_ROOM_ID="${ROOM_ID}"
@@ -607,6 +656,25 @@ if [ -d "${WORKER_AGENT_SRC}" ]; then
         } > "${_ctx_tmp}"
     elif [ "${WORKER_ROLE}" = "team_leader" ]; then
         # Team Leader: upstream is Manager, downstream is team workers
+        # Use pre-created room IDs passed via --team-room-id / --leader-dm-room-id
+        # or fall back to registry lookup
+        _team_room_id="${TEAM_ROOM_ID:-}"
+        _leader_dm_room_id="${LEADER_DM_ROOM_ID:-}"
+        _worker_rooms=""
+        if [ -z "${_team_room_id}" ]; then
+            _teams_reg="${HOME}/teams-registry.json"
+            if [ -f "${_teams_reg}" ]; then
+                _team_room_id=$(jq -r --arg t "${TEAM_NAME}" '.teams[$t].team_room_id // empty' "${_teams_reg}" 2>/dev/null)
+                _leader_dm_room_id=$(jq -r --arg t "${TEAM_NAME}" '.teams[$t].leader_dm_room_id // empty' "${_teams_reg}" 2>/dev/null)
+            fi
+        fi
+        _workers_reg="${HOME}/workers-registry.json"
+        if [ -f "${_workers_reg}" ]; then
+            _worker_rooms=$(jq -r --arg t "${TEAM_NAME}" '
+                [.workers | to_entries[] | select(.value.team_id == $t and .value.role == "worker") |
+                 "  - @\(.key):__DOMAIN__ — Room: \(.value.room_id // "unknown")"] | join("\n")' "${_workers_reg}" 2>/dev/null)
+            _worker_rooms=$(echo "${_worker_rooms}" | sed "s/__DOMAIN__/${MATRIX_DOMAIN}/g")
+        fi
         {
             echo ""
             echo "<!-- hiclaw-team-context-start -->"
@@ -617,8 +685,19 @@ if [ -d "${WORKER_AGENT_SRC}" ]; then
                 echo "- **Team Admin**: ${_team_admin_mid} — can assign tasks and make decisions within the team"
             fi
             echo "- **Team**: ${TEAM_NAME}"
-            echo "- You decompose tasks from Manager and assign sub-tasks to your team workers"
-            echo "- Report aggregated results to Manager when all sub-tasks complete"
+            if [ -n "${_team_room_id}" ]; then
+                echo "- **Team Room**: ${_team_room_id} — @mention workers here for task assignment"
+            fi
+            if [ -n "${_leader_dm_room_id}" ]; then
+                echo "- **Leader DM**: ${_leader_dm_room_id} — Team Admin communicates with you here"
+            fi
+            if [ -n "${_worker_rooms}" ]; then
+                echo "- **Team Workers**:"
+                echo "${_worker_rooms}"
+            fi
+            echo "- You decompose tasks from Manager or Team Admin and assign sub-tasks to your team workers"
+            echo "- @mention workers in the Team Room for task assignment"
+            echo "- Report results to Manager (in Leader Room) or Team Admin (in Leader DM) based on task source"
             echo "- @mention Manager only for: task completion, blockers, escalations"
             echo "<!-- hiclaw-team-context-end -->"
         } > "${_ctx_tmp}"

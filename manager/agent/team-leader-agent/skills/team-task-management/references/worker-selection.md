@@ -3,7 +3,7 @@
 ## Finding Available Team Workers
 
 ```bash
-bash ~/skills/team-task-management/scripts/find-team-worker.sh
+bash ./skills/team-task-management/scripts/find-team-worker.sh
 ```
 
 Output includes per-worker: name, availability (idle/busy), role, skills, active tasks.
