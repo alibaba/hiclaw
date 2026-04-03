@@ -136,7 +136,7 @@ HiClaw 支持两种模型切换方式：**切换当前会话模型**（即时生
 
 **为什么让 Manager 切换而不是手动改配置？**
 
-OpenClaw 需要在配置中设置模型的上下文窗口大小（`contextWindow`）。HiClaw 默认使用 qwen3.6-plus 的 200K token 窗口。如果切换到窗口不同的模型但没有更新这个设置，当对话接近窗口上限时，OpenClaw 不知道何时压缩上下文，可能导致 session 无法使用。
+OpenClaw 需要在配置中设置模型的上下文窗口大小（`contextWindow`）。HiClaw 默认使用 qwen3.6-plus 的 1M token 窗口。如果切换到窗口不同的模型但没有更新这个设置，当对话接近窗口上限时，OpenClaw 不知道何时压缩上下文，可能导致 session 无法使用。
 
 模型切换技能会根据模型名自动修改 OpenClaw 配置中的 `contextWindow` 和 `maxTokens`。
 
