@@ -375,7 +375,7 @@ bash hiclaw-import.sh -f <resource.yaml> [--prune] [--dry-run]
 | `--name <名称>` | Worker 名称（必需） | — |
 | `--zip <路径\|URL>` | ZIP 包（本地路径或 URL） | — |
 | `--package <URI>` | 远程包 URI（`nacos://`、`http://`、`oss://`） | — |
-| `--model <模型>` | LLM 模型 ID | `qwen3.5-plus` |
+| `--model <模型>` | LLM 模型 ID | `qwen3.6-plus` |
 | `--skills <s1,s2>` | 逗号分隔的内置技能 | — |
 | `--mcp-servers <m1,m2>` | 逗号分隔的 MCP Server | — |
 | `--runtime <运行时>` | Agent 运行时（`openclaw`\|`copaw`） | `openclaw` |

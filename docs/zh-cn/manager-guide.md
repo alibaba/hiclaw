@@ -16,7 +16,7 @@ Manager 通过安装时设置的环境变量进行配置。安装脚本会生成
 |------|----------|--------|------|
 | `HICLAW_LLM_API_KEY` | 是 | - | LLM API Key |
 | `HICLAW_LLM_PROVIDER` | 否 | `qwen` | LLM 提供商（`qwen` 为阿里云百炼，`openai-compat` 为 OpenAI 兼容 API） |
-| `HICLAW_DEFAULT_MODEL` | 否 | `qwen3.5-plus` | 默认模型 ID |
+| `HICLAW_DEFAULT_MODEL` | 否 | `qwen3.6-plus` | 默认模型 ID |
 | `HICLAW_ADMIN_USER` | 否 | `admin` | 人工管理员的 Matrix 用户名 |
 | `HICLAW_ADMIN_PASSWORD` | 否 | （自动生成） | 管理员密码（最少 8 位，MinIO 要求） |
 | `HICLAW_MATRIX_DOMAIN` | 否 | `matrix-local.hiclaw.io:18080` | Matrix 服务器域名（容器内使用） |

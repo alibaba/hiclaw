@@ -377,7 +377,7 @@ bash hiclaw-import.sh -f <resource.yaml> [--prune] [--dry-run]
 | `--name <name>` | Worker name (required) | — |
 | `--zip <path\|url>` | ZIP package (local path or URL) | — |
 | `--package <uri>` | Remote package URI (`nacos://`, `http://`, `oss://`) | — |
-| `--model <model>` | LLM model ID | `qwen3.5-plus` |
+| `--model <model>` | LLM model ID | `qwen3.6-plus` |
 | `--skills <s1,s2>` | Comma-separated built-in skills | — |
 | `--mcp-servers <m1,m2>` | Comma-separated MCP servers | — |
 | `--runtime <runtime>` | Agent runtime (`openclaw`\|`copaw`) | `openclaw` |

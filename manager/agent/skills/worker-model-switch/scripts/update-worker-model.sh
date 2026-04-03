@@ -41,6 +41,8 @@ _resolve_model_params() {
             CTX=200000; MAX=64000 ;;
         qwen3.5-plus)
             CTX=200000; MAX=64000 ;;
+        qwen3.6-plus)
+            CTX=1000000; MAX=64000 ;;
         deepseek-chat|deepseek-reasoner|kimi-k2.5)
             CTX=256000; MAX=128000 ;;
         glm-5|MiniMax-M2.7|MiniMax-M2.7-highspeed|MiniMax-M2.5)
@@ -54,7 +56,7 @@ _resolve_model_params() {
     fi
     # Resolve input modalities: only vision-capable models get "image"
     case "${model}" in
-        gpt-5.4|gpt-5.3-codex|gpt-5-mini|gpt-5-nano|claude-opus-4-6|claude-sonnet-4-6|claude-haiku-4-5|qwen3.5-plus|kimi-k2.5)
+        gpt-5.4|gpt-5.3-codex|gpt-5-mini|gpt-5-nano|claude-opus-4-6|claude-sonnet-4-6|claude-haiku-4-5|qwen3.5-plus|qwen3.6-plus|kimi-k2.5)
             INPUT='["text", "image"]' ;;
         *)
             INPUT='["text"]' ;;

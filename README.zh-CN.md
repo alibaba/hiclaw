@@ -76,7 +76,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; $wc=New-Object Net.WebClient; 
 
 第五步：选择模型接口。百炼 Coding Plan 和百炼通用接口有所不同，这里我们选择 Coding Plan 接口。[购买Coding Plan](https://bailian.console.aliyun.com/cn-beijing/?source_channel=4qjGAvs1Pl&tab=coding-plan#/efm/index)
 
-第六步：选择模型系列。如果第五步中选择的是百炼 Coding Plan，您可以选择 qwen3.5-plus、GLM等，待 Matrix room 建立起来后，还可通过发送指令，让 Manager 切换其他到模型。
+第六步：选择模型系列。如果第五步中选择的是百炼 Coding Plan，您可以选择 qwen3.6-plus、GLM等，待 Matrix room 建立起来后，还可通过发送指令，让 Manager 切换其他到模型。
 
 第七步：开始测试 API 联通性，若测试成功，效果如下。
 ![测试](https://img.alicdn.com/imgextra/i4/O1CN0148wFGG1lYeWKd3Uat_!!6000000004831-2-tps-1752-600.png)

@@ -16,7 +16,7 @@ The Manager is configured via environment variables set during installation. The
 |----------|----------|---------|-------------|
 | `HICLAW_LLM_API_KEY` | Yes | - | LLM API key |
 | `HICLAW_LLM_PROVIDER` | No | `qwen` | LLM provider (`qwen` for Alibaba Cloud, `openai-compat` for OpenAI-compatible APIs) |
-| `HICLAW_DEFAULT_MODEL` | No | `qwen3.5-plus` | Default model ID |
+| `HICLAW_DEFAULT_MODEL` | No | `qwen3.6-plus` | Default model ID |
 | `HICLAW_ADMIN_USER` | No | `admin` | Human admin Matrix username |
 | `HICLAW_ADMIN_PASSWORD` | No | (auto-generated) | Human admin password (min 8 chars, MinIO requirement) |
 | `HICLAW_MATRIX_DOMAIN` | No | `matrix-local.hiclaw.io:18080` | Matrix server domain (used inside container) |
