@@ -166,7 +166,7 @@ if [ "${_cms_traces_lc}" = "true" ]; then
     elif [ -z "${HICLAW_CMS_ENDPOINT:-}" ] || [ -z "${HICLAW_CMS_LICENSE_KEY:-}" ] || [ -z "${HICLAW_CMS_WORKSPACE:-}" ]; then
         log "WARNING: HICLAW_CMS_TRACES_ENABLED=true but HICLAW_CMS_ENDPOINT / HICLAW_CMS_LICENSE_KEY / HICLAW_CMS_WORKSPACE are not all set; skipping CMS config for worker ${WORKER_NAME}"
     else
-        _cms_worker_service="hiclaw-worker-${WORKER_NAME}"
+        _cms_worker_service="${HICLAW_PROXY_CONTAINER_PREFIX:-hiclaw-worker-}${WORKER_NAME}"
         _cms_metrics_lc="$(echo "${HICLAW_CMS_METRICS_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')"
         _diag_plugin_dir="/opt/openclaw/extensions/diagnostics-otel"
         _diag_available="0"
