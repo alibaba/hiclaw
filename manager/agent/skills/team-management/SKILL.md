@@ -46,3 +46,4 @@ bash /opt/hiclaw/agent/skills/team-management/scripts/create-team.sh \
 | Understand team lifecycle | `references/team-lifecycle.md` | — |
 | Delegate task to team | `references/team-task-delegation.md` | — |
 | Add/remove worker from team | `references/team-lifecycle.md` | `scripts/manage-teams-registry.sh` |
+| Delete a team's containers | `references/team-lifecycle.md` | `scripts/lifecycle-worker.sh` (per worker) |

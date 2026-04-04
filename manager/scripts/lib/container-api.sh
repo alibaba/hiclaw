@@ -219,7 +219,14 @@ container_create_worker() {
     "Image": "${image}",
     "Env": ${all_env},
     "WorkingDir": "${worker_home}",
-    "HostConfig": ${host_config}
+    "HostConfig": ${host_config},
+    "NetworkingConfig": {
+        "EndpointsConfig": {
+            "hiclaw-net": {
+                "Aliases": ["${worker_name}.local"]
+            }
+        }
+    }
 }
 PAYLOAD
 )
@@ -460,7 +467,14 @@ container_create_copaw_worker() {
     "Env": ${all_env},
     "WorkingDir": "/root/.copaw-worker",
     "ExposedPorts": ${exposed_ports},
-    "HostConfig": ${host_config}
+    "HostConfig": ${host_config},
+    "NetworkingConfig": {
+        "EndpointsConfig": {
+            "hiclaw-net": {
+                "Aliases": ["${worker_name}.local"]
+            }
+        }
+    }
 }
 PAYLOAD
 )

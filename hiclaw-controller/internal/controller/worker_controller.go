@@ -2,9 +2,10 @@ package controller
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"sync"
 	"time"
 
 	v1beta1 "github.com/hiclaw/hiclaw-controller/api/v1beta1"
@@ -17,8 +18,7 @@ import (
 )
 
 const (
-	finalizerName      = "hiclaw.io/cleanup"
-	specHashAnnotation = "hiclaw.io/spec-hash"
+	finalizerName = "hiclaw.io/cleanup"
 )
 
 // WorkerReconciler reconciles Worker resources by calling existing bash scripts.
@@ -26,6 +26,42 @@ type WorkerReconciler struct {
 	client.Client
 	Executor *executor.Shell
 	Packages *executor.PackageResolver
+	Higress  *HigressClient
+
+	// lastSpec tracks the last-processed spec per worker name (in memory).
+	// Used by handleUpdate to detect real spec changes via DeepEqual.
+	// Stored in memory (not annotations) to avoid r.Update() calls that
+	// would overwrite spec changes made by the file-watcher during long
+	// create-worker.sh runs (~30s).
+	lastSpecMu sync.Mutex
+	lastSpec   map[string]v1beta1.WorkerSpec
+}
+
+func (r *WorkerReconciler) getLastSpec(name string) (v1beta1.WorkerSpec, bool) {
+	r.lastSpecMu.Lock()
+	defer r.lastSpecMu.Unlock()
+	if r.lastSpec == nil {
+		return v1beta1.WorkerSpec{}, false
+	}
+	spec, ok := r.lastSpec[name]
+	return spec, ok
+}
+
+func (r *WorkerReconciler) setLastSpec(name string, spec v1beta1.WorkerSpec) {
+	r.lastSpecMu.Lock()
+	defer r.lastSpecMu.Unlock()
+	if r.lastSpec == nil {
+		r.lastSpec = make(map[string]v1beta1.WorkerSpec)
+	}
+	r.lastSpec[name] = spec
+}
+
+func (r *WorkerReconciler) deleteLastSpec(name string) {
+	r.lastSpecMu.Lock()
+	defer r.lastSpecMu.Unlock()
+	if r.lastSpec != nil {
+		delete(r.lastSpec, name)
+	}
 }
 
 func (r *WorkerReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -96,7 +132,7 @@ func (r *WorkerReconciler) handleCreate(ctx context.Context, w *v1beta1.Worker) 
 			return reconcile.Result{RequeueAfter: time.Minute}, err
 		}
 		if extractedDir != "" {
-			if err := r.Packages.DeployToMinIO(ctx, extractedDir, w.Name); err != nil {
+			if err := r.Packages.DeployToMinIO(ctx, extractedDir, w.Name, false); err != nil {
 				_ = r.Get(ctx, client.ObjectKeyFromObject(w), w)
 				w.Status.Phase = "Failed"
 				w.Status.Message = fmt.Sprintf("package deploy failed: %v", err)
@@ -138,6 +174,11 @@ func (r *WorkerReconciler) handleCreate(ctx context.Context, w *v1beta1.Worker) 
 	if len(w.Spec.McpServers) > 0 {
 		args = append(args, "--mcp-servers", joinStrings(w.Spec.McpServers))
 	}
+	if w.Spec.ChannelPolicy != nil {
+		if policyJSON, err := json.Marshal(w.Spec.ChannelPolicy); err == nil {
+			args = append(args, "--channel-policy", string(policyJSON))
+		}
+	}
 
 	// Check for team annotations (set by TeamReconciler)
 	if role := w.Annotations["hiclaw.io/role"]; role != "" {
@@ -162,22 +203,32 @@ func (r *WorkerReconciler) handleCreate(ctx context.Context, w *v1beta1.Worker) 
 		return reconcile.Result{RequeueAfter: time.Minute}, err
 	}
 
+	// Record the spec we just processed (in memory, not annotation)
+	r.setLastSpec(w.Name, w.Spec)
+
+	// Expose ports via Higress gateway
+	var exposedPorts []v1beta1.ExposedPortStatus
+	if len(w.Spec.Expose) > 0 {
+		var exposeErr error
+		exposedPorts, exposeErr = ReconcileExpose(r.Higress, w.Name, w.Spec.Expose, nil)
+		if exposeErr != nil {
+			logger.Error(exposeErr, "failed to expose ports (non-fatal)", "name", w.Name)
+		}
+	}
+
+	// Re-read object before status update to avoid stale resourceVersion.
+	// The file-watcher may have updated the spec while create-worker.sh
+	// was running (~30s), bumping the resourceVersion.
+	if err := r.Get(ctx, client.ObjectKeyFromObject(w), w); err != nil {
+		return reconcile.Result{}, err
+	}
 	w.Status.Phase = "Running"
 	w.Status.MatrixUserID = result.MatrixUserID
 	w.Status.RoomID = result.RoomID
 	w.Status.Message = ""
-
-	// Store spec hash for change detection
-	if w.Annotations == nil {
-		w.Annotations = map[string]string{}
-	}
-	w.Annotations[specHashAnnotation] = computeSpecHash(w.Spec)
-	if err := r.Update(ctx, w); err != nil {
-		return reconcile.Result{}, err
-	}
-
+	w.Status.ExposedPorts = exposedPorts
 	if err := r.Status().Update(ctx, w); err != nil {
-		return reconcile.Result{}, err
+		logger.Error(err, "failed to update status after create (non-fatal)", "name", w.Name)
 	}
 
 	logger.Info("worker created", "name", w.Name, "roomID", result.RoomID)
@@ -187,14 +238,9 @@ func (r *WorkerReconciler) handleCreate(ctx context.Context, w *v1beta1.Worker) 
 func (r *WorkerReconciler) handleUpdate(ctx context.Context, w *v1beta1.Worker) (reconcile.Result, error) {
 	logger := log.FromContext(ctx)
 
-	// Compare current spec hash with stored hash
-	currentHash := computeSpecHash(w.Spec)
-	storedHash := ""
-	if w.Annotations != nil {
-		storedHash = w.Annotations[specHashAnnotation]
-	}
-
-	if currentHash == storedHash {
+	// Compare current spec (from informer, always fresh) with last-processed spec
+	lastSpec, exists := r.getLastSpec(w.Name)
+	if exists && reflect.DeepEqual(w.Spec, lastSpec) {
 		return reconcile.Result{}, nil // no spec change
 	}
 
@@ -214,10 +260,23 @@ func (r *WorkerReconciler) handleUpdate(ctx context.Context, w *v1beta1.Worker) 
 	if w.Spec.Package != "" {
 		extractedDir, err := r.Packages.ResolveAndExtract(ctx, w.Spec.Package, w.Name)
 		if err != nil {
-			logger.Error(err, "package resolve/extract failed during update", "name", w.Name)
-		} else if extractedDir != "" {
+			_ = r.Get(ctx, client.ObjectKeyFromObject(w), w)
+			w.Status.Phase = "Failed"
+			w.Status.Message = fmt.Sprintf("package resolve/extract failed: %v", err)
+			r.Status().Update(ctx, w)
+			return reconcile.Result{RequeueAfter: time.Minute}, err
+		}
+		if extractedDir != "" {
+			// Deploy package files to local + MinIO atomically (excludes memory to preserve existing state)
+			if err := r.Packages.DeployToMinIO(ctx, extractedDir, w.Name, true); err != nil {
+				_ = r.Get(ctx, client.ObjectKeyFromObject(w), w)
+				w.Status.Phase = "Failed"
+				w.Status.Message = fmt.Sprintf("package deploy failed: %v", err)
+				r.Status().Update(ctx, w)
+				return reconcile.Result{RequeueAfter: time.Minute}, err
+			}
 			packageDir = extractedDir
-			logger.Info("package resolved for update", "name", w.Name, "dir", extractedDir)
+			logger.Info("package deployed for update", "name", w.Name, "dir", extractedDir)
 		}
 	}
 
@@ -225,10 +284,13 @@ func (r *WorkerReconciler) handleUpdate(ctx context.Context, w *v1beta1.Worker) 
 	if w.Spec.Identity != "" || w.Spec.Soul != "" || w.Spec.Agents != "" {
 		agentDir := fmt.Sprintf("/root/hiclaw-fs/agents/%s", w.Name)
 		if err := executor.WriteInlineConfigs(agentDir, w.Spec.Runtime, w.Spec.Identity, w.Spec.Soul, w.Spec.Agents); err != nil {
-			logger.Error(err, "write inline configs failed during update", "name", w.Name)
-		} else {
-			logger.Info("inline configs written for update", "name", w.Name)
+			_ = r.Get(ctx, client.ObjectKeyFromObject(w), w)
+			w.Status.Phase = "Failed"
+			w.Status.Message = fmt.Sprintf("write inline configs failed: %v", err)
+			r.Status().Update(ctx, w)
+			return reconcile.Result{RequeueAfter: time.Minute}, err
 		}
+		logger.Info("inline configs written for update", "name", w.Name)
 	}
 
 	// 2. Call update-worker-config.sh (handles credentials, openclaw.json, skills, MinIO sync)
@@ -245,6 +307,11 @@ func (r *WorkerReconciler) handleUpdate(ctx context.Context, w *v1beta1.Worker) 
 	if packageDir != "" {
 		args = append(args, "--package-dir", packageDir)
 	}
+	if w.Spec.ChannelPolicy != nil {
+		if policyJSON, err := json.Marshal(w.Spec.ChannelPolicy); err == nil {
+			args = append(args, "--channel-policy", string(policyJSON))
+		}
+	}
 
 	_, err := r.Executor.Run(ctx,
 		"/opt/hiclaw/agent/skills/worker-management/scripts/update-worker-config.sh",
@@ -257,19 +324,22 @@ func (r *WorkerReconciler) handleUpdate(ctx context.Context, w *v1beta1.Worker) 
 		return reconcile.Result{RequeueAfter: time.Minute}, err
 	}
 
-	// 3. Update spec hash and status
-	if w.Annotations == nil {
-		w.Annotations = map[string]string{}
-	}
-	w.Annotations[specHashAnnotation] = currentHash
-	if err := r.Update(ctx, w); err != nil {
-		return reconcile.Result{}, err
+	// Record the spec we just processed
+	r.setLastSpec(w.Name, w.Spec)
+
+	// Reconcile exposed ports
+	exposedPorts, exposeErr := ReconcileExpose(r.Higress, w.Name, w.Spec.Expose, w.Status.ExposedPorts)
+	if exposeErr != nil {
+		logger.Error(exposeErr, "failed to reconcile exposed ports (non-fatal)", "name", w.Name)
 	}
 
+	// Re-read before status update
+	_ = r.Get(ctx, client.ObjectKeyFromObject(w), w)
 	w.Status.Phase = "Running"
 	w.Status.Message = "Configuration updated (memory preserved, skills merged)"
+	w.Status.ExposedPorts = exposedPorts
 	if err := r.Status().Update(ctx, w); err != nil {
-		return reconcile.Result{}, err
+		logger.Error(err, "failed to update status after update (non-fatal)", "name", w.Name)
 	}
 
 	logger.Info("worker updated", "name", w.Name)
@@ -280,13 +350,33 @@ func (r *WorkerReconciler) handleDelete(ctx context.Context, w *v1beta1.Worker) 
 	logger := log.FromContext(ctx)
 	logger.Info("deleting worker", "name", w.Name)
 
-	// Stop container via lifecycle script
+	r.deleteLastSpec(w.Name)
+
+	// Clean up exposed ports from Higress
+	// Use both status (persisted) and spec (current) to ensure cleanup
+	currentExposed := w.Status.ExposedPorts
+	if len(currentExposed) == 0 && len(w.Spec.Expose) > 0 {
+		// Status wasn't persisted; derive from spec
+		for _, ep := range w.Spec.Expose {
+			currentExposed = append(currentExposed, v1beta1.ExposedPortStatus{
+				Port:   ep.Port,
+				Domain: domainForExpose(w.Name, ep.Port),
+			})
+		}
+	}
+	if len(currentExposed) > 0 {
+		if _, err := ReconcileExpose(r.Higress, w.Name, nil, currentExposed); err != nil {
+			logger.Error(err, "failed to clean up exposed ports (non-fatal)", "name", w.Name)
+		}
+	}
+
+	// Delete container via lifecycle script
 	_, err := r.Executor.RunSimple(ctx,
 		"/opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh",
-		"--action", "stop", "--worker", w.Name,
+		"--action", "delete", "--worker", w.Name,
 	)
 	if err != nil {
-		logger.Error(err, "failed to stop worker container (may already be stopped)", "name", w.Name)
+		logger.Error(err, "failed to delete worker container (may already be removed)", "name", w.Name)
 	}
 
 	return nil
@@ -301,12 +391,6 @@ func joinStrings(ss []string) string {
 		result += s
 	}
 	return result
-}
-
-func computeSpecHash(spec v1beta1.WorkerSpec) string {
-	data, _ := json.Marshal(spec)
-	h := sha256.Sum256(data)
-	return fmt.Sprintf("%x", h[:8])
 }
 
 func storagePrefix() string {

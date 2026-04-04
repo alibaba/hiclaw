@@ -51,11 +51,15 @@ spec:
   identity: |                      # Worker public identity (generates IDENTITY.md)
     - Name: Alice
     - Specialization: DevOps, CI/CD pipeline management
-  soul: |                          # Worker identity and role (generates SOUL.md)
+  soul: |                          # Worker personality and values (generates SOUL.md)
     # Alice - DevOps Worker
-    ## Role
-    - Specialization: CI/CD pipeline management, deployment automation
-    - Skills: GitHub Operations, Docker, shell scripting
+    ## Personality
+    - Methodical and detail-oriented, always double-checks before deploying
+    - Proactive about potential risks, raises concerns early
+    - Prefers automation over manual processes
+    ## Values
+    - Stability first: never sacrifice reliability for speed
+    - Transparency: always explain what you're doing and why
   agents: |                        # Agent behavior rules (generates AGENTS.md)
     ## Behavior
     - Monitor CI/CD pipelines proactively
@@ -76,11 +80,12 @@ spec:
 | `spec.runtime` | string | No | `openclaw` | Agent runtime: `openclaw` or `copaw` |
 | `spec.image` | string | No | `hiclaw/worker-agent:latest` | Custom Docker image |
 | `spec.identity` | string | No | — | Worker public identity, used to generate IDENTITY.md |
-| `spec.soul` | string | No | — | Worker identity and role definition, used to generate SOUL.md |
+| `spec.soul` | string | No | — | Worker personality and values (generates SOUL.md) |
 | `spec.agents` | string | No | — | Agent behavior rules, used to generate AGENTS.md |
 | `spec.skills` | []string | No | — | Built-in skills, distributed by Manager |
 | `spec.mcpServers` | []string | No | — | Built-in MCP Servers, authorized via Higress gateway |
 | `spec.package` | string | No | — | Custom package URI: `file://`, `http(s)://`, or `nacos://` |
+| `spec.expose` | []object | No | — | Ports to expose via Higress gateway (see [Service Publishing](#service-publishing)) |
 
 ### identity / soul / agents vs package
 
@@ -149,13 +154,37 @@ spec:
   leader:
     name: alpha-lead
     model: claude-sonnet-4-6
+    soul: |
+      # Alpha Lead - Team Leader
+      ## Personality
+      - Calm and organized, keeps the team focused on priorities
+      - Patient with team members, encourages open communication
+      ## Values
+      - Clarity: every task must have clear acceptance criteria before assignment
+      - Trust: delegate fully, don't micromanage
   workers:
     - name: alpha-dev
       model: claude-sonnet-4-6
       skills: [github-operations]
       mcpServers: [github]
+      soul: |
+        # Alpha Dev - Backend Developer
+        ## Personality
+        - Pragmatic problem-solver, favors simple solutions over clever ones
+        - Thorough code reviewer, catches edge cases early
+        ## Values
+        - Code quality: write tests before shipping
+        - Keep it simple: avoid premature abstraction
     - name: alpha-qa
       model: claude-sonnet-4-6
+      soul: |
+        # Alpha QA - QA Engineer
+        ## Personality
+        - Skeptical by nature, always asks "what could go wrong?"
+        - Meticulous about reproducing and documenting issues
+        ## Values
+        - User experience first: test from the user's perspective
+        - No silent failures: every bug gets a clear report
 ```
 
 ### Field Reference
@@ -176,6 +205,9 @@ spec:
 |-------|------|----------|-------------|
 | `leader.name` | string | Yes | Leader name |
 | `leader.model` | string | No | LLM model |
+| `leader.identity` | string | No | Leader public identity (generates IDENTITY.md) |
+| `leader.soul` | string | No | Leader personality and values (generates SOUL.md) |
+| `leader.agents` | string | No | Custom behavior rules (appended after builtin AGENTS.md) |
 | `leader.package` | string | No | Custom package URI |
 
 **Worker fields (same as standalone Worker spec):**
@@ -185,9 +217,13 @@ spec:
 | `workers[].name` | string | Yes | Worker name |
 | `workers[].model` | string | No | LLM model |
 | `workers[].runtime` | string | No | Agent runtime |
+| `workers[].identity` | string | No | Worker public identity (generates IDENTITY.md) |
+| `workers[].soul` | string | No | Worker personality and values (generates SOUL.md) |
+| `workers[].agents` | string | No | Custom behavior rules (appended after builtin AGENTS.md) |
 | `workers[].skills` | []string | No | Built-in skills |
 | `workers[].mcpServers` | []string | No | Built-in MCP Servers |
 | `workers[].package` | string | No | Custom package URI |
+| `workers[].expose` | []object | No | Ports to expose via Higress gateway (see [Service Publishing](#service-publishing)) |
 
 ### What Makes Team Leader Special
 
@@ -198,6 +234,30 @@ A Team Leader is essentially a Worker container, but with key differences:
 - Does NOT have Manager-exclusive skills like `worker-management` or `mcp-server-management`
 - Marked as `role: "team_leader"` in `workers-registry.json`
 - Follows a delegation-first principle — always assigns tasks to team Workers, never executes domain tasks itself
+
+### Team Leader AGENTS.md Assembly
+
+The Team Leader's AGENTS.md is assembled in three layers, each managed independently:
+
+```
+<!-- hiclaw-builtin-start -->
+[Builtin: Team Leader workspace rules, task flow, skills reference]
+<!-- hiclaw-builtin-end -->
+
+<!-- hiclaw-team-context-start -->
+## Coordination
+- Upstream coordinator: @manager:{domain}
+- Team Admin: @admin:{domain}
+- Team: alpha-team
+- Team members: alpha-dev, alpha-qa
+<!-- hiclaw-team-context-end -->
+
+[User-provided content from spec.agents (if any)]
+```
+
+- The builtin section is auto-managed by HiClaw and updated on upgrades
+- The team context is auto-injected with the team name, members, and coordinator info
+- User-provided `spec.agents` content is placed after both sections and preserved across updates
 
 ### Room Topology
 
@@ -393,9 +453,9 @@ Both Workers and Team Workers support custom configuration packages via `spec.pa
 |--------|---------|-------------|
 | `file://` | `file://./alice.zip` | Local file, transferred via `docker cp` |
 | `http(s)://` | `https://example.com/worker.zip` | Remote download |
-| `nacos://` | `nacos://instance-xxx/ns/agent-spec/worker-xxx/v1` | Pulled from Nacos config center |
+| `nacos://` | `nacos://host:8848/ns/worker-xxx/v1` | Pulled from Nacos |
 
-Nacos URI format: `nacos://{instance-id}/{namespace}/{group}/{data-id}/{version}`
+Nacos URI format: `nacos://[user:pass@]host:port/{namespace}/{agentspec-name}[/{version}|/label:{label}]`
 
 ### Package Directory Structure
 
@@ -446,16 +506,16 @@ Runs on the host, forwarding YAML to the `hiclaw` CLI inside the Manager contain
 
 ```bash
 # Create/update a single resource
-bash hiclaw-apply.sh -f worker.yaml
+bash install/hiclaw-apply.sh -f worker.yaml
 
 # Batch create (use --- separators in YAML)
-bash hiclaw-apply.sh -f company-setup.yaml
+bash install/hiclaw-apply.sh -f company-setup.yaml
 
 # Full sync (delete resources not in YAML)
-bash hiclaw-apply.sh -f company-setup.yaml --prune
+bash install/hiclaw-apply.sh -f company-setup.yaml --prune
 
 # Preview changes
-bash hiclaw-apply.sh -f company-setup.yaml --dry-run
+bash install/hiclaw-apply.sh -f company-setup.yaml --dry-run
 ```
 
 | Option | Description |
@@ -471,16 +531,17 @@ For importing Workers from ZIP packages:
 
 ```bash
 # Import from local ZIP
-bash hiclaw-import.sh worker --name alice --zip ./alice.zip
+bash install/hiclaw-import.sh worker --name alice --zip ./alice.zip
 
 # Import from URL
-bash hiclaw-import.sh worker --name alice --zip https://example.com/alice.zip
+bash install/hiclaw-import.sh worker --name alice --zip https://example.com/alice.zip
 
 # Import from Nacos
-bash hiclaw-import.sh worker --name alice --package nacos://instance-xxx/ns/agent-spec/alice/v1
+bash install/hiclaw-import.sh worker --name alice --package nacos://host:8848/ns/alice/v1
+bash install/hiclaw-import.sh worker --name alice --package nacos://host:8848/ns/alice/label:latest
 
 # Create without a package
-bash hiclaw-import.sh worker --name bob --model claude-sonnet-4-6 \
+bash install/hiclaw-import.sh worker --name bob --model claude-sonnet-4-6 \
     --skills github-operations,git-delegation --mcp-servers github
 ```
 
@@ -607,13 +668,13 @@ spec:
 One-command deployment:
 
 ```bash
-bash hiclaw-apply.sh -f company-setup.yaml
+bash install/hiclaw-apply.sh -f company-setup.yaml
 ```
 
 For subsequent changes, just edit the YAML and re-apply. Use `--prune` to automatically clean up removed resources:
 
 ```bash
-bash hiclaw-apply.sh -f company-setup.yaml --prune
+bash install/hiclaw-apply.sh -f company-setup.yaml --prune
 ```
 
 ## Controller Architecture
@@ -643,6 +704,95 @@ Reconciler executes scripts (create-worker.sh / create-team.sh / create-human.sh
 | Human | Register Matrix account + configure permissions + send email | permissionLevel change → recalculate groupAllowFrom | Remove from all groupAllowFrom → kick from Rooms |
 
 All resources use the Kubernetes finalizer pattern to ensure cleanup before deletion.
+
+## Service Publishing
+
+Workers can expose HTTP services running inside their containers to the outside world via the Higress gateway. Add `spec.expose` to a Worker's configuration to publish container ports — the Controller automatically creates the necessary Higress domain, DNS service source, and route.
+
+### How It Works
+
+Each exposed port gets an auto-generated domain:
+
+```
+worker-{name}-{port}-local.hiclaw.io
+```
+
+For example, worker `alice` exposing port `8080` becomes accessible at `worker-alice-8080-local.hiclaw.io`.
+
+The Controller creates three Higress resources per exposed port:
+1. **Domain**: `worker-{name}-{port}-local.hiclaw.io`
+2. **DNS Service Source**: points to the worker container via network alias `{name}.local`
+3. **Route**: forwards all requests on the domain to the worker's port
+
+When the expose configuration is removed or the Worker is deleted, all associated Higress resources are automatically cleaned up.
+
+### Configuration
+
+```yaml
+apiVersion: hiclaw.io/v1beta1
+kind: Worker
+metadata:
+  name: alice
+spec:
+  model: qwen3.5-plus
+  expose:
+    - port: 8080
+    - port: 3000
+```
+
+**Expose field reference:**
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `expose[].port` | int | Yes | — | Container port to expose |
+| `expose[].protocol` | string | No | `http` | Protocol: `http` or `grpc` |
+
+### Team Workers
+
+Team Workers also support `expose`:
+
+```yaml
+apiVersion: hiclaw.io/v1beta1
+kind: Team
+metadata:
+  name: dev-team
+spec:
+  leader:
+    name: lead
+    model: qwen3.5-plus
+  workers:
+    - name: backend
+      model: qwen3.5-plus
+      expose:
+        - port: 8080
+    - name: frontend
+      model: qwen3.5-plus
+      expose:
+        - port: 3000
+```
+
+### CLI Usage
+
+```bash
+# Expose ports via CLI flag
+hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000
+
+# Remove exposed ports (re-apply without --expose)
+hiclaw apply worker --name alice --model qwen3.5-plus
+```
+
+### Use Cases
+
+- **Web App Preview**: A Worker develops a web application and exposes it for the Admin or other team members to preview
+- **API Service**: A Worker runs a backend API that other Workers or external systems need to access
+- **Development Server**: Expose a dev server for real-time testing during development
+
+### Notes
+
+- The worker container must be running and the service must be listening on the specified port before it can be accessed
+- Domains are auto-generated; custom domains are not yet supported
+- No authentication is configured on exposed routes (public access within the network)
+- Removing a port from `spec.expose` and re-applying will clean up the corresponding Higress resources
 
 ### Two Deployment Modes
 

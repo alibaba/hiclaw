@@ -226,6 +226,13 @@ action_check_idle() {
             continue
         fi
 
+        # Skip team workers — they must stay running for team coordination
+        local _team_id
+        _team_id=$(jq -r --arg w "$worker" '.workers[$w].team_id // empty' "$REGISTRY_FILE" 2>/dev/null)
+        if [ -n "$_team_id" ]; then
+            continue
+        fi
+
         if _worker_has_any_tasks "$worker"; then
             # Worker is active (finite or infinite task) — clear idle_since
             local current_idle
@@ -326,6 +333,40 @@ action_stop() {
         _log "ERROR: Failed to stop worker $worker"
         return 1
     fi
+}
+
+# Delete a worker: stop container, remove it, and clean up lifecycle state
+action_delete() {
+    local worker="$1"
+    _init_lifecycle_file
+    _ensure_worker_entry "$worker"
+
+    local backend
+    backend=$(_detect_worker_backend)
+    if [ "$backend" = "none" ]; then
+        _log "ERROR: No worker backend available"
+        return 1
+    fi
+
+    # Stop first (ignore errors — may already be stopped)
+    _log "Stopping worker $worker before delete (backend=$backend)"
+    worker_backend_stop "$worker" 2>/dev/null || true
+
+    # Delete container
+    _log "Deleting worker $worker container (backend=$backend)"
+    if worker_backend_delete "$worker"; then
+        _log "Worker $worker container deleted"
+    else
+        _log "WARN: Failed to delete worker $worker container (may already be removed)"
+    fi
+
+    # Clean up lifecycle state
+    local tmp
+    tmp=$(mktemp)
+    jq --arg w "$worker" --arg ts "$(_ts)" \
+        'del(.workers[$w]) | .updated_at = $ts' \
+        "$LIFECYCLE_FILE" > "$tmp" && mv "$tmp" "$LIFECYCLE_FILE"
+    _log "Worker $worker removed from lifecycle file"
 }
 
 # Start (wake up) a stopped worker, or recreate if it no longer exists
@@ -476,7 +517,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$ACTION" ]; then
-    echo "Usage: $0 --action <sync-status|check-idle|stop|start> [--worker <name>]" >&2
+    echo "Usage: $0 --action <sync-status|check-idle|stop|start|delete> [--worker <name>]" >&2
     exit 1
 fi
 
@@ -494,6 +535,13 @@ case "$ACTION" in
         fi
         action_stop "$WORKER"
         ;;
+    delete)
+        if [ -z "$WORKER" ]; then
+            echo "ERROR: --worker required for action 'delete'" >&2
+            exit 1
+        fi
+        action_delete "$WORKER"
+        ;;
     start)
         if [ -z "$WORKER" ]; then
             echo "ERROR: --worker required for action 'start'" >&2
@@ -509,7 +557,7 @@ case "$ACTION" in
         action_ensure_ready "$WORKER"
         ;;
     *)
-        echo "ERROR: Unknown action '$ACTION'. Use: sync-status, check-idle, stop, start, ensure-ready" >&2
+        echo "ERROR: Unknown action '$ACTION'. Use: sync-status, check-idle, stop, delete, start, ensure-ready" >&2
         exit 1
         ;;
 esac

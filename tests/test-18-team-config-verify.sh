@@ -13,6 +13,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/test-helpers.sh"
 source "${SCRIPT_DIR}/lib/minio-client.sh"
+source "${SCRIPT_DIR}/lib/matrix-client.sh"
 
 test_setup "18-team-config-verify"
 
@@ -83,9 +84,20 @@ log_pass "SOUL.md files prepared for all team members"
 # ============================================================
 log_section "Create Team"
 
+# Channel policy test:
+#   Team-level: add "test-external-bot" to all members' groupAllowFrom
+#   Worker 1 (dev): deny Worker 2 (qa) from groupAllowFrom (overrides peer mention)
+#   Worker 2 (qa): no per-worker policy (should still have W1 via peer mention)
+TEAM_CP='{"groupAllowExtra":["test-external-bot"]}'
+# Per-worker policies use ":" separator; W1 gets deny, W2 gets empty
+W1_CP='{"groupDenyExtra":["'"${TEST_W2}"'"]}'
+WORKER_CPS="${W1_CP}|"
+
 CREATE_OUTPUT=$(exec_in_manager bash -c "
     bash /opt/hiclaw/agent/skills/team-management/scripts/create-team.sh \
-        --name '${TEST_TEAM}' --leader '${TEST_LEADER}' --workers '${TEST_W1},${TEST_W2}'
+        --name '${TEST_TEAM}' --leader '${TEST_LEADER}' --workers '${TEST_W1},${TEST_W2}' \
+        --team-channel-policy '${TEAM_CP}' \
+        --worker-channel-policies '${WORKER_CPS}'
 " 2>&1)
 
 if echo "${CREATE_OUTPUT}" | grep -q "RESULT"; then
@@ -111,6 +123,25 @@ assert_eq "2" "${TEAM_WORKERS_REG}" "Team has 2 workers"
 
 TEAM_ROOM=$(echo "${TEAM_ENTRY}" | jq -r '.team_room_id // empty')
 assert_not_empty "${TEAM_ROOM}" "Team Room ID exists: ${TEAM_ROOM}"
+
+# Verify admin auto-joined the team room
+ADMIN_LOGIN=$(matrix_login "${TEST_ADMIN_USER}" "${TEST_ADMIN_PASSWORD}" 2>/dev/null)
+ADMIN_TOKEN=$(echo "${ADMIN_LOGIN}" | jq -r '.access_token // empty')
+if [ -n "${ADMIN_TOKEN}" ] && [ "${ADMIN_TOKEN}" != "null" ] && [ -n "${TEAM_ROOM}" ]; then
+    ROOM_ENC=$(echo "${TEAM_ROOM}" | sed 's/!/%21/g')
+    MEMBERS=$(exec_in_manager curl -sf \
+        "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${ROOM_ENC}/members" \
+        -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null | \
+        jq -r '.chunk[] | select(.content.membership == "join") | .state_key' 2>/dev/null)
+    ADMIN_MATRIX_ID="@${TEST_ADMIN_USER}:${TEST_MATRIX_DOMAIN}"
+    if echo "${MEMBERS}" | grep -q "${ADMIN_MATRIX_ID}"; then
+        log_pass "Admin auto-joined team room"
+    else
+        log_fail "Admin is NOT joined in team room (auto-join may have failed)"
+    fi
+else
+    log_info "Skipping admin room membership check (no admin token)"
+fi
 
 # ============================================================
 # Section 4: Verify workers-registry.json roles
@@ -211,6 +242,53 @@ else
     log_pass "Worker 1 groupAllowFrom does NOT include Manager"
 fi
 
+# Peer mentions: Workers should have each other in groupAllowFrom (default peerMentions=true)
+# EXCEPT: W1 has groupDenyExtra for W2, so W1 should NOT have W2
+W2_GAF=$(exec_in_manager mc cat "${STORAGE_PREFIX}/agents/${TEST_W2}/openclaw.json" 2>/dev/null | jq -r '.channels.matrix.groupAllowFrom[]' 2>/dev/null)
+
+if echo "${W1_GAF}" | grep -q "@${TEST_W2}:"; then
+    log_fail "Worker 1 groupAllowFrom includes Worker 2 (should be denied by channelPolicy)"
+else
+    log_pass "Worker 1 groupAllowFrom does NOT include Worker 2 (denied by channelPolicy)"
+fi
+
+if echo "${W2_GAF}" | grep -q "@${TEST_W1}:"; then
+    log_pass "Worker 2 groupAllowFrom includes Worker 1 (peer mention)"
+else
+    log_fail "Worker 2 groupAllowFrom missing Worker 1 (peer mention should be enabled by default)"
+fi
+
+if echo "${W2_GAF}" | grep -q "@${TEST_LEADER}:"; then
+    log_pass "Worker 2 groupAllowFrom includes Leader"
+else
+    log_fail "Worker 2 groupAllowFrom missing Leader"
+fi
+
+if echo "${W2_GAF}" | grep -q "@manager:"; then
+    log_fail "Worker 2 groupAllowFrom includes Manager (should NOT)"
+else
+    log_pass "Worker 2 groupAllowFrom does NOT include Manager"
+fi
+
+# channelPolicy: team-level groupAllowExtra should add test-external-bot to all members
+if echo "${LEADER_GAF}" | grep -q "@test-external-bot:"; then
+    log_pass "Leader groupAllowFrom includes test-external-bot (team channelPolicy)"
+else
+    log_fail "Leader groupAllowFrom missing test-external-bot (team channelPolicy)"
+fi
+
+if echo "${W1_GAF}" | grep -q "@test-external-bot:"; then
+    log_pass "Worker 1 groupAllowFrom includes test-external-bot (team channelPolicy)"
+else
+    log_fail "Worker 1 groupAllowFrom missing test-external-bot (team channelPolicy)"
+fi
+
+if echo "${W2_GAF}" | grep -q "@test-external-bot:"; then
+    log_pass "Worker 2 groupAllowFrom includes test-external-bot (team channelPolicy)"
+else
+    log_fail "Worker 2 groupAllowFrom missing test-external-bot (team channelPolicy)"
+fi
+
 # Manager: should have Leader but NOT team workers
 MGR_GAF=$(exec_in_manager jq -r '.channels.matrix.groupAllowFrom[]' /root/manager-workspace/openclaw.json 2>/dev/null)
 if echo "${MGR_GAF}" | grep -q "@${TEST_LEADER}:"; then
@@ -257,7 +335,35 @@ TEAM_AGENT_COUNT=$(exec_in_manager jq -r --arg t "${TEST_TEAM}" '[.workers | to_
 assert_eq "3" "${TEAM_AGENT_COUNT}" "Team has 3 agents total (1 leader + 2 workers)"
 
 # ============================================================
-# Section 10: Verify containers running
+# Section 10: Verify admin auto-joined worker rooms
+# ============================================================
+log_section "Verify Admin Auto-Joined Worker Rooms"
+
+if [ -n "${ADMIN_TOKEN}" ] && [ "${ADMIN_TOKEN}" != "null" ]; then
+    ADMIN_MATRIX_ID="@${TEST_ADMIN_USER}:${TEST_MATRIX_DOMAIN}"
+    for w in "${TEST_LEADER}" "${TEST_W1}" "${TEST_W2}"; do
+        W_ROOM=$(exec_in_manager jq -r --arg w "${w}" '.workers[$w].room_id // empty' /root/manager-workspace/workers-registry.json 2>/dev/null)
+        if [ -n "${W_ROOM}" ] && [ "${W_ROOM}" != "null" ]; then
+            W_ROOM_ENC=$(echo "${W_ROOM}" | sed 's/!/%21/g')
+            W_MEMBERS=$(exec_in_manager curl -sf \
+                "${TEST_MATRIX_DIRECT_URL}/_matrix/client/v3/rooms/${W_ROOM_ENC}/members" \
+                -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null | \
+                jq -r '.chunk[] | select(.content.membership == "join") | .state_key' 2>/dev/null)
+            if echo "${W_MEMBERS}" | grep -q "${ADMIN_MATRIX_ID}"; then
+                log_pass "Admin auto-joined ${w} worker room"
+            else
+                log_fail "Admin is NOT joined in ${w} worker room"
+            fi
+        else
+            log_info "Skipping ${w} room check (no room_id)"
+        fi
+    done
+else
+    log_info "Skipping worker room membership checks (no admin token)"
+fi
+
+# ============================================================
+# Section 11: Verify containers running
 # ============================================================
 log_section "Verify Containers"
 

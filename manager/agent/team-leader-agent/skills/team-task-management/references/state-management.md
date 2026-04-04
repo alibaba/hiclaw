@@ -2,7 +2,7 @@
 
 ## team-state.json
 
-Location: `~/team-state.json`
+Location: `./team-state.json`
 
 Schema (same as Manager's state.json):
 ```json

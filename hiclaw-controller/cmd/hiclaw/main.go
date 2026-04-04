@@ -6,9 +6,11 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/hiclaw/hiclaw-controller/internal/executor"
@@ -126,6 +128,7 @@ func applyWorkerCmd() *cobra.Command {
 	var skills string
 	var mcpServers string
 	var runtime string
+	var expose string
 	var dryRun bool
 
 	cmd := &cobra.Command{
@@ -135,8 +138,11 @@ func applyWorkerCmd() *cobra.Command {
 
   hiclaw apply worker --name alice --zip worker.zip
   hiclaw apply worker --name alice --model claude-sonnet-4-6 --package nacos://inst/ns/spec/v1
+  hiclaw apply worker --name alice --package reviewer
+  hiclaw apply worker --name alice --package reviewer/label:latest
   hiclaw apply worker --name bob --model qwen3.5-plus
-  hiclaw apply worker --name charlie --model gpt-5-mini --skills github-operations --mcp-servers github`,
+  hiclaw apply worker --name charlie --model gpt-5-mini --skills github-operations --mcp-servers github
+  hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if name == "" {
 				return fmt.Errorf("--name is required")
@@ -152,24 +158,38 @@ func applyWorkerCmd() *cobra.Command {
 				model = "qwen3.5-plus"
 			}
 
-			return applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime, dryRun)
+			return applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime, expose, dryRun)
 		},
 	}
 
 	cmd.Flags().StringVar(&name, "name", "", "Worker name (required)")
 	cmd.Flags().StringVar(&model, "model", "", "LLM model ID (default: qwen3.5-plus)")
 	cmd.Flags().StringVar(&zipFile, "zip", "", "Local ZIP package (manifest.json)")
-	cmd.Flags().StringVar(&packageURI, "package", "", "Remote package URI (nacos://, http://, oss://)")
+	cmd.Flags().StringVar(&packageURI, "package", "", "Remote package URI (nacos://, http://, oss://) or Nacos shorthand (name, name/version, name/label:latest)")
 	cmd.Flags().StringVar(&skills, "skills", "", "Comma-separated built-in skills")
 	cmd.Flags().StringVar(&mcpServers, "mcp-servers", "", "Comma-separated MCP servers")
 	cmd.Flags().StringVar(&runtime, "runtime", "openclaw", "Agent runtime (openclaw|copaw)")
+	cmd.Flags().StringVar(&expose, "expose", "", "Comma-separated ports to expose via Higress (e.g. 8080,3000)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show changes without applying")
 
 	return cmd
 }
 
 // applyWorkerFromParams generates a Worker YAML from CLI params and writes to MinIO
-func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime string, dryRun bool) error {
+func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime, expose string, dryRun bool) error {
+	if err := validateWorkerName(name); err != nil {
+		return err
+	}
+
+	if packageURI != "" {
+		var err error
+		packageURI, err = expandPackageURI(packageURI)
+		if err != nil {
+			return err
+		}
+	}
+
+
 	// Preflight: validate nacos:// URI before persisting
 	if strings.HasPrefix(packageURI, "nacos://") {
 		fmt.Printf("  Validating nacos URI: %s\n", packageURI)
@@ -181,7 +201,7 @@ func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime 
 	// Build YAML
 	var specLines []string
 	specLines = append(specLines, fmt.Sprintf("  model: %s", model))
-	if runtime != "" && runtime != "openclaw" {
+	if runtime != "" {
 		specLines = append(specLines, fmt.Sprintf("  runtime: %s", runtime))
 	}
 	if packageURI != "" {
@@ -202,6 +222,15 @@ func applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime 
 			m = strings.TrimSpace(m)
 			if m != "" {
 				specLines = append(specLines, fmt.Sprintf("    - %s", m))
+			}
+		}
+	}
+	if expose != "" {
+		specLines = append(specLines, "  expose:")
+		for _, p := range strings.Split(expose, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				specLines = append(specLines, fmt.Sprintf("    - port: %s", p))
 			}
 		}
 	}
@@ -245,6 +274,50 @@ spec:
 	return nil
 }
 
+func expandPackageURI(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.Contains(raw, "://") {
+		return raw, nil
+	}
+
+	base := strings.TrimSpace(os.Getenv("HICLAW_NACOS_REGISTRY_URI"))
+	if base == "" {
+		base = "nacos://market.hiclaw.io:80/public"
+	}
+	if !strings.HasPrefix(base, "nacos://") {
+		return "", fmt.Errorf("invalid HICLAW_NACOS_REGISTRY_URI %q: must start with nacos://", base)
+	}
+	base = strings.TrimRight(base, "/")
+	if base == "nacos:" || base == "nacos:/" || base == "nacos://" {
+		return "", fmt.Errorf("invalid HICLAW_NACOS_REGISTRY_URI %q: missing host/namespace", base)
+	}
+
+	parts := strings.Split(raw, "/")
+	encoded := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return "", fmt.Errorf("invalid package shorthand %q: empty path segment", raw)
+		}
+		encoded = append(encoded, url.PathEscape(part))
+	}
+
+	return base + "/" + strings.Join(encoded, "/"), nil
+}
+
+var workerNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+func validateWorkerName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("invalid worker name: name is required")
+	}
+	if !workerNamePattern.MatchString(name) {
+		return fmt.Errorf("invalid worker name %q: must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens", name)
+	}
+	return nil
+}
+
 // applyEmbedded writes YAML files to MinIO hiclaw-config/{kind}s/{name}.yaml
 func applyEmbedded(resources []resource, prune, dryRun, yes bool) error {
 	applied := map[string]map[string]bool{
@@ -260,6 +333,9 @@ func applyEmbedded(resources []resource, prune, dryRun, yes bool) error {
 	for _, r := range ordered {
 		if strings.ToLower(r.Kind) != "worker" {
 			continue
+		}
+		if err := validateWorkerName(r.Name); err != nil {
+			return err
 		}
 		pkg := extractPackageField(r.Raw)
 		if strings.HasPrefix(pkg, "nacos://") {
@@ -602,6 +678,10 @@ func writeTempYAML(content string) (string, error) {
 // uploads the ZIP to MinIO hiclaw-config/packages/, and writes the YAML
 // to MinIO hiclaw-config/{kind}s/{name}.yaml.
 func applyZip(zipPath string, name string, dryRun bool) error {
+	if err := validateWorkerName(name); err != nil {
+		return err
+	}
+
 	// 1. Extract ZIP to temp dir
 	tmpDir, err := os.MkdirTemp("", "hiclaw-zip-*")
 	if err != nil {

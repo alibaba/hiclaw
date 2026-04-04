@@ -61,7 +61,7 @@
 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 ```
 
-**Windows（PowerShell 5+）:**
+**Windows（PowerShell 7+ 推奨）:**
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; $wc=New-Object Net.WebClient; $wc.Encoding=[Text.Encoding]::UTF8; iex $wc.DownloadString('https://higress.ai/hiclaw/install.ps1')
 ```

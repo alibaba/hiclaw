@@ -61,7 +61,7 @@ Think of it as your AI team in a chat room: tell the Manager what you need, it s
 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 ```
 
-**Windows (PowerShell 5+):**
+**Windows (PowerShell 7+ recommended):**
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; $wc=New-Object Net.WebClient; $wc.Encoding=[Text.Encoding]::UTF8; iex $wc.DownloadString('https://higress.ai/hiclaw/install.ps1')
 ```

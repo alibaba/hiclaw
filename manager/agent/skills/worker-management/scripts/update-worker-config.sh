@@ -35,6 +35,7 @@ MODEL_ID=""
 MCP_SERVERS=""
 WORKER_SKILLS=""
 PACKAGE_DIR=""
+CHANNEL_POLICY_JSON=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -43,6 +44,7 @@ while [ $# -gt 0 ]; do
         --skills)      WORKER_SKILLS="$2"; shift 2 ;;
         --mcp-servers) MCP_SERVERS="$2"; shift 2 ;;
         --package-dir) PACKAGE_DIR="$2"; shift 2 ;;
+        --channel-policy) CHANNEL_POLICY_JSON="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -176,16 +178,28 @@ if [ -n "${PACKAGE_DIR}" ] && [ -d "${PACKAGE_DIR}" ]; then
 TEAMCTX
     elif [ "${_role}" = "team_leader" ]; then
         _team_workers=$(jq -r --arg t "${_team_id}" '.teams[$t].workers // [] | join(", ")' "${HOME}/teams-registry.json" 2>/dev/null)
+        _team_room_id=$(jq -r --arg t "${_team_id}" '.teams[$t].team_room_id // empty' "${HOME}/teams-registry.json" 2>/dev/null)
+        _leader_dm_room_id=$(jq -r --arg t "${_team_id}" '.teams[$t].leader_dm_room_id // empty' "${HOME}/teams-registry.json" 2>/dev/null)
+        _team_admin_mid=$(jq -r --arg t "${_team_id}" '.teams[$t].admin.matrix_user_id // empty' "${HOME}/teams-registry.json" 2>/dev/null)
+        _worker_rooms=$(jq -r --arg t "${_team_id}" '
+            [.workers | to_entries[] | select(.value.team_id == $t and .value.role == "worker") |
+             "  - @\(.key):__DOMAIN__ — Room: \(.value.room_id // "unknown")"] | join("\n")' "${REGISTRY_FILE}" 2>/dev/null)
+        _worker_rooms=$(echo "${_worker_rooms}" | sed "s/__DOMAIN__/${MATRIX_DOMAIN}/g")
         cat > "${_ctx_tmp}" <<LEADERCTX
 
 <!-- hiclaw-team-context-start -->
 ## Coordination
 
 - **Upstream coordinator**: @manager:${MATRIX_DOMAIN} (Manager) — you receive tasks from Manager
+$([ -n "${_team_admin_mid}" ] && echo "- **Team Admin**: ${_team_admin_mid} — can assign tasks and make decisions within the team")
 - **Team**: ${_team_id}
-- **Workers**: ${_team_workers}
-- You decompose tasks from Manager and assign sub-tasks to your team workers
-- Report aggregated results to Manager when all sub-tasks complete
+$([ -n "${_team_room_id}" ] && echo "- **Team Room**: ${_team_room_id} — @mention workers here for task assignment")
+$([ -n "${_leader_dm_room_id}" ] && echo "- **Leader DM**: ${_leader_dm_room_id} — Team Admin communicates with you here")
+$([ -n "${_worker_rooms}" ] && echo "- **Team Workers**:" && echo "${_worker_rooms}")
+- You decompose tasks from Manager or Team Admin and assign sub-tasks to your team workers
+- @mention workers in the Team Room for task assignment
+- Report results to Manager (in Leader Room) or Team Admin (in Leader DM) based on task source
+- @mention Manager only for: task completion, blockers, escalations
 <!-- hiclaw-team-context-end -->
 LEADERCTX
     else
@@ -238,6 +252,16 @@ if [ -n "${MODEL_ID}" ]; then
     GEN_ARGS=("${WORKER_NAME}" "${WORKER_MATRIX_TOKEN}" "${WORKER_KEY}" "${MODEL_ID}")
     if [ -n "${TEAM_LEADER}" ]; then
         GEN_ARGS+=("${TEAM_LEADER}")
+    fi
+
+    # Persist new comm policy if provided, then export for generate-worker-config.sh
+    AGENT_DIR="/root/hiclaw-fs/agents/${WORKER_NAME}"
+    POLICY_FILE="${AGENT_DIR}/channel-policy.json"
+    if [ -n "${CHANNEL_POLICY_JSON}" ]; then
+        echo "${CHANNEL_POLICY_JSON}" > "${POLICY_FILE}"
+    fi
+    if [ -f "${POLICY_FILE}" ]; then
+        export WORKER_CHANNEL_POLICY=$(cat "${POLICY_FILE}")
     fi
 
     bash /opt/hiclaw/agent/skills/worker-management/scripts/generate-worker-config.sh "${GEN_ARGS[@]}"

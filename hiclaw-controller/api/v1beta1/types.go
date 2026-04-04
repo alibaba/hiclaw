@@ -21,24 +21,49 @@ type Worker struct {
 }
 
 type WorkerSpec struct {
-	Model      string   `json:"model"`
-	Runtime    string   `json:"runtime,omitempty"` // openclaw | copaw (default: openclaw)
-	Image      string   `json:"image,omitempty"`   // custom Docker image
-	Identity   string   `json:"identity,omitempty"`
-	Soul       string   `json:"soul,omitempty"`
-	Agents     string   `json:"agents,omitempty"`
-	Skills     []string `json:"skills,omitempty"`
-	McpServers []string `json:"mcpServers,omitempty"`
-	Package    string   `json:"package,omitempty"` // file://, http(s)://, or nacos:// URI
+	Model      string          `json:"model"`
+	Runtime    string          `json:"runtime,omitempty"` // openclaw | copaw (default: openclaw)
+	Image      string          `json:"image,omitempty"`   // custom Docker image
+	Identity   string          `json:"identity,omitempty"`
+	Soul       string          `json:"soul,omitempty"`
+	Agents     string          `json:"agents,omitempty"`
+	Skills     []string        `json:"skills,omitempty"`
+	McpServers []string        `json:"mcpServers,omitempty"`
+	Package    string          `json:"package,omitempty"` // file://, http(s)://, or nacos:// URI
+	Expose     []ExposePort    `json:"expose,omitempty"`  // ports to expose via Higress gateway
+	ChannelPolicy *ChannelPolicySpec `json:"channelPolicy,omitempty"`
+}
+
+// ExposePort defines a container port to expose via the Higress gateway.
+type ExposePort struct {
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol,omitempty"` // http (default) | grpc
+}
+
+// ChannelPolicySpec defines additive/subtractive overrides on top of default
+// communication policies. Values are Matrix user IDs (@user:domain) or
+// short usernames (auto-resolved to full IDs by config generation scripts).
+type ChannelPolicySpec struct {
+	GroupAllowExtra []string `json:"groupAllowExtra,omitempty"`
+	GroupDenyExtra  []string `json:"groupDenyExtra,omitempty"`
+	DmAllowExtra    []string `json:"dmAllowExtra,omitempty"`
+	DmDenyExtra     []string `json:"dmDenyExtra,omitempty"`
 }
 
 type WorkerStatus struct {
-	Phase          string `json:"phase,omitempty"` // Pending/Running/Stopped/Failed
-	MatrixUserID   string `json:"matrixUserID,omitempty"`
-	RoomID         string `json:"roomID,omitempty"`
-	ContainerState string `json:"containerState,omitempty"`
-	LastHeartbeat  string `json:"lastHeartbeat,omitempty"`
-	Message        string `json:"message,omitempty"`
+	Phase          string              `json:"phase,omitempty"` // Pending/Running/Stopped/Failed
+	MatrixUserID   string              `json:"matrixUserID,omitempty"`
+	RoomID         string              `json:"roomID,omitempty"`
+	ContainerState string              `json:"containerState,omitempty"`
+	LastHeartbeat  string              `json:"lastHeartbeat,omitempty"`
+	Message        string              `json:"message,omitempty"`
+	ExposedPorts   []ExposedPortStatus `json:"exposedPorts,omitempty"`
+}
+
+// ExposedPortStatus records a port that has been exposed via Higress.
+type ExposedPortStatus struct {
+	Port   int    `json:"port"`
+	Domain string `json:"domain"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -61,10 +86,12 @@ type Team struct {
 }
 
 type TeamSpec struct {
-	Description string           `json:"description,omitempty"`
-	Admin       *TeamAdminSpec   `json:"admin,omitempty"`
-	Leader      LeaderSpec       `json:"leader"`
-	Workers     []TeamWorkerSpec `json:"workers"`
+	Description  string           `json:"description,omitempty"`
+	Admin        *TeamAdminSpec   `json:"admin,omitempty"`
+	Leader       LeaderSpec       `json:"leader"`
+	Workers      []TeamWorkerSpec `json:"workers"`
+	PeerMentions *bool            `json:"peerMentions,omitempty"` // default true
+	ChannelPolicy   *ChannelPolicySpec  `json:"channelPolicy,omitempty"`  // team-wide overrides
 }
 
 type TeamAdminSpec struct {
@@ -73,25 +100,28 @@ type TeamAdminSpec struct {
 }
 
 type LeaderSpec struct {
-	Name     string `json:"name"`
-	Model    string `json:"model,omitempty"`
-	Identity string `json:"identity,omitempty"`
-	Soul     string `json:"soul,omitempty"`
-	Agents   string `json:"agents,omitempty"`
-	Package  string `json:"package,omitempty"`
+	Name       string          `json:"name"`
+	Model      string          `json:"model,omitempty"`
+	Identity   string          `json:"identity,omitempty"`
+	Soul       string          `json:"soul,omitempty"`
+	Agents     string          `json:"agents,omitempty"`
+	Package    string          `json:"package,omitempty"`
+	ChannelPolicy *ChannelPolicySpec `json:"channelPolicy,omitempty"`
 }
 
 type TeamWorkerSpec struct {
-	Name       string   `json:"name"`
-	Model      string   `json:"model,omitempty"`
-	Runtime    string   `json:"runtime,omitempty"`
-	Image      string   `json:"image,omitempty"`
-	Identity   string   `json:"identity,omitempty"`
-	Soul       string   `json:"soul,omitempty"`
-	Agents     string   `json:"agents,omitempty"`
-	Skills     []string `json:"skills,omitempty"`
-	McpServers []string `json:"mcpServers,omitempty"`
-	Package    string   `json:"package,omitempty"`
+	Name       string          `json:"name"`
+	Model      string          `json:"model,omitempty"`
+	Runtime    string          `json:"runtime,omitempty"`
+	Image      string          `json:"image,omitempty"`
+	Identity   string          `json:"identity,omitempty"`
+	Soul       string          `json:"soul,omitempty"`
+	Agents     string          `json:"agents,omitempty"`
+	Skills     []string        `json:"skills,omitempty"`
+	McpServers []string        `json:"mcpServers,omitempty"`
+	Package    string          `json:"package,omitempty"`
+	Expose     []ExposePort    `json:"expose,omitempty"`
+	ChannelPolicy *ChannelPolicySpec `json:"channelPolicy,omitempty"`
 }
 
 type TeamStatus struct {
@@ -101,6 +131,7 @@ type TeamStatus struct {
 	ReadyWorkers int    `json:"readyWorkers,omitempty"`
 	TotalWorkers int    `json:"totalWorkers,omitempty"`
 	Message      string `json:"message,omitempty"`
+	WorkerExposedPorts map[string][]ExposedPortStatus `json:"workerExposedPorts,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

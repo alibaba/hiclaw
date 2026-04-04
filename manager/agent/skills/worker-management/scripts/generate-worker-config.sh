@@ -117,18 +117,29 @@ mkdir -p "${OUTPUT_DIR}"
 
 envsubst < /opt/hiclaw/agent/skills/worker-management/references/worker-openclaw.json.tmpl > "${OUTPUT_DIR}/openclaw.json"
 
-# Inject custom model if not in the built-in list
+# Post-envsubst injection: memorySearch + custom model (single jq pass when possible)
 if ! jq -e --arg model "${MODEL_NAME}" '.models.providers["hiclaw-gateway"].models | map(.id) | index($model)' "${OUTPUT_DIR}/openclaw.json" > /dev/null 2>&1; then
     log "Custom model '${MODEL_NAME}' not in built-in list, injecting into worker config..."
-    jq --arg model "${MODEL_NAME}" \
+    jq --arg emb_model "${HICLAW_EMBEDDING_MODEL}" \
+       --arg aigw "${HICLAW_AI_GATEWAY}" \
+       --arg key "${WORKER_GATEWAY_KEY}" \
+       --arg model "${MODEL_NAME}" \
        --argjson ctx "${CTX}" \
        --argjson max "${MAX}" \
        --argjson reasoning "${MODEL_REASONING}" \
        --argjson input "${INPUT}" \
        '
-        .models.providers["hiclaw-gateway"].models += [{"id": $model, "name": $model, "reasoning": $reasoning, "contextWindow": $ctx, "maxTokens": $max, "input": $input}]
+        (if $emb_model != "" then .agents.defaults.memorySearch = {"provider":"openai","model":$emb_model,"remote":{"baseUrl":($aigw + "/v1"),"apiKey":$key}} else . end)
+        | .models.providers["hiclaw-gateway"].models += [{"id": $model, "name": $model, "reasoning": $reasoning, "contextWindow": $ctx, "maxTokens": $max, "input": $input}]
         | .agents.defaults.models += {("hiclaw-gateway/" + $model): {"alias": $model}}
        ' "${OUTPUT_DIR}/openclaw.json" > "${OUTPUT_DIR}/openclaw.json.tmp" && \
+        mv "${OUTPUT_DIR}/openclaw.json.tmp" "${OUTPUT_DIR}/openclaw.json"
+elif [ -n "${HICLAW_EMBEDDING_MODEL}" ]; then
+    jq --arg emb_model "${HICLAW_EMBEDDING_MODEL}" \
+       --arg aigw "${HICLAW_AI_GATEWAY}" \
+       --arg key "${WORKER_GATEWAY_KEY}" \
+       '.agents.defaults.memorySearch = {"provider":"openai","model":$emb_model,"remote":{"baseUrl":($aigw + "/v1"),"apiKey":$key}}' \
+       "${OUTPUT_DIR}/openclaw.json" > "${OUTPUT_DIR}/openclaw.json.tmp" && \
         mv "${OUTPUT_DIR}/openclaw.json.tmp" "${OUTPUT_DIR}/openclaw.json"
 fi
 
@@ -239,4 +250,49 @@ if [ -n "${TEAM_LEADER_NAME}" ]; then
        "${OUTPUT_DIR}/openclaw.json" > "${OUTPUT_DIR}/openclaw.json.tmp"
     mv "${OUTPUT_DIR}/openclaw.json.tmp" "${OUTPUT_DIR}/openclaw.json"
     log "  Overrode groupAllowFrom/dm.allowFrom for team worker (leader=${TEAM_LEADER_NAME})"
+fi
+
+# ============================================================
+# Apply communication policy overrides (additive/subtractive on top of defaults)
+# WORKER_CHANNEL_POLICY is a JSON string with optional fields:
+#   groupAllowExtra, groupDenyExtra, dmAllowExtra, dmDenyExtra
+# Values can be full Matrix IDs (@user:domain) or short usernames (auto-resolved).
+# Deny takes precedence over allow.
+# ============================================================
+if [ -n "${WORKER_CHANNEL_POLICY:-}" ]; then
+    jq --argjson policy "${WORKER_CHANNEL_POLICY}" \
+       --arg domain "${MATRIX_DOMAIN_FOR_ID}" \
+       '
+       # Resolve short username to full Matrix ID
+       def resolve_id: if startswith("@") then . else "@\(.):\($domain)" end;
+
+       # Add groupAllowExtra
+       (if ($policy.groupAllowExtra // [] | length) > 0 then
+           .channels.matrix.groupAllowFrom += [$policy.groupAllowExtra[] | resolve_id]
+           | .channels.matrix.groupAllowFrom |= unique
+       else . end)
+
+       # Add dmAllowExtra
+       | (if ($policy.dmAllowExtra // [] | length) > 0 then
+           .channels.matrix.dm.allowFrom += [$policy.dmAllowExtra[] | resolve_id]
+           | .channels.matrix.dm.allowFrom |= unique
+       else . end)
+
+       # Remove groupDenyExtra (deny wins)
+       | (if ($policy.groupDenyExtra // [] | length) > 0 then
+           ([$policy.groupDenyExtra[] | resolve_id]) as $deny
+           | .channels.matrix.groupAllowFrom |= [.[] | select(. as $id | $deny | index($id) | not)]
+       else . end)
+
+       # Remove dmDenyExtra (deny wins)
+       | (if ($policy.dmDenyExtra // [] | length) > 0 then
+           ([$policy.dmDenyExtra[] | resolve_id]) as $deny
+           | .channels.matrix.dm.allowFrom |= [.[] | select(. as $id | $deny | index($id) | not)]
+       else . end)
+       ' "${OUTPUT_DIR}/openclaw.json" > "${OUTPUT_DIR}/openclaw.json.tmp"
+    mv "${OUTPUT_DIR}/openclaw.json.tmp" "${OUTPUT_DIR}/openclaw.json"
+
+    # Persist policy for future updates (update-worker-config.sh reads this back)
+    echo "${WORKER_CHANNEL_POLICY}" > "${OUTPUT_DIR}/channel-policy.json"
+    log "  Applied channelPolicy overrides"
 fi

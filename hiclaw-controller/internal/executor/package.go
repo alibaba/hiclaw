@@ -126,85 +126,147 @@ func (p *PackageResolver) ResolveAndExtract(ctx context.Context, uri, name strin
 
 // DeployToMinIO copies extracted package contents to the worker's MinIO agent space.
 // This ensures SOUL.md, custom skills, etc. are in place before create-worker.sh runs.
-func (p *PackageResolver) DeployToMinIO(ctx context.Context, extractedDir, workerName string) error {
+//
+// To avoid a race with the background MinIO→local sync (which could overwrite local
+// files between the local write and the mc mirror push), we push to MinIO FIRST from
+// the extracted directory (immune to background sync), then copy to the local agent dir.
+func (p *PackageResolver) DeployToMinIO(ctx context.Context, extractedDir, workerName string, excludeMemory bool) error {
 	agentDir := fmt.Sprintf("/root/hiclaw-fs/agents/%s", workerName)
 	if err := os.MkdirAll(agentDir, 0755); err != nil {
 		return fmt.Errorf("create agent dir: %w", err)
 	}
 
-	// Copy config/ contents (SOUL.md, AGENTS.md, etc.) to agent root
-	// For AGENTS.md: wrap custom content with builtin markers so upgrade-builtins
-	// can merge without destroying user content.
+	storagePrefix := os.Getenv("HICLAW_STORAGE_PREFIX")
+	if storagePrefix == "" {
+		storagePrefix = "hiclaw/hiclaw-storage"
+	}
+	minioBase := fmt.Sprintf("%s/agents/%s", storagePrefix, workerName)
+
+	// Collect transformed config files and subdirectory names from the package.
+	type fileEntry struct {
+		name string
+		data []byte
+	}
+	var configFiles []fileEntry
+	var configSubdirs []string
+
 	configDir := filepath.Join(extractedDir, "config")
 	if info, err := os.Stat(configDir); err == nil && info.IsDir() {
 		entries, _ := os.ReadDir(configDir)
 		for _, e := range entries {
-			src := filepath.Join(configDir, e.Name())
-			dst := filepath.Join(agentDir, e.Name())
 			if e.IsDir() {
-				// Recursively copy subdirectories (e.g. memory/)
-				cpCmd := exec.CommandContext(ctx, "cp", "-r", src, dst)
-				cpCmd.CombinedOutput()
+				configSubdirs = append(configSubdirs, e.Name())
 				continue
 			}
+			if excludeMemory && e.Name() == "MEMORY.md" {
+				continue
+			}
+			src := filepath.Join(configDir, e.Name())
 			data, err := os.ReadFile(src)
 			if err != nil {
 				continue
 			}
 			if e.Name() == "AGENTS.md" {
-				// Wrap user AGENTS.md content after builtin markers
 				data = wrapWithBuiltinMarkers(data)
 			}
-			os.WriteFile(dst, data, 0644)
+			configFiles = append(configFiles, fileEntry{name: e.Name(), data: data})
 		}
 	} else {
 		// Fallback: SOUL.md at root level
 		src := filepath.Join(extractedDir, "SOUL.md")
 		if data, err := os.ReadFile(src); err == nil {
-			os.WriteFile(filepath.Join(agentDir, "SOUL.md"), data, 0644)
+			configFiles = append(configFiles, fileEntry{name: "SOUL.md", data: data})
 		}
 	}
 
-	// Copy custom skills/ directory if present — merge into skills/ alongside builtins
+	// Collect transformed crons data (if present).
 	skillsDir := filepath.Join(extractedDir, "skills")
-	if info, err := os.Stat(skillsDir); err == nil && info.IsDir() {
-		destSkills := filepath.Join(agentDir, "skills")
-		os.MkdirAll(destSkills, 0755)
-		// Use cp -r with trailing /. to merge contents into existing skills/ dir
-		cpCmd := exec.CommandContext(ctx, "cp", "-r", skillsDir+"/.", destSkills+"/")
-		cpCmd.CombinedOutput()
-	}
-
-	// Copy crons/ to .openclaw/cron/ if present (OpenClaw native cron jobs)
-	// If jobs.json is a bare array, wrap it in {"version":1,"jobs":[...]} format
 	cronsDir := filepath.Join(extractedDir, "crons")
+	var cronData []byte
 	if info, err := os.Stat(cronsDir); err == nil && info.IsDir() {
-		destCron := filepath.Join(agentDir, ".openclaw", "cron")
-		os.MkdirAll(destCron, 0755)
-		jobsFile := filepath.Join(cronsDir, "jobs.json")
-		if data, err := os.ReadFile(jobsFile); err == nil {
-			trimmed := strings.TrimSpace(string(data))
+		if raw, err := os.ReadFile(filepath.Join(cronsDir, "jobs.json")); err == nil {
+			trimmed := strings.TrimSpace(string(raw))
 			if strings.HasPrefix(trimmed, "[") {
-				// Bare array — wrap in OpenClaw expected format
-				wrapped := fmt.Sprintf(`{"version":1,"jobs":%s}`, trimmed)
-				os.WriteFile(filepath.Join(destCron, "jobs.json"), []byte(wrapped), 0644)
+				cronData = []byte(fmt.Sprintf(`{"version":1,"jobs":%s}`, trimmed))
 			} else {
-				os.WriteFile(filepath.Join(destCron, "jobs.json"), data, 0644)
+				cronData = raw
 			}
 		}
 	}
 
-	// Push to MinIO
-	storagePrefix := os.Getenv("HICLAW_STORAGE_PREFIX")
-	if storagePrefix == "" {
-		storagePrefix = "hiclaw/hiclaw-storage"
-	}
-	minioDest := fmt.Sprintf("%s/agents/%s/", storagePrefix, workerName)
-	mcCmd := exec.CommandContext(ctx, "mc", "mirror", agentDir+"/", minioDest, "--overwrite")
-	if out, err := mcCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("mc mirror to %s failed: %s: %w", minioDest, string(out), err)
+	// ── Phase 1: Push to MinIO FIRST from extracted dir (immune to background sync) ──
+
+	// Config files
+	for _, f := range configFiles {
+		if err := mcPut(ctx, minioBase+"/"+f.name, f.data); err != nil {
+			return fmt.Errorf("push %s to MinIO: %w", f.name, err)
+		}
 	}
 
+	// Skills
+	if info, err := os.Stat(skillsDir); err == nil && info.IsDir() {
+		mcCmd := exec.CommandContext(ctx, "mc", "mirror", skillsDir+"/", minioBase+"/skills/", "--overwrite")
+		if out, err := mcCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("mc mirror skills to MinIO: %s: %w", string(out), err)
+		}
+	}
+
+	// Crons
+	if cronData != nil {
+		if err := mcPut(ctx, minioBase+"/.openclaw/cron/jobs.json", cronData); err != nil {
+			return fmt.Errorf("push crons to MinIO: %w", err)
+		}
+	}
+
+	// ── Phase 2: Copy to local agent dir (safe — MinIO already has new content) ──
+
+	for _, f := range configFiles {
+		os.WriteFile(filepath.Join(agentDir, f.name), f.data, 0644)
+	}
+	for _, dirName := range configSubdirs {
+		src := filepath.Join(configDir, dirName)
+		dst := filepath.Join(agentDir, dirName)
+		cpCmd := exec.CommandContext(ctx, "cp", "-r", src, dst)
+		cpCmd.CombinedOutput()
+	}
+
+	// Skills
+	if info, err := os.Stat(skillsDir); err == nil && info.IsDir() {
+		destSkills := filepath.Join(agentDir, "skills")
+		os.MkdirAll(destSkills, 0755)
+		cpCmd := exec.CommandContext(ctx, "cp", "-r", skillsDir+"/.", destSkills+"/")
+		cpCmd.CombinedOutput()
+	}
+
+	// Crons
+	if cronData != nil {
+		destCron := filepath.Join(agentDir, ".openclaw", "cron")
+		os.MkdirAll(destCron, 0755)
+		os.WriteFile(filepath.Join(destCron, "jobs.json"), cronData, 0644)
+	}
+
+	return nil
+}
+
+// mcPut writes data to a MinIO path via temp file + mc cp.
+func mcPut(ctx context.Context, minioPath string, data []byte) error {
+	tmpFile, err := os.CreateTemp("", "hiclaw-deploy-*")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	tmpName := tmpFile.Name()
+	defer os.Remove(tmpName)
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	cmd := exec.CommandContext(ctx, "mc", "cp", tmpName, minioPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("mc cp to %s: %s: %w", minioPath, string(out), err)
+	}
 	return nil
 }
 
@@ -499,11 +561,25 @@ func ValidateNacosURI(ctx context.Context, raw string) error {
 		nacosAddr = u.User.String() + "@" + u.Host
 	}
 	namespace := parts[0]
+	specName := parts[1]
+	version := ""
+	if len(parts) >= 3 {
+		version = parts[2]
+	}
+
+	label := ""
+	if strings.HasPrefix(version, "label:") {
+		label = strings.TrimPrefix(version, "label:")
+		version = ""
+	}
 
 	// newNacosAgentSpecClient validates the address format, connects, and
 	// performs login when credentials are present.
-	_, err = newNacosAgentSpecClient(ctx, nacosAddr, namespace)
+	client, err := newNacosAgentSpecClient(ctx, nacosAddr, namespace)
 	if err != nil {
+		return fmt.Errorf("nacos preflight check failed for %q: %w", raw, err)
+	}
+	if err := client.CheckAgentSpecExists(ctx, specName, version, label); err != nil {
 		return fmt.Errorf("nacos preflight check failed for %q: %w", raw, err)
 	}
 	return nil
