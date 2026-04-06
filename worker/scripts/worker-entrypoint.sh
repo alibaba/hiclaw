@@ -21,6 +21,55 @@ log() {
     echo "[hiclaw-worker $(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
+WORKER_SYNC_COMMON_EXCLUDES=(
+    --exclude ".agents/**"
+    --exclude ".cache/**"
+    --exclude ".codex-agent/ready"
+    --exclude ".codex-home/**"
+    --exclude "credentials/**"
+    --exclude ".local/**"
+    --exclude ".mc/**"
+    --exclude ".mc.bin/**"
+    --exclude ".npm/**"
+    --exclude "*.lock"
+    --exclude ".openclaw/agents/**"
+    --exclude ".openclaw/canvas/**"
+    --exclude ".openclaw/matrix/**"
+)
+
+WORKER_SYNC_PUSH_EXCLUDES=(
+    --exclude "openclaw.json"
+    --exclude "config/mcporter.json"
+    --exclude "mcporter-servers.json"
+)
+
+find_syncable_change() {
+    find "${WORKSPACE}" \
+        \( -path "${WORKSPACE}/.agents" -o -path "${WORKSPACE}/.agents/*" \
+        -o -path "${WORKSPACE}/.cache" -o -path "${WORKSPACE}/.cache/*" \
+        -o -path "${WORKSPACE}/.codex-home" -o -path "${WORKSPACE}/.codex-home/*" \
+        -o -path "${WORKSPACE}/credentials" -o -path "${WORKSPACE}/credentials/*" \
+        -o -path "${WORKSPACE}/.local" -o -path "${WORKSPACE}/.local/*" \
+        -o -path "${WORKSPACE}/.mc" -o -path "${WORKSPACE}/.mc/*" \
+        -o -path "${WORKSPACE}/.mc.bin" -o -path "${WORKSPACE}/.mc.bin/*" \
+        -o -path "${WORKSPACE}/.npm" -o -path "${WORKSPACE}/.npm/*" \
+        -o -path "${WORKSPACE}/.openclaw/agents" -o -path "${WORKSPACE}/.openclaw/agents/*" \
+        -o -path "${WORKSPACE}/.openclaw/canvas" -o -path "${WORKSPACE}/.openclaw/canvas/*" \
+        -o -path "${WORKSPACE}/.openclaw/matrix" -o -path "${WORKSPACE}/.openclaw/matrix/*" \) -prune \
+        -o -type f \
+        ! -name "*.lock" \
+        ! -path "${WORKSPACE}/openclaw.json" \
+        ! -path "${WORKSPACE}/config/mcporter.json" \
+        ! -path "${WORKSPACE}/mcporter-servers.json" \
+        ! -path "${WORKSPACE}/.codex-agent/ready" \
+        -newer "${LOCAL_SYNC_CUTOFF_FILE}" \
+        -newermt "10 seconds ago" -print -quit 2>/dev/null
+}
+
+mark_manager_sync_cutoff() {
+    touch "${LOCAL_SYNC_CUTOFF_FILE}"
+}
+
 # ============================================================
 # Step 0: Set timezone from TZ env var
 # ============================================================
@@ -33,6 +82,7 @@ fi
 # Use absolute path because HOME is set to the workspace directory via docker run
 HICLAW_ROOT="/root/hiclaw-fs"
 WORKSPACE="${HICLAW_ROOT}/agents/${WORKER_NAME}"
+LOCAL_SYNC_CUTOFF_FILE="/tmp/hiclaw-local-sync-${WORKER_NAME}.stamp"
 if [ "${WORKER_RUNTIME}" = "codex" ]; then
     rm -f "${WORKSPACE}/.codex-agent/ready"
 fi
@@ -58,11 +108,9 @@ mkdir -p "${WORKSPACE}" "${HICLAW_ROOT}/shared"
 log "Pulling Worker config from centralized storage..."
 ensure_mc_credentials 2>/dev/null || true
 mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite \
-    --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" \
-    --exclude ".codex-agent/ready" \
-    --exclude ".codex-home/auth.json" \
-    --exclude "credentials/**"
+    "${WORKER_SYNC_COMMON_EXCLUDES[@]}"
 mc mirror "${HICLAW_STORAGE_PREFIX}/shared/" "${HICLAW_ROOT}/shared/" --overwrite 2>/dev/null || true
+mark_manager_sync_cutoff
 
 # Verify essential files exist, retry if sync is still in progress
 RETRY=0
@@ -76,10 +124,8 @@ while [ ! -f "${WORKSPACE}/openclaw.json" ] || [ ! -f "${WORKSPACE}/SOUL.md" ] \
     log "Waiting for config files to appear in MinIO (attempt ${RETRY}/6)..."
     sleep 5
     mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite \
-        --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" \
-        --exclude ".codex-agent/ready" \
-        --exclude ".codex-home/auth.json" \
-        --exclude "credentials/**" 2>/dev/null || true
+        "${WORKER_SYNC_COMMON_EXCLUDES[@]}" 2>/dev/null || true
+    mark_manager_sync_cutoff
 done
 
 # HOME is already set to WORKSPACE via docker run -e HOME=...
@@ -164,7 +210,7 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 #   Local -> Remote: change-triggered push of Worker-managed content
 #     - Uses find to detect files modified in last 10s; only runs mc mirror when needed
 #     - Avoids mc mirror --watch TOCTOU bug (crashes on atomic ops like npm install)
-#     - Excludes Manager-managed files (openclaw.json, config/mcporter.json) and caches
+#     - Excludes Manager-managed files (openclaw.json, config/mcporter.json) and runtime state
 #
 #   Remote -> Local: on-demand pull via file-sync skill (triggered by Manager @mention)
 #     + 5-minute fallback pull of Manager-managed paths as safety net
@@ -172,17 +218,12 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 # ────────────────────────────────────────────────────────────────────────────
 (
     while true; do
-        CHANGED=$(find "${WORKSPACE}/" -type f -newermt "10 seconds ago" 2>/dev/null | head -1)
+        CHANGED=$(find_syncable_change)
         if [ -n "${CHANGED}" ]; then
             ensure_mc_credentials 2>/dev/null || true
             if ! mc mirror "${WORKSPACE}/" "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" --overwrite \
-                --exclude "openclaw.json" --exclude "config/mcporter.json" --exclude "mcporter-servers.json" --exclude ".agents/**" \
-                --exclude ".codex-agent/ready" \
-                --exclude ".codex-home/auth.json" \
-                --exclude "credentials/**" \
-                --exclude ".cache/**" --exclude ".npm/**" \
-                --exclude ".local/**" --exclude ".mc/**" --exclude "*.lock" \
-                --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" 2>&1; then
+                "${WORKER_SYNC_PUSH_EXCLUDES[@]}" \
+                "${WORKER_SYNC_COMMON_EXCLUDES[@]}" 2>&1; then
                 log "WARNING: Local->Remote sync failed"
             fi
         fi
@@ -204,6 +245,7 @@ log "Local->Remote change-triggered sync started (PID: $!)"
         mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/skills/" "${WORKSPACE}/skills/" --overwrite 2>/dev/null || true
         find "${WORKSPACE}/skills" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
         mc mirror "${HICLAW_STORAGE_PREFIX}/shared/" "${HICLAW_ROOT}/shared/" --overwrite --newer-than "5m" 2>/dev/null || true
+        mark_manager_sync_cutoff
     done
 ) &
 log "Remote->Local fallback sync started (Manager-managed files only, every 5m, PID: $!)"

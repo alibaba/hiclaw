@@ -37,7 +37,70 @@
    If task belongs to a project, append `--project-room-id {project-room-id}`.
    **WARNING**: Skipping this step causes the Worker to be auto-stopped by idle timeout. Every task assigned to a Worker MUST be registered here.
 
+## Coordination metadata
+
+When you call `add-finite`, the script also initializes lightweight coordination metadata in `state.json`:
+
+- `delegated_at`
+- `worker_signal_state = "pending"`
+- `worker_last_signal_at = null`
+- `manager_last_followup_at = null`
+- `manager_escalated_at = null`
+- `manager_quiet_until`
+
+Use these fields to decide whether you should follow up, escalate, or stay quiet. The 120-second coordination timeout is for missing startup/progress signals only — not for deciding that the Worker has failed the task.
+
+## Recording Worker signals
+
+If the Worker clearly acknowledges, starts, reports progress, or reports a blocker, record it immediately:
+
+```bash
+bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
+  --action record-signal --task-id {task-id} --worker-signal-state acknowledged
+```
+
+Supported `worker_signal_state` values:
+
+- `pending`
+- `acknowledged`
+- `in_progress`
+- `blocked`
+- `completed`
+
+Use them like this:
+
+- `acknowledged` — the Worker has accepted the task
+- `in_progress` — the Worker has started or reported progress
+- `blocked` — the Worker reported a real blocker
+- `completed` — the Worker explicitly reported completion before you run the normal completion flow
+
+After a real Worker signal, stay quiet until a new blocker or a later timeout appears.
+
+## Following up and escalating
+
+If the Worker has not sent any startup/progress signal within the 120-second coordination timeout, follow up once and record it:
+
+```bash
+bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
+  --action mark-followup --task-id {task-id}
+```
+
+If silence continues after that, escalate to the admin and record it:
+
+```bash
+bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
+  --action mark-escalated --task-id {task-id}
+```
+
+Do not reassign the task because of this coordination timeout. Different Workers have different responsibilities, so you should escalate instead of switching owners.
+
 ## On completion
+
+Completion can be triggered in two ways:
+- the Worker @mentions you with a completion report
+- you discover that `shared/tasks/{task-id}/result.md` already exists and is non-empty during heartbeat or room follow-up
+
+`result.md` is authoritative enough to start completion handling. Do not wait for an extra @mention once the result is already there.
 
 1. Pull task directory from MinIO (Worker has pushed results):
    ```bash

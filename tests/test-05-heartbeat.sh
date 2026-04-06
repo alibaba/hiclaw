@@ -71,13 +71,8 @@ log_section "Verify Heartbeat Inquiry"
 
 # Check for Manager inquiry message in Alice's room
 MESSAGES=$(matrix_read_messages "${ADMIN_TOKEN}" "${DM_ROOM}" 30)
-INQUIRY=$(echo "${MESSAGES}" | jq -r '[.chunk[] | select(.sender | startswith("@manager")) | .content.body] | map(select(test("status|progress|heartbeat|how"; "i"))) | first // empty')
-
-if [ -n "${INQUIRY}" ]; then
-    log_pass "Manager sent heartbeat inquiry"
-else
-    log_info "Heartbeat inquiry not detected (may need longer wait or different room)"
-fi
+INQUIRY=$(echo "${MESSAGES}" | jq -r '[.chunk[] | select(.sender | startswith("@manager")) | .content.body] | map(select(test("started|start|blocked|task|开始|阻塞"; "i"))) | first // empty')
+assert_not_empty "${INQUIRY}" "Manager sent startup/blocker heartbeat inquiry"
 
 log_section "Collect Metrics"
 wait_for_worker_session_stable "alice" 5 120

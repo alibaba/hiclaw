@@ -38,6 +38,88 @@ _fail() {
     exit 1
 }
 
+# 对 Matrix room_id 做 URL 编码，避免 join/joined_members 请求因为特殊字符失败。
+_encode_room_id() {
+    python3 - "$1" <<'PY'
+import sys
+from urllib.parse import quote
+
+print(quote(sys.argv[1], safe=""))
+PY
+}
+
+# 使用用户名和密码执行 Matrix 登录，返回 access_token。
+_login_with_password() {
+    local username="$1"
+    local password="$2"
+    curl -sf -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/login" \
+        -H 'Content-Type: application/json' \
+        -d '{
+            "type": "m.login.password",
+            "identifier": {"type": "m.id.user", "user": "'"${username}"'"},
+            "password": "'"${password}"'"
+        }' 2>/dev/null | jq -r '.access_token // empty'
+}
+
+# 读取本地持久化的 worker Matrix 密码，确保项目建房时可以直接代替 worker 入房。
+_load_worker_password() {
+    local worker_name="$1"
+    local creds_file="/data/worker-creds/${worker_name}.env"
+    [ -f "${creds_file}" ] || return 1
+
+    unset WORKER_PASSWORD
+    # shellcheck disable=SC1090
+    source "${creds_file}"
+    [ -n "${WORKER_PASSWORD:-}" ] || return 1
+    printf '%s' "${WORKER_PASSWORD}"
+}
+
+# 使用指定 token 让目标用户加入项目房间。
+_join_room_with_token() {
+    local room_id="$1"
+    local access_token="$2"
+    local room_enc
+    room_enc=$(_encode_room_id "${room_id}")
+    curl -sf -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${room_enc}/join" \
+        -H "Authorization: Bearer ${access_token}" \
+        -H 'Content-Type: application/json' \
+        -d '{}' > /dev/null 2>&1
+}
+
+# 查询项目房间当前已加入成员，后续用它做成员完整性验收。
+_get_joined_members_json() {
+    local room_id="$1"
+    local room_enc
+    room_enc=$(_encode_room_id "${room_id}")
+    curl -sf -X GET "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${room_enc}/joined_members" \
+        -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
+        -H 'Accept: application/json' 2>/dev/null
+}
+
+# 强校验项目房间成员是否完整；少任何一个关键参与者都直接失败，不允许半成功。
+_assert_joined_members_complete() {
+    local room_id="$1"
+    shift
+
+    local joined_json
+    local missing=""
+    local user_id
+    joined_json=$(_get_joined_members_json "${room_id}") \
+        || _fail "Failed to query project room joined members"
+
+    if ! echo "${joined_json}" | jq -e '.joined | type == "object"' > /dev/null 2>&1; then
+        _fail "Invalid joined members response for project room: ${joined_json}"
+    fi
+
+    for user_id in "$@"; do
+        if ! echo "${joined_json}" | jq -e --arg uid "${user_id}" '.joined[$uid] != null' > /dev/null 2>&1; then
+            missing="${missing}${missing:+,}${user_id}"
+        fi
+    done
+
+    [ -z "${missing}" ] || _fail "Project room joined members incomplete: missing ${missing}"
+}
+
 # Ensure Manager Matrix token is available
 SECRETS_FILE="/data/hiclaw-secrets.env"
 if [ -f "${SECRETS_FILE}" ]; then
@@ -149,33 +231,54 @@ curl -sf -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${ROOM_ID}/inv
     -d "{\"user_id\": \"${ADMIN_MATRIX_ID}\"}" > /dev/null 2>&1 || true
 log "  Admin ${ADMIN_MATRIX_ID} invited to project room"
 
-# Auto-join admin into project room
-ADMIN_TOKEN=""
-if [ -n "${HICLAW_ADMIN_PASSWORD:-}" ]; then
-    ADMIN_TOKEN=$(curl -sf -X POST ${HICLAW_MATRIX_SERVER}/_matrix/client/v3/login \
-        -H 'Content-Type: application/json' \
-        -d '{"type":"m.login.password","identifier":{"type":"m.id.user","user":"'"${ADMIN_USER}"'"},"password":"'"${HICLAW_ADMIN_PASSWORD}"'"}' \
-        2>/dev/null | jq -r '.access_token // empty')
+# Auto-join admin and all workers into project room, then verify joined_members.
+EXPECTED_MEMBER_IDS=("${MANAGER_MATRIX_ID}" "${ADMIN_MATRIX_ID}")
+
+if [ -z "${HICLAW_ADMIN_PASSWORD:-}" ]; then
+    _fail "Missing HICLAW_ADMIN_PASSWORD for project room auto-join"
 fi
-if [ -n "${ADMIN_TOKEN}" ]; then
-    ROOM_ENC=$(echo "${ROOM_ID}" | sed 's/!/%21/g')
-    if curl -sf -X POST "${HICLAW_MATRIX_SERVER}/_matrix/client/v3/rooms/${ROOM_ENC}/join" \
-        -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-        -H 'Content-Type: application/json' \
-        -d '{}' > /dev/null 2>&1; then
-        log "  Admin auto-joined project room"
-    else
-        log "  WARNING: Admin failed to auto-join project room"
-    fi
-else
-    log "  WARNING: Could not obtain admin token — admin will need to accept invite manually"
-fi
+ADMIN_TOKEN=$(_login_with_password "${ADMIN_USER}" "${HICLAW_ADMIN_PASSWORD}") \
+    || _fail "Failed to obtain admin token for project room auto-join"
+[ -n "${ADMIN_TOKEN}" ] || _fail "Failed to obtain admin token for project room auto-join"
+_join_room_with_token "${ROOM_ID}" "${ADMIN_TOKEN}" \
+    || _fail "Admin failed to auto-join project room"
+log "  Admin auto-joined project room"
+
+for worker in "${WORKER_ARR[@]}"; do
+    worker=$(echo "${worker}" | tr -d ' ')
+    [ -z "${worker}" ] && continue
+
+    WORKER_PASSWORD=$(_load_worker_password "${worker}") \
+        || _fail "Missing worker credentials for ${worker}"
+    WORKER_TOKEN=$(_login_with_password "${worker}" "${WORKER_PASSWORD}") \
+        || _fail "Failed to obtain Matrix token for worker ${worker}"
+    [ -n "${WORKER_TOKEN}" ] || _fail "Failed to obtain Matrix token for worker ${worker}"
+    _join_room_with_token "${ROOM_ID}" "${WORKER_TOKEN}" \
+        || _fail "Worker ${worker} failed to auto-join project room"
+
+    EXPECTED_MEMBER_IDS+=("@${worker}:${MATRIX_DOMAIN}")
+    log "  Worker @${worker}:${MATRIX_DOMAIN} auto-joined project room"
+done
+
+_assert_joined_members_complete "${ROOM_ID}" "${EXPECTED_MEMBER_IDS[@]}"
+log "  Project room membership verified"
 
 # ============================================================
 # Step 3: Add Workers to Manager's groupAllowFrom
 # ============================================================
 log "Step 3: Updating Manager groupAllowFrom..."
-MANAGER_CONFIG="/root/hiclaw-fs/agents/manager/openclaw.json"
+MANAGER_CONFIG="${HOME}/openclaw.json"
+MANAGER_MINIO_CONFIG="/root/hiclaw-fs/agents/manager/openclaw.json"
+COPAW_AGENT_CONFIG="${HOME}/.copaw/workspaces/default/agent.json"
+COPAW_CONFIG="${HOME}/.copaw/config.json"
+
+if [ ! -f "${MANAGER_CONFIG}" ] && [ -f "/root/manager-workspace/openclaw.json" ]; then
+    MANAGER_CONFIG="/root/manager-workspace/openclaw.json"
+fi
+if [ ! -f "${MANAGER_CONFIG}" ] && [ -f "${MANAGER_MINIO_CONFIG}" ]; then
+    MANAGER_CONFIG="${MANAGER_MINIO_CONFIG}"
+fi
+
 if [ -f "${MANAGER_CONFIG}" ]; then
     UPDATED_CONFIG="${MANAGER_CONFIG}"
     for worker in "${WORKER_ARR[@]}"; do
@@ -195,8 +298,32 @@ if [ -f "${MANAGER_CONFIG}" ]; then
             log "  ${WORKER_MATRIX_ID} already in groupAllowFrom"
         fi
     done
+
+    GROUP_ALLOW_LIST=$(jq -c '.channels.matrix.groupAllowFrom // []' "${UPDATED_CONFIG}" 2>/dev/null)
+    if [ -n "${GROUP_ALLOW_LIST}" ] && [ "${GROUP_ALLOW_LIST}" != "null" ]; then
+        if [ -f "${COPAW_CONFIG}" ]; then
+            _tmp_cfg=$(mktemp)
+            jq --argjson list "${GROUP_ALLOW_LIST}" \
+                '.channels.matrix.group_allow_from = $list' \
+                "${COPAW_CONFIG}" > "${_tmp_cfg}" && mv "${_tmp_cfg}" "${COPAW_CONFIG}"
+            log "  Synced group_allow_from to config.json: ${GROUP_ALLOW_LIST}"
+        fi
+        if [ -f "${COPAW_AGENT_CONFIG}" ]; then
+            _tmp_cfg=$(mktemp)
+            jq --argjson list "${GROUP_ALLOW_LIST}" \
+                '.channels.matrix.group_allow_from = $list' \
+                "${COPAW_AGENT_CONFIG}" > "${_tmp_cfg}" && mv "${_tmp_cfg}" "${COPAW_AGENT_CONFIG}"
+            log "  Synced group_allow_from to agent.json: ${GROUP_ALLOW_LIST}"
+        fi
+    fi
+
+    if [ "${UPDATED_CONFIG}" != "${MANAGER_MINIO_CONFIG}" ]; then
+        mkdir -p "$(dirname "${MANAGER_MINIO_CONFIG}")"
+        cp "${UPDATED_CONFIG}" "${MANAGER_MINIO_CONFIG}"
+    fi
+
     # Sync updated Manager config to MinIO
-    mc cp "${MANAGER_CONFIG}" "${HICLAW_STORAGE_PREFIX}/agents/manager/openclaw.json" 2>/dev/null || true
+    mc cp "${MANAGER_MINIO_CONFIG}" "${HICLAW_STORAGE_PREFIX}/agents/manager/openclaw.json" 2>/dev/null || true
     log "  Manager config synced to MinIO"
 fi
 

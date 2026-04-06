@@ -190,6 +190,14 @@ wait_for_manager_agent_ready() {
 
     while [ "${elapsed}" -lt "${timeout}" ]; do
         case "${manager_runtime}" in
+            codex)
+                # Codex: manager process is running and ready file has been written
+                if docker exec "${manager_container}" test -f /root/manager-workspace/.codex-agent/ready >/dev/null 2>&1 && \
+                   docker exec "${manager_container}" pgrep -f "codex_matrix_agent.py" >/dev/null 2>&1; then
+                    runtime_ready=true
+                    break
+                fi
+                ;;
             copaw)
                 # CoPaw: check port 18799 or process
                 if docker exec "${manager_container}" pgrep -f "copaw app" >/dev/null 2>&1 && \
@@ -322,6 +330,9 @@ detect_manager_config() {
     [ -z "${TEST_MINIO_PASSWORD}" ]      && export TEST_MINIO_PASSWORD="$(        _cenv HICLAW_MINIO_PASSWORD)"
     [ -z "${TEST_REGISTRATION_TOKEN}" ]  && export TEST_REGISTRATION_TOKEN="$(    _cenv HICLAW_REGISTRATION_TOKEN)"
     [ -z "${HICLAW_LLM_API_KEY}" ]       && export HICLAW_LLM_API_KEY="$(         _cenv HICLAW_LLM_API_KEY)"
+    [ -z "${HICLAW_LLM_PROVIDER}" ]      && export HICLAW_LLM_PROVIDER="$(        _cenv HICLAW_LLM_PROVIDER)"
+    [ -z "${HICLAW_MANAGER_RUNTIME}" ]   && export HICLAW_MANAGER_RUNTIME="$(     _cenv HICLAW_MANAGER_RUNTIME)"
+    [ -z "${HICLAW_HOST_CODEX_DIR}" ]    && export HICLAW_HOST_CODEX_DIR="$(      _cenv HICLAW_HOST_CODEX_DIR)"
     [ -z "${TEST_MANAGER_GATEWAY_KEY}" ] && export TEST_MANAGER_GATEWAY_KEY="$(   _cenv HICLAW_MANAGER_GATEWAY_KEY)"
 }
 
@@ -370,10 +381,13 @@ test_summary() {
 # LLM / Agent helpers
 # ============================================================
 
-# Check if LLM API key is configured (required for tests that need Manager Agent responses)
+# Check if an Agent backend is configured (required for tests that need Manager Agent responses)
 require_llm_key() {
+    if [ "${HICLAW_LLM_PROVIDER:-}" = "codex-local" ] || [ "${HICLAW_MANAGER_RUNTIME:-}" = "codex" ]; then
+        return 0
+    fi
     if [ -z "${HICLAW_LLM_API_KEY}" ]; then
-        log_info "SKIP: No LLM API key configured (set HICLAW_LLM_API_KEY). This test requires Manager Agent LLM responses."
+        log_info "SKIP: No Agent backend configured. Set HICLAW_LLM_API_KEY for API-backed mode, or use codex-local / HICLAW_MANAGER_RUNTIME=codex."
         return 1
     fi
     return 0

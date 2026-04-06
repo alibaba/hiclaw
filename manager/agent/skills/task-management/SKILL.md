@@ -12,6 +12,9 @@ description: Use when admin gives a task to delegate to a Worker, when a Worker 
 - **Never @mention a Worker after recording infinite task execution** — this creates a rapid-fire loop (execute → report → trigger → execute → ...) that burns tokens continuously. Triggering happens only during heartbeat
 - **Always use `manage-state.sh` to modify state.json** — never edit manually with jq. The script handles atomicity, deduplication, and initialization
 - **Every task assigned to a Worker MUST be registered in state.json** — this includes coordination, research, review, and management tasks, not just coding tasks. If a task is missing from state.json, the Worker's container will be auto-stopped by idle timeout while still working
+- **Use the 120-second coordination timeout only for startup silence** — after delegation, if the Worker has not acknowledged, started, or reported progress within 120 seconds, follow up once and record it in state.json. This is not a task-failure timeout
+- **Stay quiet after a real Worker signal** — once the Worker has acknowledged, started, reported progress, or completed, stop asking generic status questions until there is a new blocker or timeout
+- **Do not reassign for coordination silence** — if the Worker stays silent after follow-up, escalate to the admin. Do not reassign the task to someone else
 - **Always push task files to MinIO before notifying Worker** — Worker needs to file-sync to get the spec
 - **Always pull task directory from MinIO before reading results** — Worker pushes results there
 - **Read SOUL.md before composing notifications** — use the persona and language defined there

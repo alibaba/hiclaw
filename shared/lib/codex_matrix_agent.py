@@ -707,6 +707,12 @@ class HiClawCodexAgent:
         self._router_timeout = int(os.environ.get("HICLAW_CODEX_ROUTER_TIMEOUT", "20"))
         self._router_gateway_url = ""
         self._router_gateway_key = ""
+        # heartbeat 调度状态独立于房间线程，避免把系统轮询混进普通聊天上下文。
+        self.heartbeat_enabled = False
+        self.heartbeat_every_seconds = 0
+        self.heartbeat_prompt = ""
+        self.heartbeat_next_at: float | None = None
+        self.heartbeat_thread_id: str | None = None
         self.system_prompt = self._load_system_prompt()
         self._full_system_prompt = self.system_prompt
         self._condensed_system_prompt = self._condense_system_prompt(self.system_prompt)
@@ -767,6 +773,8 @@ class HiClawCodexAgent:
         if hasattr(self, "runner"):
             self.runner.model = model
 
+        self._refresh_heartbeat_config(config)
+
         # Resolve AI gateway URL/key for lightweight router
         gw_domain = os.environ.get("HICLAW_AI_GATEWAY_DOMAIN", "aigw-local.hiclaw.io").strip()
         gw_url = os.environ.get("HICLAW_AI_GATEWAY_URL", "").strip()
@@ -789,6 +797,97 @@ class HiClawCodexAgent:
         else:
             self.matrix.homeserver = homeserver
             self.matrix.access_token = access_token
+
+    @staticmethod
+    def _parse_duration_seconds(value: str) -> int:
+        """解析 heartbeat 周期字符串，支持 s/m/h 三种单位。"""
+        if not isinstance(value, str):
+            return 0
+        raw = value.strip().lower()
+        match = re.fullmatch(r"(\d+)([smh])", raw)
+        if not match:
+            return 0
+        amount = int(match.group(1))
+        unit = match.group(2)
+        if unit == "s":
+            return amount
+        if unit == "m":
+            return amount * 60
+        if unit == "h":
+            return amount * 3600
+        return 0
+
+    def _refresh_heartbeat_config(self, config: dict[str, Any]) -> None:
+        """把 openclaw.json 里的 heartbeat 配置转成运行时调度状态。"""
+        heartbeat_raw = (
+            config.get("agents", {})
+            .get("defaults", {})
+            .get("heartbeat", {})
+        )
+        if not isinstance(heartbeat_raw, dict):
+            heartbeat_raw = {}
+
+        raw_prompt = heartbeat_raw.get("prompt", "")
+        prompt = raw_prompt.strip() if isinstance(raw_prompt, str) else ""
+        interval = self._parse_duration_seconds(str(heartbeat_raw.get("every", "")))
+        enabled = self.role == "manager" and bool(prompt) and interval > 0
+
+        previous_enabled = getattr(self, "heartbeat_enabled", False)
+        previous_interval = getattr(self, "heartbeat_every_seconds", 0)
+
+        self.heartbeat_enabled = enabled
+        self.heartbeat_every_seconds = interval
+        self.heartbeat_prompt = (
+            "This is a heartbeat poll, not a Matrix room message.\n"
+            f"{prompt}\n"
+            "When all checks are complete, reply HEARTBEAT_OK if nothing needs attention."
+            if enabled
+            else ""
+        )
+
+        if not enabled:
+            self.heartbeat_next_at = None
+            self.heartbeat_thread_id = None
+            return
+
+        # 首次启用或周期变更时重置下一次触发时间，避免沿用失效调度。
+        if (
+            not previous_enabled
+            or previous_interval != interval
+            or self.heartbeat_next_at is None
+        ):
+            self.heartbeat_next_at = time.time() + interval
+
+    def _maybe_run_heartbeat(self, now: float | None = None) -> bool:
+        """仅在到期时触发 heartbeat，并复用独立线程保存心跳上下文。"""
+        if not self.heartbeat_enabled or not self.heartbeat_prompt:
+            return False
+
+        current = time.time() if now is None else now
+        next_at = self.heartbeat_next_at
+        if next_at is None:
+            self.heartbeat_next_at = current + self.heartbeat_every_seconds
+            return False
+        if current < next_at:
+            return False
+
+        log("heartbeat due, starting turn")
+        try:
+            result = self.runner.run_turn(self.heartbeat_prompt, self.heartbeat_thread_id)
+        except Exception as exc:
+            log(f"heartbeat turn failed: {exc}")
+            self.heartbeat_next_at = current + self.heartbeat_every_seconds
+            return False
+
+        self.heartbeat_thread_id = result.thread_id
+        next_base = time.time() if now is None else current
+        self.heartbeat_next_at = next_base + self.heartbeat_every_seconds
+        reply = result.text.strip()
+        if reply:
+            log(f"heartbeat completed: {reply}")
+        else:
+            log("heartbeat completed with empty reply")
+        return True
 
     def _load_system_prompt(self) -> str:
         sections: list[str] = []
@@ -1106,6 +1205,13 @@ class HiClawCodexAgent:
         Returns True (proceed with full Codex turn) or False (skip).
         Fails open: any error → True.
         """
+        if self.role == "manager" and room_type == "group":
+            # The Manager should actively coordinate in shared rooms, especially
+            # around project progress, handoffs, and blockers. Let the main
+            # model decide rather than filtering group updates through the
+            # lightweight router.
+            return True
+
         if not self._router_gateway_url or not self._router_gateway_key:
             return True
 
@@ -1304,6 +1410,7 @@ class HiClawCodexAgent:
                     timeline = room_data.get("timeline", {}).get("events", [])
                     if isinstance(timeline, list) and timeline:
                         self.process_room(room_id, timeline)
+            self._maybe_run_heartbeat()
             self._save_state()
 
 

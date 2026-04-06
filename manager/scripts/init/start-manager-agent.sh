@@ -539,6 +539,7 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
        --arg key "${HICLAW_MANAGER_GATEWAY_KEY}" \
        --arg model "${MODEL_NAME}" \
        --arg emb_model "${HICLAW_EMBEDDING_MODEL}" \
+       --arg heartbeat_every "5m" \
        --arg aigw_domain "${AI_GATEWAY_DOMAIN}" \
        --argjson e2ee "${MATRIX_E2EE_ENABLED}" \
        --argjson known_models "${KNOWN_MODELS}" \
@@ -563,6 +564,18 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
         | .channels.matrix.accessToken = $token | .models.providers["hiclaw-gateway"].apiKey = $key
         | ((.hooks.token // "") as $ht | if $ht == $key or $ht == ($key + "-hooks" | @base64) then del(.hooks) else . end)
         | .agents.defaults.model.primary = ("hiclaw-gateway/" + $model)
+        # 把历史默认 heartbeat 周期迁移到 5m，但保留用户显式自定义的更短/更长值。
+        | if (.agents.defaults.heartbeat? | type == "object") then
+            .agents.defaults.heartbeat = (
+              (.agents.defaults.heartbeat // {}) as $heartbeat
+              | $heartbeat + {
+                  "every": (
+                    ($heartbeat.every // "")
+                    | if . == "" or . == "1h" or . == "20m" then $heartbeat_every else . end
+                  )
+                }
+            )
+          else . end
         | .commands.restart = true
         | .gateway.controlUi.dangerouslyDisableDeviceAuth = true
         | .channels.matrix.encryption = $e2ee

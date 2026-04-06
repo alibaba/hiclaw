@@ -8,6 +8,9 @@
 #   manage-state.sh --action init
 #   manage-state.sh --action add-finite    --task-id T --title TITLE --assigned-to W --room-id R [--project-room-id P] [--delegated-to-team TEAM]
 #   manage-state.sh --action add-infinite  --task-id T --title TITLE --assigned-to W --room-id R --schedule CRON --timezone TZ --next-scheduled-at ISO
+#   manage-state.sh --action record-signal --task-id T --worker-signal-state STATE
+#   manage-state.sh --action mark-followup --task-id T
+#   manage-state.sh --action mark-escalated --task-id T
 #   manage-state.sh --action complete      --task-id T
 #   manage-state.sh --action executed      --task-id T --next-scheduled-at ISO
 #   manage-state.sh --action set-admin-dm  --room-id R
@@ -19,6 +22,17 @@ STATE_FILE="${HOME}/state.json"
 
 _ts() {
     date -u '+%Y-%m-%dT%H:%M:%SZ'
+}
+
+_ts_plus_seconds() {
+    python3 - "$1" <<'PY'
+from datetime import datetime, timedelta, timezone
+import sys
+
+seconds = int(sys.argv[1])
+now = datetime.now(timezone.utc)
+print((now + timedelta(seconds=seconds)).strftime('%Y-%m-%dT%H:%M:%SZ'))
+PY
 }
 
 _ensure_state_file() {
@@ -60,21 +74,30 @@ action_add_finite() {
         return 0
     fi
 
-    local tmp
+    local tmp now quiet_until
     tmp=$(mktemp)
+    now="$(_ts)"
+    quiet_until="$(_ts_plus_seconds 120)"
     jq --arg id "$TASK_ID" \
        --arg title "$TITLE" \
        --arg worker "$ASSIGNED_TO" \
        --arg room "$ROOM_ID" \
        --arg proj "${PROJECT_ROOM_ID:-}" \
        --arg team "${DELEGATED_TO_TEAM:-}" \
-       --arg ts "$(_ts)" \
+       --arg ts "$now" \
+       --arg quiet "$quiet_until" \
        '.active_tasks += [{
             task_id: $id,
             title: $title,
             type: "finite",
             assigned_to: $worker,
-            room_id: $room
+            room_id: $room,
+            delegated_at: $ts,
+            worker_signal_state: "pending",
+            worker_last_signal_at: null,
+            manager_last_followup_at: null,
+            manager_escalated_at: null,
+            manager_quiet_until: $quiet
         } + (if $proj != "" then {project_room_id: $proj} else {} end)
           + (if $team != "" then {delegated_to_team: $team} else {} end)]
         | .updated_at = $ts' \
@@ -119,6 +142,89 @@ action_add_infinite() {
        "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
 
     echo "OK: added infinite task $TASK_ID \"$TITLE\" (assigned to $ASSIGNED_TO, next: $NEXT_SCHEDULED_AT)"
+}
+
+action_record_signal() {
+    _ensure_state_file
+
+    local existing
+    existing=$(jq -r --arg id "$TASK_ID" \
+        '[.active_tasks[] | select(.task_id == $id and .type == "finite")] | length' "$STATE_FILE")
+    if [ "$existing" -eq 0 ]; then
+        echo "WARN: finite task $TASK_ID not found in active_tasks"
+        return 0
+    fi
+
+    local tmp now quiet_until
+    tmp=$(mktemp)
+    now="$(_ts)"
+    quiet_until="$(_ts_plus_seconds 120)"
+    jq --arg id "$TASK_ID" \
+       --arg state "$WORKER_SIGNAL_STATE" \
+       --arg now "$now" \
+       --arg quiet "$quiet_until" \
+       '(.active_tasks[] | select(.task_id == $id and .type == "finite"))
+        |= (.worker_signal_state = $state
+            | .worker_last_signal_at = $now
+            | .manager_quiet_until = $quiet)
+        | .updated_at = $now' \
+       "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+
+    echo "OK: recorded worker signal for $TASK_ID (state=$WORKER_SIGNAL_STATE)"
+}
+
+action_mark_followup() {
+    _ensure_state_file
+
+    local existing
+    existing=$(jq -r --arg id "$TASK_ID" \
+        '[.active_tasks[] | select(.task_id == $id and .type == "finite")] | length' "$STATE_FILE")
+    if [ "$existing" -eq 0 ]; then
+        echo "WARN: finite task $TASK_ID not found in active_tasks"
+        return 0
+    fi
+
+    local tmp now quiet_until
+    tmp=$(mktemp)
+    now="$(_ts)"
+    quiet_until="$(_ts_plus_seconds 120)"
+    jq --arg id "$TASK_ID" \
+       --arg now "$now" \
+       --arg quiet "$quiet_until" \
+       '(.active_tasks[] | select(.task_id == $id and .type == "finite"))
+        |= (.manager_last_followup_at = $now
+            | .manager_quiet_until = $quiet)
+        | .updated_at = $now' \
+       "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+
+    echo "OK: marked follow-up for $TASK_ID"
+}
+
+action_mark_escalated() {
+    _ensure_state_file
+
+    local existing
+    existing=$(jq -r --arg id "$TASK_ID" \
+        '[.active_tasks[] | select(.task_id == $id and .type == "finite")] | length' "$STATE_FILE")
+    if [ "$existing" -eq 0 ]; then
+        echo "WARN: finite task $TASK_ID not found in active_tasks"
+        return 0
+    fi
+
+    local tmp now quiet_until
+    tmp=$(mktemp)
+    now="$(_ts)"
+    quiet_until="$(_ts_plus_seconds 120)"
+    jq --arg id "$TASK_ID" \
+       --arg now "$now" \
+       --arg quiet "$quiet_until" \
+       '(.active_tasks[] | select(.task_id == $id and .type == "finite"))
+        |= (.manager_escalated_at = $now
+            | .manager_quiet_until = $quiet)
+        | .updated_at = $now' \
+       "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+
+    echo "OK: marked escalated for $TASK_ID"
 }
 
 action_complete() {
@@ -211,6 +317,7 @@ DELEGATED_TO_TEAM=""
 SCHEDULE=""
 TIMEZONE=""
 NEXT_SCHEDULED_AT=""
+WORKER_SIGNAL_STATE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -224,6 +331,7 @@ while [[ $# -gt 0 ]]; do
         --schedule)         SCHEDULE="$2";          shift 2 ;;
         --timezone)         TIMEZONE="$2";          shift 2 ;;
         --next-scheduled-at) NEXT_SCHEDULED_AT="$2"; shift 2 ;;
+        --worker-signal-state) WORKER_SIGNAL_STATE="$2"; shift 2 ;;
         *)
             echo "Unknown argument: $1" >&2
             exit 1
@@ -232,12 +340,15 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$ACTION" ]; then
-    echo "Usage: $0 --action <init|add-finite|add-infinite|complete|executed|set-admin-dm|list> [options]" >&2
+    echo "Usage: $0 --action <init|add-finite|add-infinite|record-signal|mark-followup|mark-escalated|complete|executed|set-admin-dm|list> [options]" >&2
     echo "" >&2
     echo "Actions:" >&2
     echo "  init          Ensure state.json exists (no-op if already present)" >&2
     echo "  add-finite    --task-id T --title TITLE --assigned-to W --room-id R [--project-room-id P] [--delegated-to-team TEAM]" >&2
     echo "  add-infinite  --task-id T --title TITLE --assigned-to W --room-id R --schedule CRON --timezone TZ --next-scheduled-at ISO" >&2
+    echo "  record-signal --task-id T --worker-signal-state STATE   (updates finite-task worker signal state/timestamps)" >&2
+    echo "  mark-followup --task-id T   (marks a finite-task follow-up timestamp)" >&2
+    echo "  mark-escalated --task-id T  (marks a finite-task escalation timestamp)" >&2
     echo "  complete      --task-id T   (removes finite task from active_tasks)" >&2
     echo "  executed      --task-id T --next-scheduled-at ISO   (updates infinite task after execution)" >&2
     echo "  set-admin-dm  --room-id R   (saves admin DM room ID for heartbeat use)" >&2
@@ -271,6 +382,18 @@ case "$ACTION" in
         _validate_required TASK_ID TITLE ASSIGNED_TO ROOM_ID SCHEDULE TIMEZONE NEXT_SCHEDULED_AT
         action_add_infinite
         ;;
+    record-signal)
+        _validate_required TASK_ID WORKER_SIGNAL_STATE
+        action_record_signal
+        ;;
+    mark-followup)
+        _validate_required TASK_ID
+        action_mark_followup
+        ;;
+    mark-escalated)
+        _validate_required TASK_ID
+        action_mark_escalated
+        ;;
     complete)
         _validate_required TASK_ID
         action_complete
@@ -287,7 +410,7 @@ case "$ACTION" in
         action_list
         ;;
     *)
-        echo "ERROR: Unknown action '$ACTION'. Use: init, add-finite, add-infinite, complete, executed, set-admin-dm, list" >&2
+        echo "ERROR: Unknown action '$ACTION'. Use: init, add-finite, add-infinite, record-signal, mark-followup, mark-escalated, complete, executed, set-admin-dm, list" >&2
         exit 1
         ;;
 esac

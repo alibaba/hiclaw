@@ -8,6 +8,7 @@ When a Worker reports a blocker (`[!]` marker):
 2. Assess if resolvable (missing dependency, unclear requirement, needs another Worker's input)
 3. If you can resolve (clarify requirements, reassign): do so and re-assign
 4. If it needs human input: escalate in DM with admin
+5. In either case, post a short Project Room coordination note so the room knows whether work is resumed, reassigned, or waiting on admin
 
 ## Step 5: Plan Changes
 
@@ -17,6 +18,8 @@ When a Worker reports a blocker (`[!]` marker):
 - Adding sub-tasks to clarify deliverables
 
 Document in plan.md Change Log and sync.
+
+After a minor change, post a concise Project Room update if the new ordering, owner, or next step is not already obvious from the task assignments.
 
 ### Major changes (require human confirmation)
 - Adding or removing Workers from the project
@@ -61,3 +64,4 @@ During heartbeat, for each active project:
 2. Check plan.md for `[~]` tasks
 3. For each in-progress task, check if Worker has sent an @mention recently
 4. If no activity since last heartbeat: @mention Worker asking for update
+5. If the room lacks a clear current owner or next step, post a short coordinator summary and assign the next ready task immediately when you can do so without human approval
