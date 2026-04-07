@@ -8,6 +8,7 @@
 
 set -e
 source /opt/hiclaw/scripts/lib/hiclaw-env.sh
+source /opt/hiclaw/scripts/lib/merge-openclaw-config.sh
 
 WORKER_NAME="${HICLAW_WORKER_NAME:?HICLAW_WORKER_NAME is required}"
 FS_ENDPOINT="${HICLAW_FS_ENDPOINT:-}"
@@ -89,6 +90,30 @@ ln -sfn "${HOME}/skills" "${HOME}/.agents/skills"
 
 log "Worker config pulled successfully"
 
+# ============================================================
+# Optional: ensure diagnostics-otel npm dependencies are present
+# When CMS metrics are enabled, generate-worker-config.sh injects
+# diagnostics-otel into openclaw.json.  The plugin ships with
+# openclaw-base but node_modules may be absent on first run.
+# ============================================================
+_diag_plugin_dir="/opt/openclaw/extensions/diagnostics-otel"
+if [ -f "${_diag_plugin_dir}/package.json" ] && \
+   jq -e --arg dir "${_diag_plugin_dir}" \
+        '(.plugins.load.paths // []) | index($dir) != null' \
+        "${WORKSPACE}/openclaw.json" > /dev/null 2>&1; then
+    if [ ! -d "${_diag_plugin_dir}/node_modules" ]; then
+        log "diagnostics-otel: installing npm dependencies (required for metrics)..."
+        if (cd "${_diag_plugin_dir}" && npm install --omit=dev --ignore-scripts >/tmp/hiclaw-diag-install.log 2>&1); then
+            log "diagnostics-otel dependencies installed"
+        else
+            log "WARNING: diagnostics-otel npm install failed; metrics may not be reported (see /tmp/hiclaw-diag-install.log)"
+        fi
+    else
+        log "diagnostics-otel dependencies already present"
+    fi
+fi
+unset _diag_plugin_dir
+
 # Restore skills from MinIO if skills directory is empty but skills-lock.json exists
 if [ -f "${WORKSPACE}/skills-lock.json" ] && [ -z "$(ls -A ${WORKSPACE}/skills 2>/dev/null | grep -v file-sync)" ]; then
     log "Found skills-lock.json but skills directory is empty, restoring skills..."
@@ -152,7 +177,9 @@ log "Local->Remote change-triggered sync started (PID: $!)"
     while true; do
         sleep 300
         ensure_mc_credentials 2>/dev/null || true
-        mc cp "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/openclaw.json" "${WORKSPACE}/openclaw.json" 2>/dev/null || true
+        mc cp "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/openclaw.json" /tmp/openclaw-remote.json 2>/dev/null || true
+        merge_openclaw_config /tmp/openclaw-remote.json "${WORKSPACE}/openclaw.json"
+        rm -f /tmp/openclaw-remote.json
         mc cp "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/config/mcporter.json" "${WORKSPACE}/config/mcporter.json" 2>/dev/null || true
         mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/skills/" "${WORKSPACE}/skills/" --overwrite 2>/dev/null || true
         find "${WORKSPACE}/skills" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
@@ -307,5 +334,9 @@ if [ -n "${MATRIX_PASSWORD}" ]; then
 else
     log "No Matrix password found in MinIO, skipping re-login (E2EE may not work after restart)"
 fi
+
+# Disable full-process respawn so the CLI uses its internal restart loop.
+# Without this, config reload spawns a detached child and exits, killing the container.
+export OPENCLAW_NO_RESPAWN=1
 
 exec openclaw gateway run --verbose --force

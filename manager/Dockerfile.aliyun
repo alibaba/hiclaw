@@ -36,6 +36,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-pip && 
         alibabacloud-credentials \
         alibabacloud-tea-openapi
 
+# ---- Built-in observability plugin (bundled unconditionally, enabled at runtime) ----
+# Placed before agent/configs COPY so that code changes do not invalidate this layer.
+ARG OPENCLAW_CMS_PLUGIN_URL=https://arms-apm-cn-hangzhou-pre.oss-cn-hangzhou.aliyuncs.com/openclaw-cms-plugin/0.1.2/openclaw-cms-plugin.tar.gz
+ENV OPENCLAW_CMS_PLUGIN_DIR="/opt/openclaw/extensions/openclaw-cms-plugin"
+RUN tmp_dir="$(mktemp -d)" && \
+    curl -fsSL "${OPENCLAW_CMS_PLUGIN_URL}" -o "${tmp_dir}/plugin.tar.gz" && \
+    mkdir -p "${OPENCLAW_CMS_PLUGIN_DIR}" && \
+    tar -xzf "${tmp_dir}/plugin.tar.gz" -C "${tmp_dir}" && \
+    if [ -d "${tmp_dir}/openclaw-cms-plugin" ]; then \
+      cp -rf "${tmp_dir}/openclaw-cms-plugin/." "${OPENCLAW_CMS_PLUGIN_DIR}/"; \
+    else \
+      cp -rf "${tmp_dir}/." "${OPENCLAW_CMS_PLUGIN_DIR}/"; \
+    fi && \
+    cd "${OPENCLAW_CMS_PLUGIN_DIR}" && \
+    npm install --omit=dev --ignore-scripts && \
+    rm -rf "${tmp_dir}"
+
 # Ensure openclaw binary is on PATH
 ENV PATH="/opt/openclaw/packages/clawdbot/node_modules/.bin:${PATH}"
 
