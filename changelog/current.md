@@ -4,18 +4,6 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 ---
 
-### Security
-
-- **fix(security): restrict cloud worker OSS access with STS inline policy** — In cloud mode (Alibaba Cloud SAE), all workers shared the same RRSA role with unrestricted OSS bucket access, allowing any worker to read/write other workers' and manager's files. Now `oss-credentials.sh` injects an inline policy into the STS `AssumeRoleWithOIDC` request when `HICLAW_WORKER_NAME` is set, restricting the STS token to `agents/{worker}/*` and `shared/*` prefixes only — matching the per-worker MinIO policy used in local mode. Manager (which does not set `HICLAW_WORKER_NAME`) retains full access.
-
-### Cloud Runtime
-- **fix(cloud): auto-refresh STS credentials for all mc invocations** — wrap mc binary with `mc-wrapper.sh` that calls `ensure_mc_credentials` before every invocation, preventing token expiry after ~50 minutes in cloud mode. Affects: manager, worker, copaw.
-- fix(copaw): refresh STS credentials in Python sync loops to prevent MinIO sync failure after token expiry
-
-- fix(cloud): set `HICLAW_RUNTIME=aliyun` explicitly in Dockerfile.aliyun instead of relying on OIDC file detection at runtime
-- fix(cloud): respect pre-set `HICLAW_RUNTIME` in hiclaw-env.sh — only auto-detect when unset
-- fix: add explicit Matrix room join with retry before sending welcome message to prevent race condition
-
 ### Features
 
 - **feat(manager): integrate mem0 plugin for long-term agent memory** — Add support for `@mem0/openclaw-mem0` plugin (Platform mode) with environment-driven configuration. The plugin enables automatic memory recall and capture across agent sessions via Mem0 Cloud. Configuration is injected at startup via `HICLAW_MEM0_*` environment variables (API key, user ID, org/project IDs, graph mode). Build-time bundling is optional via `MEM0_PLUGIN_ENABLED=1` build arg. Currently supports the Manager and OpenClaw Workers; CoPaw Workers are not supported yet.
