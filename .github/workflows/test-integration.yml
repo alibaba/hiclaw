@@ -41,7 +41,7 @@ on:
       model:
         description: 'LLM model to use'
         required: false
-        default: 'qwen3.5-plus'
+        default: 'qwen3.6-plus'
 
 env:
   MANAGER_IMAGE: hiclaw/manager-agent:ci-test
@@ -105,7 +105,7 @@ jobs:
           HICLAW_LLM_API_KEY: ${{ secrets.HICLAW_LLM_API_KEY }}
         run: |
           RUNTIME="${{ inputs.worker_runtime || 'openclaw' }}"
-          MODEL="${{ inputs.model || 'qwen3.5-plus' }}"
+          MODEL="${{ inputs.model || 'qwen3.6-plus' }}"
           if [ "$RUNTIME" = "copaw" ]; then
             WORKER_IMG="${{ env.COPAW_WORKER_IMAGE }}"
             MANAGER_IMG="${{ env.MANAGER_COPAW_IMAGE }}"
@@ -369,7 +369,7 @@ jobs:
           echo "- Tests: \`$NON_GITHUB_TESTS\`" >> $GITHUB_STEP_SUMMARY
           echo "- Manager Image: \`${{ env.MANAGER_IMAGE }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Worker Runtime: \`${{ inputs.worker_runtime || 'openclaw' }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Model: \`${{ inputs.model || 'qwen3.5-plus' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Model: \`${{ inputs.model || 'qwen3.6-plus' }}\`" >> $GITHUB_STEP_SUMMARY
 
 # ============================================================
 # Manual baseline re-generation for a specific release version

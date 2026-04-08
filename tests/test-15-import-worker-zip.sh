@@ -82,7 +82,7 @@ exec_in_manager bash -c "
   \"version\": 1,
   \"worker\": {
     \"suggested_name\": \"${TEST_WORKER}\",
-    \"model\": \"qwen3.5-plus\"
+    \"model\": \"qwen3.6-plus\"
   },
   \"source\": {
     \"hostname\": \"integration-test\"

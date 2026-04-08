@@ -83,7 +83,7 @@ kind: Worker
 metadata:
   name: ${TEST_WORKER}
 spec:
-  model: qwen3.5-plus
+  model: qwen3.6-plus
   soul: |
 $(echo "${SOUL_CONTENT}" | sed 's/^/    /')
   agents: |
@@ -259,7 +259,7 @@ exec_in_manager bash -c "
   \"version\": 1,
   \"worker\": {
     \"suggested_name\": \"${TEST_WORKER_OVERRIDE}\",
-    \"model\": \"qwen3.5-plus\"
+    \"model\": \"qwen3.6-plus\"
   },
   \"source\": {
     \"hostname\": \"integration-test\"
@@ -312,7 +312,7 @@ kind: Worker
 metadata:
   name: ${TEST_WORKER_OVERRIDE}
 spec:
-  model: qwen3.5-plus
+  model: qwen3.6-plus
   package: ${PKG_URI}
   soul: |
 $(echo "${OVERRIDE_SOUL}" | sed 's/^/    /')

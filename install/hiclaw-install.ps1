@@ -14,7 +14,7 @@
 # Environment variables (for automation):
 #   HICLAW_NON_INTERACTIVE    Skip all prompts, use defaults  (default: 0)
 #   HICLAW_LLM_PROVIDER       LLM provider       (default: qwen)
-#   HICLAW_DEFAULT_MODEL      Default model      (default: qwen3.5-plus)
+#   HICLAW_DEFAULT_MODEL      Default model      (default: qwen3.6-plus)
 #   HICLAW_LLM_API_KEY        LLM API key        (required)
 #   HICLAW_ADMIN_USER         Admin username     (default: admin)
 #   HICLAW_ADMIN_PASSWORD     Admin password     (auto-generated if not set, min 8 chars)
@@ -297,7 +297,7 @@ $script:Messages = @{
     "llm.alibaba.model.qwen" = @{ zh = "  2) 百炼通用接口"; en = "  2) qwen general  - General purpose LLM" }
     "llm.alibaba.model.select" = @{ zh = "选择模型系列 [1/2]"; en = "Select model series [1/2]" }
     "llm.codingplan.models_title" = @{ zh = "选择 CodingPlan 默认模型:"; en = "Select CodingPlan default model:" }
-    "llm.codingplan.model.qwen35plus" = @{ zh = "  1) qwen3.5-plus  - 千问 3.5（速度最快）"; en = "  1) qwen3.5-plus  - Qwen 3.5 (fastest)" }
+    "llm.codingplan.model.qwen36plus" = @{ zh = "  1) qwen3.6-plus  - 千问 3.6（速度最快）"; en = "  1) qwen3.6-plus  - Qwen 3.6 (fastest)" }
     "llm.codingplan.model.glm5" = @{ zh = "  2) glm-5  - 智谱 GLM-5（编程推荐）"; en = "  2) glm-5  - Zhipu GLM-5 (recommended for coding)" }
     "llm.codingplan.model.kimi" = @{ zh = "  3) kimi-k2.5  - Moonshot Kimi K2.5"; en = "  3) kimi-k2.5  - Moonshot Kimi K2.5" }
     "llm.codingplan.model.minimax" = @{ zh = "  4) MiniMax-M2.5  - MiniMax M2.5"; en = "  4) MiniMax-M2.5  - MiniMax M2.5" }
@@ -306,7 +306,7 @@ $script:Messages = @{
     "llm.provider.selected_qwen" = @{ zh = "  提供商: 阿里云百炼"; en = "  Provider: Alibaba Cloud Bailian" }
     "llm.provider.selected_openai" = @{ zh = "  提供商: {0}（OpenAI 兼容）"; en = "  Provider: {0} (OpenAI-compatible)" }
     "llm.provider.invalid" = @{ zh = "无效选择: {0}（请输入 1 或 2）"; en = "Invalid choice: {0} (please enter 1 or 2)" }
-    "llm.qwen.model_prompt" = @{ zh = "默认模型 ID [qwen3.5-plus]"; en = "Default Model ID [qwen3.5-plus]" }
+    "llm.qwen.model_prompt" = @{ zh = "默认模型 ID [qwen3.6-plus]"; en = "Default Model ID [qwen3.6-plus]" }
     "llm.openai.base_url_prompt" = @{ zh = "Base URL（例如 https://api.openai.com/v1）"; en = "Base URL (e.g., https://api.openai.com/v1)" }
     "llm.openai.model_prompt" = @{ zh = "默认模型 ID [gpt-5.4]"; en = "Default Model ID [gpt-5.4]" }
     "llm.openai.base_url_label" = @{ zh = "  Base URL: {0}"; en = "  Base URL: {0}" }
@@ -639,7 +639,7 @@ function Get-LanIP {
 $script:KnownModels = @(
     "gpt-5.4", "gpt-5.3-codex", "gpt-5-mini", "gpt-5-nano",
     "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5",
-    "qwen3.5-plus", "deepseek-chat", "deepseek-reasoner",
+    "qwen3.5-plus", "qwen3.6-plus", "deepseek-chat", "deepseek-reasoner",
     "kimi-k2.5", "glm-5", "MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5"
 )
 
@@ -1401,7 +1401,7 @@ function Step-Llm {
 
     if ($script:HICLAW_NON_INTERACTIVE) {
         $script:config.LLM_PROVIDER = if ($env:HICLAW_LLM_PROVIDER) { $env:HICLAW_LLM_PROVIDER } else { "qwen" }
-        $script:config.DEFAULT_MODEL = if ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.5-plus" }
+        $script:config.DEFAULT_MODEL = if ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.6-plus" }
         $script:config.OPENAI_BASE_URL = if ($env:HICLAW_OPENAI_BASE_URL) { $env:HICLAW_OPENAI_BASE_URL } else { "" }
         Write-Log (Get-Msg "llm.provider.label" -f $script:config.LLM_PROVIDER)
         Write-Log (Get-Msg "llm.model.label" -f $script:config.DEFAULT_MODEL)
@@ -1433,7 +1433,7 @@ function Step-Llm {
                 $modelChoice = "codingplan"
                 Write-Host ""
                 Write-Host (Get-Msg "llm.codingplan.models_title")
-                Write-Host (Get-Msg "llm.codingplan.model.qwen35plus")
+                Write-Host (Get-Msg "llm.codingplan.model.qwen36plus")
                 Write-Host (Get-Msg "llm.codingplan.model.glm5")
                 Write-Host (Get-Msg "llm.codingplan.model.kimi")
                 Write-Host (Get-Msg "llm.codingplan.model.minimax")
@@ -1446,11 +1446,11 @@ function Step-Llm {
                 $codingPlanModelChoice = if ($codingPlanModelChoice) { $codingPlanModelChoice } else { "1" }
                 if ($codingPlanModelChoice -eq "b") { $script:StepResult = "back"; return }
                 switch -Regex ($codingPlanModelChoice) {
-                    "^(1|qwen3\.5-plus)$"  { $script:config.DEFAULT_MODEL = "qwen3.5-plus" }
+                    "^(1|qwen3\.6-plus)$"  { $script:config.DEFAULT_MODEL = "qwen3.6-plus" }
                     "^(2|glm-5)$"          { $script:config.DEFAULT_MODEL = "glm-5" }
                     "^(3|kimi-k2\.5)$"     { $script:config.DEFAULT_MODEL = "kimi-k2.5" }
                     "^(4|MiniMax-M2\.5)$"  { $script:config.DEFAULT_MODEL = "MiniMax-M2.5" }
-                    default                { $script:config.DEFAULT_MODEL = "qwen3.5-plus" }
+                    default                { $script:config.DEFAULT_MODEL = "qwen3.6-plus" }
                 }
                 Write-Log (Get-Msg "llm.provider.selected_codingplan")
             } else {
@@ -1472,7 +1472,7 @@ function Step-Llm {
                     Write-Host ""
                     $qwenModelInput = Read-Host (Get-Msg "llm.qwen.model_prompt")
                     if ($qwenModelInput -eq "b") { $script:StepResult = "back"; return }
-                    $script:config.DEFAULT_MODEL = if ($qwenModelInput) { $qwenModelInput } elseif ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.5-plus" }
+                    $script:config.DEFAULT_MODEL = if ($qwenModelInput) { $qwenModelInput } elseif ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.6-plus" }
                     $script:config.OPENAI_BASE_URL = ""
                     Write-Log (Get-Msg "llm.provider.selected_qwen")
                     Request-CustomModelParams $script:config.DEFAULT_MODEL
@@ -1482,7 +1482,7 @@ function Step-Llm {
                     $script:config.OPENAI_BASE_URL = "https://coding.dashscope.aliyuncs.com/v1"
                     Write-Host ""
                     Write-Host (Get-Msg "llm.codingplan.models_title")
-                    Write-Host (Get-Msg "llm.codingplan.model.qwen35plus")
+                    Write-Host (Get-Msg "llm.codingplan.model.qwen36plus")
                     Write-Host (Get-Msg "llm.codingplan.model.glm5")
                     Write-Host (Get-Msg "llm.codingplan.model.kimi")
                     Write-Host (Get-Msg "llm.codingplan.model.minimax")
@@ -1495,11 +1495,11 @@ function Step-Llm {
                     $codingPlanModelChoice = if ($codingPlanModelChoice) { $codingPlanModelChoice } else { "1" }
                     if ($codingPlanModelChoice -eq "b") { $script:StepResult = "back"; return }
                     switch -Regex ($codingPlanModelChoice) {
-                        "^(1|qwen3\.5-plus)$"  { $script:config.DEFAULT_MODEL = "qwen3.5-plus" }
+                        "^(1|qwen3\.6-plus)$"  { $script:config.DEFAULT_MODEL = "qwen3.6-plus" }
                         "^(2|glm-5)$"          { $script:config.DEFAULT_MODEL = "glm-5" }
                         "^(3|kimi-k2\.5)$"     { $script:config.DEFAULT_MODEL = "kimi-k2.5" }
                         "^(4|MiniMax-M2\.5)$"  { $script:config.DEFAULT_MODEL = "MiniMax-M2.5" }
-                        default                { $script:config.DEFAULT_MODEL = "qwen3.5-plus" }
+                        default                { $script:config.DEFAULT_MODEL = "qwen3.6-plus" }
                     }
                     Write-Log (Get-Msg "llm.provider.selected_codingplan")
                 }

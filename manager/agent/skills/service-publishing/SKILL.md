@@ -26,17 +26,17 @@ Example: worker `alice` exposing port `8080` → `worker-alice-8080-local.hiclaw
 
 ```bash
 # Expose port 8080 for worker alice
-hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080
+hiclaw apply worker --name alice --model qwen3.6-plus --expose 8080
 
 # Expose multiple ports
-hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000
+hiclaw apply worker --name alice --model qwen3.6-plus --expose 8080,3000
 
 # Check exposed ports
 hiclaw get worker alice
 # Look for status.exposedPorts in the output
 
 # Remove exposed ports (update without --expose)
-hiclaw apply worker --name alice --model qwen3.5-plus
+hiclaw apply worker --name alice --model qwen3.6-plus
 ```
 
 ### Via YAML
@@ -47,7 +47,7 @@ kind: Worker
 metadata:
   name: alice
 spec:
-  model: qwen3.5-plus
+  model: qwen3.6-plus
   expose:
     - port: 8080
     - port: 3000
@@ -70,14 +70,14 @@ metadata:
 spec:
   leader:
     name: lead
-    model: qwen3.5-plus
+    model: qwen3.6-plus
   workers:
     - name: backend
-      model: qwen3.5-plus
+      model: qwen3.6-plus
       expose:
         - port: 8080
     - name: frontend
-      model: qwen3.5-plus
+      model: qwen3.6-plus
       expose:
         - port: 3000
 ```

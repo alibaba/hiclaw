@@ -138,7 +138,7 @@ $env:HICLAW_LLM_API_KEY = "your-api-key"
 |----------|-------------|---------|
 | `HICLAW_NON_INTERACTIVE` | Skip all prompts | `0` |
 | `HICLAW_LLM_PROVIDER` | LLM provider (`qwen` or `openai-compat`) | `qwen` |
-| `HICLAW_DEFAULT_MODEL` | Default model ID | `qwen3.5-plus` |
+| `HICLAW_DEFAULT_MODEL` | Default model ID | `qwen3.6-plus` |
 | `HICLAW_LLM_API_KEY` | LLM API key | *(required)* |
 | `HICLAW_ADMIN_USER` | Admin username | `admin` |
 | `HICLAW_ADMIN_PASSWORD` | Admin password | *(auto-generated)* |

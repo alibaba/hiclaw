@@ -13,7 +13,7 @@
 # Environment variables (for automation):
 #   HICLAW_NON_INTERACTIVE    Skip all prompts, use defaults  (default: 0)
 #   HICLAW_LLM_PROVIDER      LLM provider       (default: alibaba-cloud)
-#   HICLAW_DEFAULT_MODEL      Default model       (default: qwen3.5-plus)
+#   HICLAW_DEFAULT_MODEL      Default model       (default: qwen3.6-plus)
 #   HICLAW_LLM_API_KEY        LLM API key         (required)
 #   HICLAW_ADMIN_USER         Admin username       (default: admin)
 #   HICLAW_ADMIN_PASSWORD     Admin password       (auto-generated if not set, min 8 chars)
@@ -381,8 +381,8 @@ msg() {
         "llm.alibaba.model.select.en") text="Select model series [1/2]" ;;
         "llm.codingplan.models_title.zh") text="选择 CodingPlan 默认模型:" ;;
         "llm.codingplan.models_title.en") text="Select CodingPlan default model:" ;;
-        "llm.codingplan.model.qwen35plus.zh") text="  1) qwen3.5-plus  - 千问 3.5（速度最快）" ;;
-        "llm.codingplan.model.qwen35plus.en") text="  1) qwen3.5-plus  - Qwen 3.5 (fastest)" ;;
+        "llm.codingplan.model.qwen36plus.zh") text="  1) qwen3.6-plus  - 千问 3.6（速度最快）" ;;
+        "llm.codingplan.model.qwen36plus.en") text="  1) qwen3.6-plus  - Qwen 3.6 (fastest)" ;;
         "llm.codingplan.model.glm5.zh") text="  2) glm-5  - 智谱 GLM-5（编程推荐）" ;;
         "llm.codingplan.model.glm5.en") text="  2) glm-5  - Zhipu GLM-5 (recommended for coding)" ;;
         "llm.codingplan.model.kimi.zh") text="  3) kimi-k2.5  - Moonshot Kimi K2.5" ;;
@@ -399,8 +399,8 @@ msg() {
         "llm.provider.selected_openai.en") text="  Provider: %s (OpenAI-compatible)" ;;
         "llm.provider.invalid.zh") text="无效选择: %s（请输入 1 或 2）" ;;
         "llm.provider.invalid.en") text="Invalid choice: %s (please enter 1 or 2)" ;;
-        "llm.qwen.model_prompt.zh") text="默认模型 ID [qwen3.5-plus]" ;;
-        "llm.qwen.model_prompt.en") text="Default Model ID [qwen3.5-plus]" ;;
+        "llm.qwen.model_prompt.zh") text="默认模型 ID [qwen3.6-plus]" ;;
+        "llm.qwen.model_prompt.en") text="Default Model ID [qwen3.6-plus]" ;;
         "llm.openai.base_url_prompt.zh") text="Base URL（例如 https://api.openai.com/v1）" ;;
         "llm.openai.base_url_prompt.en") text="Base URL (e.g., https://api.openai.com/v1)" ;;
         "llm.openai.model_prompt.zh") text="默认模型 ID [gpt-5.4]" ;;
@@ -926,7 +926,7 @@ resolve_docker_proxy_image() {
 # ============================================================
 # Known models list — used to detect custom models during install
 # ============================================================
-KNOWN_MODELS="gpt-5.4 gpt-5.3-codex gpt-5-mini gpt-5-nano claude-opus-4-6 claude-sonnet-4-6 claude-haiku-4-5 qwen3.5-plus deepseek-chat deepseek-reasoner kimi-k2.5 glm-5 MiniMax-M2.7 MiniMax-M2.7-highspeed MiniMax-M2.5"
+KNOWN_MODELS="gpt-5.4 gpt-5.3-codex gpt-5-mini gpt-5-nano claude-opus-4-6 claude-sonnet-4-6 claude-haiku-4-5 qwen3.5-plus qwen3.6-plus deepseek-chat deepseek-reasoner kimi-k2.5 glm-5 MiniMax-M2.7 MiniMax-M2.7-highspeed MiniMax-M2.5"
 
 is_known_model() {
     local model="$1"
@@ -1556,7 +1556,7 @@ step_llm() {
     log "$(msg llm.title)"
     if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
         HICLAW_LLM_PROVIDER="${HICLAW_LLM_PROVIDER:-qwen}"
-        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
+        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.6-plus}"
         log "$(msg llm.provider.qwen_default "${HICLAW_LLM_PROVIDER}")"
         log "$(msg llm.model.default "${HICLAW_DEFAULT_MODEL}")"
         prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true"
@@ -1586,7 +1586,7 @@ step_llm() {
                 ALIBABA_MODEL_CHOICE="codingplan"
                 echo ""
                 echo "$(msg llm.codingplan.models_title)"
-                echo "$(msg llm.codingplan.model.qwen35plus)"
+                echo "$(msg llm.codingplan.model.qwen36plus)"
                 echo "$(msg llm.codingplan.model.glm5)"
                 echo "$(msg llm.codingplan.model.kimi)"
                 echo "$(msg llm.codingplan.model.minimax)"
@@ -1601,11 +1601,11 @@ step_llm() {
                 fi
                 if [ "${CODINGPLAN_MODEL_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
                 case "${CODINGPLAN_MODEL_CHOICE}" in
-                    1|qwen3.5-plus) HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                    1|qwen3.6-plus) HICLAW_DEFAULT_MODEL="qwen3.6-plus" ;;
                     2|glm-5)        HICLAW_DEFAULT_MODEL="glm-5" ;;
                     3|kimi-k2.5)    HICLAW_DEFAULT_MODEL="kimi-k2.5" ;;
                     4|MiniMax-M2.5) HICLAW_DEFAULT_MODEL="MiniMax-M2.5" ;;
-                    *)              HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                    *)              HICLAW_DEFAULT_MODEL="qwen3.6-plus" ;;
                 esac
                 log "$(msg llm.provider.selected_codingplan)"
                 log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
@@ -1630,7 +1630,7 @@ step_llm() {
                         echo ""
                         read -e -p "$(msg llm.qwen.model_prompt): " HICLAW_DEFAULT_MODEL
                         if [ "${HICLAW_DEFAULT_MODEL}" = "b" ]; then STEP_RESULT="back"; return 0; fi
-                        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
+                        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.6-plus}"
                         log "$(msg llm.provider.selected_qwen)"
                         log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
                         prompt_custom_model_params "${HICLAW_DEFAULT_MODEL}" || return 0
@@ -1640,7 +1640,7 @@ step_llm() {
                         HICLAW_OPENAI_BASE_URL="https://coding.dashscope.aliyuncs.com/v1"
                         echo ""
                         echo "$(msg llm.codingplan.models_title)"
-                        echo "$(msg llm.codingplan.model.qwen35plus)"
+                        echo "$(msg llm.codingplan.model.qwen36plus)"
                         echo "$(msg llm.codingplan.model.glm5)"
                         echo "$(msg llm.codingplan.model.kimi)"
                         echo "$(msg llm.codingplan.model.minimax)"
@@ -1655,11 +1655,11 @@ step_llm() {
                         fi
                         if [ "${CODINGPLAN_MODEL_CHOICE}" = "b" ]; then STEP_RESULT="back"; return 0; fi
                         case "${CODINGPLAN_MODEL_CHOICE}" in
-                            1|qwen3.5-plus) HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                            1|qwen3.6-plus) HICLAW_DEFAULT_MODEL="qwen3.6-plus" ;;
                             2|glm-5)        HICLAW_DEFAULT_MODEL="glm-5" ;;
                             3|kimi-k2.5)    HICLAW_DEFAULT_MODEL="kimi-k2.5" ;;
                             4|MiniMax-M2.5) HICLAW_DEFAULT_MODEL="MiniMax-M2.5" ;;
-                            *)              HICLAW_DEFAULT_MODEL="qwen3.5-plus" ;;
+                            *)              HICLAW_DEFAULT_MODEL="qwen3.6-plus" ;;
                         esac
                         log "$(msg llm.provider.selected_codingplan)"
                         log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"

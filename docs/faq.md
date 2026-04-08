@@ -126,7 +126,7 @@ HiClaw supports two ways to switch models: **switch the current session model** 
 Use the `/model` slash command in IM to instantly switch the model for the current session, no restart needed:
 
 ```
-/model qwen3.5-plus
+/model qwen3.6-plus
 ```
 
 This only affects the current session — the primary model is restored after a restart. Only pre-configured known models are supported; see [`manager/configs/known-models.json`](../manager/configs/known-models.json) for the full list.
@@ -139,7 +139,7 @@ Use Manager's built-in **model-switch skill** to persistently change the primary
 
 **Why use Manager instead of manual config?**
 
-OpenClaw requires setting the model's context window size (`contextWindow`) in its config. HiClaw defaults to qwen3.5-plus's 200K token window. If you switch to a model with a different window without updating this setting, the session may fail when approaching the window limit — OpenClaw won't know when to compress context.
+OpenClaw requires setting the model's context window size (`contextWindow`) in its config. HiClaw defaults to qwen3.6-plus's 1M token window. If you switch to a model with a different window without updating this setting, the session may fail when approaching the window limit — OpenClaw won't know when to compress context.
 
 The model-switch skill:
 1. Looks up the correct `contextWindow` and `maxTokens` for the target model
@@ -176,7 +176,7 @@ Two options are available: **switch the current session model** and **switch the
 In the Worker's group chat or DM, use @mention with the `/model` command to switch instantly:
 
 ```
-@alice /model qwen3.5-plus
+@alice /model qwen3.6-plus
 ```
 
 Only affects the current session — the primary model is restored after a restart. Only pre-configured known models are supported; see [`manager/configs/known-models.json`](../manager/configs/known-models.json) for the full list.
@@ -185,7 +185,7 @@ Only affects the current session — the primary model is restored after a resta
 
 Manager handles this for you, and supports any model name (not limited to the pre-configured list).
 
-**At creation time**: When asking Manager to create a Worker, specify the model name directly, e.g. "Create a Worker named alice using `qwen3.5-plus`."
+**At creation time**: When asking Manager to create a Worker, specify the model name directly, e.g. "Create a Worker named alice using `qwen3.6-plus`."
 
 **After creation**: Tell Manager at any time to switch a Worker's model, e.g. "Switch alice to use `claude-3-5-sonnet`." Manager will update the Worker's configuration accordingly.
 
@@ -197,7 +197,7 @@ Make sure Higress is configured to route the target model name to the correct pr
 
 **Single provider**
 
-In the Higress console, set up `default-ai-route` to route requests to your LLM provider. Then tell Manager the model name you want the Worker to use (e.g. `qwen3.5-plus`). Manager will run a connectivity test with that model name and complete the switch automatically.
+In the Higress console, set up `default-ai-route` to route requests to your LLM provider. Then tell Manager the model name you want the Worker to use (e.g. `qwen3.6-plus`). Manager will run a connectivity test with that model name and complete the switch automatically.
 
 **Multiple providers**
 

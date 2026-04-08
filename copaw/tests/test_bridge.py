@@ -14,10 +14,10 @@ def _make_openclaw_cfg(**memory_search_overrides):
         "channels": {"matrix": {"enabled": True, "homeserver": "http://localhost:6167", "accessToken": "tok"}},
         "models": {
             "providers": {
-                "gw": {"baseUrl": "http://aigw:8080/v1", "apiKey": "key123", "models": [{"id": "qwen3.5-plus", "name": "qwen3.5-plus"}]}
+                "gw": {"baseUrl": "http://aigw:8080/v1", "apiKey": "key123", "models": [{"id": "qwen3.6-plus", "name": "qwen3.6-plus"}]}
             }
         },
-        "agents": {"defaults": {"model": {"primary": "gw/qwen3.5-plus"}}},
+        "agents": {"defaults": {"model": {"primary": "gw/qwen3.6-plus"}}},
     }
     if memory_search_overrides is not None:
         base["agents"]["defaults"]["memorySearch"] = {
@@ -61,10 +61,10 @@ def test_bridge_no_embedding_config():
         "channels": {"matrix": {"enabled": True, "homeserver": "http://localhost:6167", "accessToken": "tok"}},
         "models": {
             "providers": {
-                "gw": {"baseUrl": "http://aigw:8080/v1", "apiKey": "key123", "models": [{"id": "qwen3.5-plus", "name": "qwen3.5-plus"}]}
+                "gw": {"baseUrl": "http://aigw:8080/v1", "apiKey": "key123", "models": [{"id": "qwen3.6-plus", "name": "qwen3.6-plus"}]}
             }
         },
-        "agents": {"defaults": {"model": {"primary": "gw/qwen3.5-plus"}}},
+        "agents": {"defaults": {"model": {"primary": "gw/qwen3.6-plus"}}},
     }
     config = _bridge_and_read(openclaw_cfg)
 

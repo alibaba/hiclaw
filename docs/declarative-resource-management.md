@@ -76,7 +76,7 @@ spec:
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `metadata.name` | string | Yes | — | Worker name, globally unique |
-| `spec.model` | string | Yes | — | LLM model ID, e.g. `claude-sonnet-4-6`, `qwen3.5-plus` |
+| `spec.model` | string | Yes | — | LLM model ID, e.g. `claude-sonnet-4-6`, `qwen3.6-plus` |
 | `spec.runtime` | string | No | `openclaw` | Agent runtime: `openclaw` or `copaw` |
 | `spec.image` | string | No | `hiclaw/worker-agent:latest` | Custom Docker image |
 | `spec.identity` | string | No | — | Worker public identity, used to generate IDENTITY.md |
@@ -734,7 +734,7 @@ kind: Worker
 metadata:
   name: alice
 spec:
-  model: qwen3.5-plus
+  model: qwen3.6-plus
   expose:
     - port: 8080
     - port: 3000
@@ -759,14 +759,14 @@ metadata:
 spec:
   leader:
     name: lead
-    model: qwen3.5-plus
+    model: qwen3.6-plus
   workers:
     - name: backend
-      model: qwen3.5-plus
+      model: qwen3.6-plus
       expose:
         - port: 8080
     - name: frontend
-      model: qwen3.5-plus
+      model: qwen3.6-plus
       expose:
         - port: 3000
 ```
@@ -775,10 +775,10 @@ spec:
 
 ```bash
 # Expose ports via CLI flag
-hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000
+hiclaw apply worker --name alice --model qwen3.6-plus --expose 8080,3000
 
 # Remove exposed ports (re-apply without --expose)
-hiclaw apply worker --name alice --model qwen3.5-plus
+hiclaw apply worker --name alice --model qwen3.6-plus
 ```
 
 ### Use Cases

@@ -167,7 +167,7 @@ kind: Worker
 metadata:
   name: bob
 spec:
-  model: qwen3.5-plus
+  model: qwen3.6-plus
 `
 	tmpFile := writeTempYAMLForTest(t, yaml)
 	resources, err := loadResources([]string{tmpFile})
@@ -366,7 +366,7 @@ metadata:
   name: bob
 spec:
   package: https://example.com/worker.zip
-  model: qwen3.5-plus
+  model: qwen3.6-plus
 `,
 			expected: "https://example.com/worker.zip",
 		},
@@ -377,7 +377,7 @@ kind: Worker
 metadata:
   name: charlie
 spec:
-  model: qwen3.5-plus
+  model: qwen3.6-plus
 `,
 			expected: "",
 		},

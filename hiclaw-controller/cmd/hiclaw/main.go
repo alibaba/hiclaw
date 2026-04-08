@@ -140,9 +140,9 @@ func applyWorkerCmd() *cobra.Command {
   hiclaw apply worker --name alice --model claude-sonnet-4-6 --package nacos://inst/ns/spec/v1
   hiclaw apply worker --name alice --package reviewer
   hiclaw apply worker --name alice --package reviewer/label:latest
-  hiclaw apply worker --name bob --model qwen3.5-plus
+  hiclaw apply worker --name bob --model qwen3.6-plus
   hiclaw apply worker --name charlie --model gpt-5-mini --skills github-operations --mcp-servers github
-  hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000`,
+  hiclaw apply worker --name alice --model qwen3.6-plus --expose 8080,3000`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if name == "" {
 				return fmt.Errorf("--name is required")
@@ -155,7 +155,7 @@ func applyWorkerCmd() *cobra.Command {
 
 			// Generate Worker YAML from CLI params
 			if model == "" {
-				model = "qwen3.5-plus"
+				model = "qwen3.6-plus"
 			}
 
 			return applyWorkerFromParams(name, model, packageURI, skills, mcpServers, runtime, expose, dryRun)
@@ -163,7 +163,7 @@ func applyWorkerCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&name, "name", "", "Worker name (required)")
-	cmd.Flags().StringVar(&model, "model", "", "LLM model ID (default: qwen3.5-plus)")
+	cmd.Flags().StringVar(&model, "model", "", "LLM model ID (default: qwen3.6-plus)")
 	cmd.Flags().StringVar(&zipFile, "zip", "", "Local ZIP package (manifest.json)")
 	cmd.Flags().StringVar(&packageURI, "package", "", "Remote package URI (nacos://, http://, oss://) or Nacos shorthand (name, name/version, name/label:latest)")
 	cmd.Flags().StringVar(&skills, "skills", "", "Comma-separated built-in skills")
@@ -712,7 +712,7 @@ func applyZip(zipPath string, name string, dryRun bool) error {
 
 	model := jsonField(string(manifestData), "model")
 	if model == "" {
-		model = "qwen3.5-plus"
+		model = "qwen3.6-plus"
 	}
 
 	// Compute SHA256 of ZIP for content-addressable storage

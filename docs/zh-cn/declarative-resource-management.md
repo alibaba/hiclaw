@@ -76,7 +76,7 @@ spec:
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `metadata.name` | string | 是 | — | Worker 名称，全局唯一 |
-| `spec.model` | string | 是 | — | LLM 模型 ID，如 `claude-sonnet-4-6`、`qwen3.5-plus` |
+| `spec.model` | string | 是 | — | LLM 模型 ID，如 `claude-sonnet-4-6`、`qwen3.6-plus` |
 | `spec.runtime` | string | 否 | `openclaw` | Agent 运行时，`openclaw` 或 `copaw` |
 | `spec.image` | string | 否 | `hiclaw/worker-agent:latest` | 自定义 Docker 镜像 |
 | `spec.identity` | string | 否 | — | Worker 公开身份信息，用于生成 IDENTITY.md |
@@ -734,7 +734,7 @@ kind: Worker
 metadata:
   name: alice
 spec:
-  model: qwen3.5-plus
+  model: qwen3.6-plus
   expose:
     - port: 8080
     - port: 3000
@@ -759,14 +759,14 @@ metadata:
 spec:
   leader:
     name: lead
-    model: qwen3.5-plus
+    model: qwen3.6-plus
   workers:
     - name: backend
-      model: qwen3.5-plus
+      model: qwen3.6-plus
       expose:
         - port: 8080
     - name: frontend
-      model: qwen3.5-plus
+      model: qwen3.6-plus
       expose:
         - port: 3000
 ```
@@ -775,10 +775,10 @@ spec:
 
 ```bash
 # 通过 CLI 参数暴露端口
-hiclaw apply worker --name alice --model qwen3.5-plus --expose 8080,3000
+hiclaw apply worker --name alice --model qwen3.6-plus --expose 8080,3000
 
 # 取消暴露（不带 --expose 重新 apply）
-hiclaw apply worker --name alice --model qwen3.5-plus
+hiclaw apply worker --name alice --model qwen3.6-plus
 ```
 
 ### 使用场景
