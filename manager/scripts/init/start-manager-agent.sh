@@ -9,6 +9,7 @@
 #   HICLAW_MANAGER_RUNTIME=copaw              - CoPaw workspace mode
 
 source /opt/hiclaw/scripts/lib/hiclaw-env.sh
+source /opt/hiclaw/scripts/lib/openclaw-plugin-installer.sh
 
 # ============================================================
 # Runtime selection
@@ -606,22 +607,32 @@ fi
 # Optional: HICLAW_MEM0_USER_ID, HICLAW_MEM0_ORG_ID, HICLAW_MEM0_PROJECT_ID, HICLAW_MEM0_ENABLE_GRAPH
 # ============================================================
 if [ "${HICLAW_MEM0_ENABLED:-false}" = "true" ]; then
+    MEM0_PLUGIN_NAME="openclaw-mem0"
+    MEM0_PLUGIN_DIR="${OPENCLAW_MEM0_PLUGIN_DIR:-/opt/openclaw/extensions/${MEM0_PLUGIN_NAME}}"
+    MEM0_PLUGIN_MANIFEST="${MEM0_PLUGIN_DIR}/openclaw.plugin.json"
     if [ -z "${HICLAW_MEM0_API_KEY:-}" ]; then
         log "WARNING: HICLAW_MEM0_ENABLED=true but HICLAW_MEM0_API_KEY is not set, skipping mem0 plugin"
     else
-        # Check if mem0 plugin is installed, install if missing
         _mem0_installed=false
-        if [ -d "/opt/openclaw/node_modules/@mem0/openclaw-mem0" ]; then
-            _mem0_installed=true
-        fi
-
-        if [ "${_mem0_installed}" != "true" ]; then
-            log "mem0 plugin not found, installing @mem0/openclaw-mem0..."
-            if (cd /opt/openclaw && npm install @mem0/openclaw-mem0 --save 2>&1); then
+        if [ -f "${MEM0_PLUGIN_MANIFEST}" ]; then
+            if [ -d "${MEM0_PLUGIN_DIR}/node_modules" ]; then
+                _mem0_installed=true
+            else
+                log "mem0 plugin bundled but dependencies are missing, installing..."
+                if (cd "${MEM0_PLUGIN_DIR}" && npm install --omit=dev --ignore-scripts >/tmp/hiclaw-mem0-install.log 2>&1); then
+                    _mem0_installed=true
+                    log "mem0 plugin dependencies installed"
+                else
+                    log "WARNING: Failed to install mem0 plugin dependencies (see /tmp/hiclaw-mem0-install.log), skipping configuration"
+                fi
+            fi
+        else
+            log "mem0 plugin not found, installing via OpenClaw extensions model..."
+            if install_openclaw_npm_plugin_from_pack "@mem0/openclaw-mem0" "${MEM0_PLUGIN_DIR}" "hiclaw-mem0"; then
                 _mem0_installed=true
                 log "mem0 plugin installed successfully"
             else
-                log "WARNING: Failed to install mem0 plugin, skipping configuration"
+                log "WARNING: Failed to install mem0 plugin via package tarball, skipping configuration"
             fi
         fi
 
@@ -650,10 +661,17 @@ if [ "${HICLAW_MEM0_ENABLED:-false}" = "true" ]; then
                 }')
 
             # Inject into openclaw.json (idempotent merge)
-            jq --argjson mem0 "${_mem0_config}" '
+            jq --arg pluginName "${MEM0_PLUGIN_NAME}" \
+               --arg pluginDir "${MEM0_PLUGIN_DIR}" \
+               --argjson mem0 "${_mem0_config}" '
                 .plugins = (.plugins // {})
+                | .plugins.load = (.plugins.load // {})
                 | .plugins.entries = (.plugins.entries // {})
-                | .plugins.entries["openclaw-mem0"] = $mem0
+                | if (.plugins.allow | type) != "array" then .plugins.allow = [] else . end
+                | if (.plugins.allow | index($pluginName)) == null then .plugins.allow += [$pluginName] else . end
+                | if (.plugins.load.paths | type) != "array" then .plugins.load.paths = [] else . end
+                | if (.plugins.load.paths | index($pluginDir)) == null then .plugins.load.paths += [$pluginDir] else . end
+                | .plugins.entries[$pluginName] = $mem0
             ' /root/manager-workspace/openclaw.json > /tmp/openclaw-mem0.json && \
                 mv /tmp/openclaw-mem0.json /root/manager-workspace/openclaw.json
 
@@ -661,6 +679,7 @@ if [ "${HICLAW_MEM0_ENABLED:-false}" = "true" ]; then
         fi
     fi
 fi
+unset MEM0_PLUGIN_NAME MEM0_PLUGIN_DIR MEM0_PLUGIN_MANIFEST
 
 # ============================================================
 # Optional: enable openclaw-cms-plugin observability
