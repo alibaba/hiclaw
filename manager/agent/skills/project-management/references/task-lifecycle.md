@@ -74,9 +74,17 @@ Full spec: ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/spec.md
 Please file-sync, read the spec, create plan.md before starting. @mention me when complete.
 ```
 
+After assigning tasks, post a short coordinator note in the Project Room if the next step is not already obvious from your assignment message. State:
+- what is now in progress
+- what is waiting on dependencies
+- who acts next
+- what completion signal you expect
+
 ---
 
 ## Handle Completion (Step 3)
+
+Completion can be triggered by either a Worker @mention or by you discovering that `shared/tasks/{task-id}/result.md` already exists and is non-empty during heartbeat or project-room coordination. Once the result is already there, treat it as a completion signal and continue the completion flow immediately.
 
 ### 3a. Parse task outcome
 
@@ -107,6 +115,7 @@ See `references/plan-changes.md` Step 4.
    ```
    Send `[Project Task Completed] {project-title} — {task-id}: {task title} by {worker}. {summary}` to resolved channel. Read SOUL.md first for persona and language.
 6. Proceed to find next tasks (3e)
+7. Post a Project Room coordination update: mark what just completed, name any newly unblocked task, and state who should act next. If no task is ready, say what the project is waiting on.
 
 ### 3e. Find next tasks
 

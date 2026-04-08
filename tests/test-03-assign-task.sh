@@ -47,6 +47,11 @@ REPLY=$(matrix_wait_for_reply "${ADMIN_TOKEN}" "${DM_ROOM}" "@manager" 180 \
     "${ADMIN_TOKEN}" "${DM_ROOM}" "Please check if the task assignment has been processed.")
 
 assert_not_empty "${REPLY}" "Manager acknowledged task assignment"
+if echo "${REPLY}" | grep -qiE 'assigned|delegate|delegated|已交给|正在让.*开始'; then
+    log_pass "Manager acknowledgement says delegation started"
+else
+    log_fail "Manager acknowledgement says delegation started (reply: ${REPLY})"
+fi
 
 log_section "Verify Task in MinIO"
 

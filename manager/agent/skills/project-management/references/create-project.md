@@ -45,4 +45,5 @@ Wait for confirmation before proceeding.
 2. Sync to MinIO: `mc mirror /root/hiclaw-fs/shared/projects/${PROJECT_ID}/ ${HICLAW_STORAGE_PREFIX}/shared/projects/${PROJECT_ID}/ --overwrite`
 3. Verify admin is in the project room — if not, invite immediately
 4. Post the project plan in the project room
-5. Assign the first task(s) — see `references/task-lifecycle.md`
+5. Immediately post a kickoff coordination note in the project room: current goal, first active task owners, expected handoffs, and how completion/blockers should be reported
+6. Assign the first task(s) — see `references/task-lifecycle.md`

@@ -24,13 +24,29 @@ ensure_mc_credentials 2>/dev/null || true
 # Save local openclaw.json before mirror overwrites it
 LOCAL_OPENCLAW="${WORKSPACE}/openclaw.json"
 SAVED_LOCAL="/tmp/openclaw-local-sync.json"
+LOCAL_SYNC_CUTOFF_FILE="/tmp/hiclaw-local-sync-${WORKER_NAME}.stamp"
 if [ -f "${LOCAL_OPENCLAW}" ]; then
     cp "${LOCAL_OPENCLAW}" "${SAVED_LOCAL}"
 fi
 
+# Runtime state is local-only. Pulling it back from MinIO creates churn without
+# helping task durability, so only sync user-managed workspace files.
 mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite \
-    --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" 2>&1
+    --exclude ".agents/**" \
+    --exclude ".cache/**" \
+    --exclude ".codex-agent/ready" \
+    --exclude ".codex-home/**" \
+    --exclude "credentials/**" \
+    --exclude ".local/**" \
+    --exclude ".mc/**" \
+    --exclude ".mc.bin/**" \
+    --exclude ".npm/**" \
+    --exclude "*.lock" \
+    --exclude ".openclaw/agents/**" \
+    --exclude ".openclaw/canvas/**" \
+    --exclude ".openclaw/matrix/**" 2>&1
 mc mirror "${HICLAW_STORAGE_PREFIX}/shared/" "${HICLAW_ROOT}/shared/" --overwrite 2>/dev/null || true
+touch "${LOCAL_SYNC_CUTOFF_FILE}"
 
 # Merge openclaw.json: remote (MinIO, now in workspace) as base + local Worker additions
 if [ -f "${SAVED_LOCAL}" ] && [ -f "${LOCAL_OPENCLAW}" ]; then

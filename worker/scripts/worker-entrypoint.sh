@@ -1,6 +1,7 @@
 #!/bin/bash
 # worker-entrypoint.sh - Worker Agent startup
-# Pulls config from centralized file system, starts file sync, launches OpenClaw.
+# Pulls config from centralized file system, starts file sync, launches
+# the selected worker runtime (OpenClaw or Codex).
 #
 # HOME is set to the Worker workspace so all agent-generated files are synced to MinIO:
 #   ~/ = /root/hiclaw-fs/agents/<WORKER_NAME>/  (SOUL.md, openclaw.json, memory/)
@@ -11,12 +12,62 @@ source /opt/hiclaw/scripts/lib/hiclaw-env.sh
 source /opt/hiclaw/scripts/lib/merge-openclaw-config.sh
 
 WORKER_NAME="${HICLAW_WORKER_NAME:?HICLAW_WORKER_NAME is required}"
+WORKER_RUNTIME="${HICLAW_WORKER_RUNTIME:-openclaw}"
 FS_ENDPOINT="${HICLAW_FS_ENDPOINT:-}"
 FS_ACCESS_KEY="${HICLAW_FS_ACCESS_KEY:-}"
 FS_SECRET_KEY="${HICLAW_FS_SECRET_KEY:-}"
 
 log() {
     echo "[hiclaw-worker $(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+WORKER_SYNC_COMMON_EXCLUDES=(
+    --exclude ".agents/**"
+    --exclude ".cache/**"
+    --exclude ".codex-agent/ready"
+    --exclude ".codex-home/**"
+    --exclude "credentials/**"
+    --exclude ".local/**"
+    --exclude ".mc/**"
+    --exclude ".mc.bin/**"
+    --exclude ".npm/**"
+    --exclude "*.lock"
+    --exclude ".openclaw/agents/**"
+    --exclude ".openclaw/canvas/**"
+    --exclude ".openclaw/matrix/**"
+)
+
+WORKER_SYNC_PUSH_EXCLUDES=(
+    --exclude "openclaw.json"
+    --exclude "config/mcporter.json"
+    --exclude "mcporter-servers.json"
+)
+
+find_syncable_change() {
+    find "${WORKSPACE}" \
+        \( -path "${WORKSPACE}/.agents" -o -path "${WORKSPACE}/.agents/*" \
+        -o -path "${WORKSPACE}/.cache" -o -path "${WORKSPACE}/.cache/*" \
+        -o -path "${WORKSPACE}/.codex-home" -o -path "${WORKSPACE}/.codex-home/*" \
+        -o -path "${WORKSPACE}/credentials" -o -path "${WORKSPACE}/credentials/*" \
+        -o -path "${WORKSPACE}/.local" -o -path "${WORKSPACE}/.local/*" \
+        -o -path "${WORKSPACE}/.mc" -o -path "${WORKSPACE}/.mc/*" \
+        -o -path "${WORKSPACE}/.mc.bin" -o -path "${WORKSPACE}/.mc.bin/*" \
+        -o -path "${WORKSPACE}/.npm" -o -path "${WORKSPACE}/.npm/*" \
+        -o -path "${WORKSPACE}/.openclaw/agents" -o -path "${WORKSPACE}/.openclaw/agents/*" \
+        -o -path "${WORKSPACE}/.openclaw/canvas" -o -path "${WORKSPACE}/.openclaw/canvas/*" \
+        -o -path "${WORKSPACE}/.openclaw/matrix" -o -path "${WORKSPACE}/.openclaw/matrix/*" \) -prune \
+        -o -type f \
+        ! -name "*.lock" \
+        ! -path "${WORKSPACE}/openclaw.json" \
+        ! -path "${WORKSPACE}/config/mcporter.json" \
+        ! -path "${WORKSPACE}/mcporter-servers.json" \
+        ! -path "${WORKSPACE}/.codex-agent/ready" \
+        -newer "${LOCAL_SYNC_CUTOFF_FILE}" \
+        -newermt "10 seconds ago" -print -quit 2>/dev/null
+}
+
+mark_manager_sync_cutoff() {
+    touch "${LOCAL_SYNC_CUTOFF_FILE}"
 }
 
 # ============================================================
@@ -31,6 +82,10 @@ fi
 # Use absolute path because HOME is set to the workspace directory via docker run
 HICLAW_ROOT="/root/hiclaw-fs"
 WORKSPACE="${HICLAW_ROOT}/agents/${WORKER_NAME}"
+LOCAL_SYNC_CUTOFF_FILE="/tmp/hiclaw-local-sync-${WORKER_NAME}.stamp"
+if [ "${WORKER_RUNTIME}" = "codex" ]; then
+    rm -f "${WORKSPACE}/.codex-agent/ready"
+fi
 
 # ============================================================
 # Step 1: Configure mc alias for centralized file system
@@ -53,8 +108,9 @@ mkdir -p "${WORKSPACE}" "${HICLAW_ROOT}/shared"
 log "Pulling Worker config from centralized storage..."
 ensure_mc_credentials 2>/dev/null || true
 mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite \
-    --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" --exclude "credentials/**"
+    "${WORKER_SYNC_COMMON_EXCLUDES[@]}"
 mc mirror "${HICLAW_STORAGE_PREFIX}/shared/" "${HICLAW_ROOT}/shared/" --overwrite 2>/dev/null || true
+mark_manager_sync_cutoff
 
 # Verify essential files exist, retry if sync is still in progress
 RETRY=0
@@ -68,7 +124,8 @@ while [ ! -f "${WORKSPACE}/openclaw.json" ] || [ ! -f "${WORKSPACE}/SOUL.md" ] \
     log "Waiting for config files to appear in MinIO (attempt ${RETRY}/6)..."
     sleep 5
     mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite \
-        --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" --exclude "credentials/**" 2>/dev/null || true
+        "${WORKER_SYNC_COMMON_EXCLUDES[@]}" 2>/dev/null || true
+    mark_manager_sync_cutoff
 done
 
 # HOME is already set to WORKSPACE via docker run -e HOME=...
@@ -89,6 +146,13 @@ mkdir -p "${HOME}/.agents"
 ln -sfn "${HOME}/skills" "${HOME}/.agents/skills"
 
 log "Worker config pulled successfully"
+if [ "${WORKER_RUNTIME}" = "codex" ]; then
+    rm -f "${WORKSPACE}/.codex-agent/ready"
+fi
+log "Worker runtime: ${WORKER_RUNTIME}"
+if [ "${WORKER_RUNTIME}" = "codex" ] && jq -e '.channels.matrix.encryption == true' "${WORKSPACE}/openclaw.json" > /dev/null 2>&1; then
+    log "WARNING: Codex runtime does not support Matrix E2EE; disable HICLAW_MATRIX_E2EE for this worker"
+fi
 
 # ============================================================
 # Optional: ensure diagnostics-otel npm dependencies are present
@@ -146,7 +210,7 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 #   Local -> Remote: change-triggered push of Worker-managed content
 #     - Uses find to detect files modified in last 10s; only runs mc mirror when needed
 #     - Avoids mc mirror --watch TOCTOU bug (crashes on atomic ops like npm install)
-#     - Excludes Manager-managed files (openclaw.json, config/mcporter.json) and caches
+#     - Excludes Manager-managed files (openclaw.json, config/mcporter.json) and runtime state
 #
 #   Remote -> Local: on-demand pull via file-sync skill (triggered by Manager @mention)
 #     + 5-minute fallback pull of Manager-managed paths as safety net
@@ -154,15 +218,12 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 # ────────────────────────────────────────────────────────────────────────────
 (
     while true; do
-        CHANGED=$(find "${WORKSPACE}/" -type f -newermt "10 seconds ago" 2>/dev/null | head -1)
+        CHANGED=$(find_syncable_change)
         if [ -n "${CHANGED}" ]; then
             ensure_mc_credentials 2>/dev/null || true
             if ! mc mirror "${WORKSPACE}/" "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" --overwrite \
-                --exclude "openclaw.json" --exclude "config/mcporter.json" --exclude "mcporter-servers.json" --exclude ".agents/**" \
-                --exclude "credentials/**" \
-                --exclude ".cache/**" --exclude ".npm/**" \
-                --exclude ".local/**" --exclude ".mc/**" --exclude "*.lock" \
-                --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" 2>&1; then
+                "${WORKER_SYNC_PUSH_EXCLUDES[@]}" \
+                "${WORKER_SYNC_COMMON_EXCLUDES[@]}" 2>&1; then
                 log "WARNING: Local->Remote sync failed"
             fi
         fi
@@ -184,6 +245,7 @@ log "Local->Remote change-triggered sync started (PID: $!)"
         mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/skills/" "${WORKSPACE}/skills/" --overwrite 2>/dev/null || true
         find "${WORKSPACE}/skills" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
         mc mirror "${HICLAW_STORAGE_PREFIX}/shared/" "${HICLAW_ROOT}/shared/" --overwrite --newer-than "5m" 2>/dev/null || true
+        mark_manager_sync_cutoff
     done
 ) &
 log "Remote->Local fallback sync started (Manager-managed files only, every 5m, PID: $!)"
@@ -218,6 +280,14 @@ export MCPORTER_CONFIG="${MCPORTER_DEFAULT}"
 log "Starting Worker Agent: ${WORKER_NAME}"
 export OPENCLAW_CONFIG_PATH="${WORKSPACE}/openclaw.json"
 cd "${WORKSPACE}"
+
+if [ "${WORKER_RUNTIME}" = "codex" ]; then
+    export HICLAW_CODEX_SHARED_HOME="${HICLAW_CODEX_SHARED_HOME:-/root/.codex-host}"
+    exec python3 /opt/hiclaw/scripts/lib/codex_matrix_agent.py \
+        --workspace "${WORKSPACE}" \
+        --role worker \
+        --timeout-seconds "${HICLAW_CODEX_TIMEOUT_SECONDS:-1800}"
+fi
 
 # Clean orphaned session write locks (e.g. from SIGKILL or crash before exit handlers)
 # Prevents "session file locked (timeout 10000ms)" when PID was reused

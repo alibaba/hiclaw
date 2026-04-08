@@ -33,7 +33,23 @@ The `active_tasks` field in state.json contains all in-progress tasks (both fini
 Iterate over entries in `active_tasks` with `"type": "finite"`:
 
 - Read `assigned_to`, `room_id`, and `project_room_id` (if present) from the entry
+- Also read the coordination fields if present: `delegated_at`, `worker_signal_state`, `worker_last_signal_at`, `manager_last_followup_at`, `manager_escalated_at`, and `manager_quiet_until`
 - Determine the target room: use `project_room_id` if available, otherwise use `room_id`
+- Pull the task directory from MinIO before you ask for status:
+  ```bash
+  mkdir -p /root/hiclaw-fs/shared/tasks/{task-id}
+  mc mirror ${HICLAW_STORAGE_PREFIX}/shared/tasks/{task-id}/ /root/hiclaw-fs/shared/tasks/{task-id}/ --overwrite
+  ```
+- If `/root/hiclaw-fs/shared/tasks/{task-id}/result.md` exists and is non-empty, treat it as the strongest completion signal even if the Worker forgot to @mention you. Read it, update `meta.json` (`status → completed`, fill `completed_at`), push the updated `meta.json` back to MinIO, remove the entry from `active_tasks`, write memory, and notify admin. Do **not** send a follow-up ping first.
+- Use the coordination fields to decide whether you should speak:
+  - If `worker_signal_state` is `pending` and the Worker has sent no startup/progress signal for more than **120 seconds** since `delegated_at`, you should send one short startup follow-up and then record it with:
+    ```bash
+    bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
+      --action mark-followup --task-id {task-id}
+    ```
+  - If `worker_signal_state` is `acknowledged` or `in_progress` and the current time is still before `manager_quiet_until`, stay quiet.
+  - If `worker_signal_state` is `blocked`, handle the blocker or escalate; do not send a generic “how is it going?” ping.
+  - If `manager_last_followup_at` is already set and the Worker is still silent after the quiet window, escalate to admin, record it with `mark-escalated`, and remember that you **must not reassign** the task because of this coordination timeout.
 - **Before sending any message**, ensure the Worker's container is running:
   ```bash
   bash /opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh \
@@ -49,10 +65,15 @@ Iterate over entries in `active_tasks` with `"type": "finite"`:
   ```
   room_id: <room_id from state.json>
   user_id: @{worker}:${HICLAW_MATRIX_DOMAIN}
-  message: @{worker}:{domain} How is your current task {task-id} going? Are you blocked on anything?
+  message: @{worker}:{domain} Have you started task {task-id}? If you are already working, send a short progress update. If you are blocked, say what you need.
   ```
 - Determine if the Worker is making normal progress based on their reply
-- If the Worker has not responded (no response for more than one heartbeat cycle), flag the anomaly in the Room and notify the human admin (see Step 7)
+- If the Worker sends a real acknowledgement, progress update, blocker, or completion report, record it with:
+  ```bash
+  bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh \
+    --action record-signal --task-id {task-id} --worker-signal-state {acknowledged|in_progress|blocked|completed}
+  ```
+- If the Worker has not responded after one follow-up and one quiet window, flag the anomaly in the Room, notify the human admin (see Step 7), and do not change `assigned_to`
 - If the Worker has replied that the task is complete but meta.json has not been updated, proactively update meta.json (status → completed, fill in completed_at), and remove the entry from `active_tasks`:
   ```bash
   bash /opt/hiclaw/agent/skills/task-management/scripts/manage-state.sh --action complete --task-id {task-id}
@@ -140,6 +161,16 @@ done
   user_id: @{worker}:${HICLAW_MATRIX_DOMAIN}
   message: @{worker}:{domain} Any progress on your current task {task-id} "{title}"? Please let us know if you're blocked.
   ```
+- Do not limit yourself to stall detection. In active Project Rooms, you should also act as the facilitator:
+  - identify newly unblocked `[ ]` tasks whose dependencies are all `[x]`
+  - identify blockers `[!]`, missing owners, or unclear next steps
+  - if the room has been quiet since the last heartbeat while work is still active, post a short coordination update in the project room
+- A coordination update should be short and operational:
+  - what was completed or is currently in progress
+  - what task is ready next
+  - who needs to act now
+  - what decision or blocker is still open
+- If a next task is ready and does not require human confirmation, assign it in the same heartbeat turn instead of waiting for someone to ask.
 - If a Worker has reported task completion in the project room but plan.md has not been updated yet, handle it immediately (see the project management section in AGENTS.md)
 
 ---
