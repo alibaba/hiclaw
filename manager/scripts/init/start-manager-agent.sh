@@ -60,6 +60,18 @@ if [ "${HICLAW_RUNTIME}" != "aliyun" ]; then
     # Create symlink for host directory access
     if [ -d "/host-share" ]; then
         ORIGINAL_HOST_HOME="${HOST_ORIGINAL_HOME:-$HOME}"
+
+        # Detect Windows path format (e.g., "C:\Users\xxx" or "D:\Users\xxx")
+        # Windows paths cannot be used directly in Linux containers for symlinks
+        if echo "${ORIGINAL_HOST_HOME}" | grep -qE '^[A-Za-z]:\\'; then
+            # Windows path detected - convert to Linux-compatible path or skip
+            # Extract drive letter and path, convert to /d/Users/xxx format
+            DRIVE=$(echo "${ORIGINAL_HOST_HOME}" | cut -c1 | tr 'A-Z' 'a-z')
+            WIN_PATH=$(echo "${ORIGINAL_HOST_HOME}" | cut -c3- | tr '\\' '/')
+            ORIGINAL_HOST_HOME="/${DRIVE}${WIN_PATH}"
+            log "Windows path detected, converted to: ${ORIGINAL_HOST_HOME}"
+        fi
+
         if [ ! -e "${ORIGINAL_HOST_HOME}" ] && [ "${ORIGINAL_HOST_HOME}" != "/" ] && [ "${ORIGINAL_HOST_HOME}" != "/root" ] && [ "${ORIGINAL_HOST_HOME}" != "/data" ] && [ "${ORIGINAL_HOST_HOME}" != "/host-share" ]; then
             mkdir -p "$(dirname "${ORIGINAL_HOST_HOME}")"
             ln -sfn /host-share "${ORIGINAL_HOST_HOME}"
@@ -509,8 +521,12 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
     # Merge known models into existing config (add missing, preserve user-added)
     # Use known-models.json (valid JSON) instead of template (contains ${VAR} placeholders)
     KNOWN_MODELS=$(cat /opt/hiclaw/configs/known-models.json 2>/dev/null || echo '[]')
+    # Use HICLAW_LLM_API_KEY for LLM provider API key, fallback to HICLAW_MANAGER_GATEWAY_KEY
+    # HICLAW_LLM_API_KEY is the actual LLM provider key (e.g., Zhipu, OpenAI), while HICLAW_MANAGER_GATEWAY_KEY
+    # is for authenticating with the HiClaw Gateway service itself
+    LLM_API_KEY="${HICLAW_LLM_API_KEY:-${HICLAW_MANAGER_GATEWAY_KEY}}"
     jq --arg token "${MANAGER_TOKEN}" \
-       --arg key "${HICLAW_MANAGER_GATEWAY_KEY}" \
+       --arg key "${LLM_API_KEY}" \
        --arg model "${MODEL_NAME}" \
        --arg emb_model "${HICLAW_EMBEDDING_MODEL}" \
        --arg aigw_domain "${AI_GATEWAY_DOMAIN}" \
@@ -586,9 +602,11 @@ fi
 # Cloud mode: overlay cloud-specific settings onto generated config
 if [ "${HICLAW_RUNTIME}" = "aliyun" ]; then
     log "Applying cloud overlay to openclaw.json..."
+    # Use HICLAW_LLM_API_KEY for LLM provider API key, fallback to HICLAW_MANAGER_GATEWAY_KEY
+    LLM_API_KEY="${HICLAW_LLM_API_KEY:-${HICLAW_MANAGER_GATEWAY_KEY}}"
     jq --arg homeserver "${HICLAW_MATRIX_SERVER}" \
        --arg gateway "${HICLAW_AI_GATEWAY_URL}/v1" \
-       --arg key "${HICLAW_MANAGER_GATEWAY_KEY}" \
+       --arg key "${LLM_API_KEY}" \
        '.channels.matrix.homeserver = $homeserver
         | .models.providers["hiclaw-gateway"].baseUrl = $gateway
         | .models.providers["hiclaw-gateway"].apiKey = $key
