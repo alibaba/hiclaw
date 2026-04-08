@@ -833,7 +833,7 @@ if container_api_available; then
     log "Container runtime socket detected at ${CONTAINER_SOCKET} — direct Worker creation enabled"
     export HICLAW_CONTAINER_RUNTIME="socket"
 elif [ "${HICLAW_RUNTIME}" = "aliyun" ] || [ "${HICLAW_RUNTIME}" = "k8s" ]; then
-    log "Cloud/K8s mode — Workers created via orchestrator API"
+    log "Cloud/K8s mode — Workers created via controller API"
     export HICLAW_CONTAINER_RUNTIME="cloud"
 else
     log "No container runtime found — Worker creation will output install commands"
@@ -945,14 +945,14 @@ if container_api_available; then
                         --arg fak "${_worker_name}" \
                         --arg fsk "${WORKER_MINIO_PASSWORD:-}" \
                         --arg fs_domain "${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}" \
-                        --arg orchestrator_url "${HICLAW_ORCHESTRATOR_URL:-}" \
+                        --arg controller_url "${HICLAW_CONTROLLER_URL:-}" \
                         '{
                             "HICLAW_WORKER_NAME": $name,
                             "HICLAW_FS_ENDPOINT": ("http://" + ($fs_domain | split(":")[0]) + ":8080"),
                             "HICLAW_FS_ACCESS_KEY": $fak,
                             "HICLAW_FS_SECRET_KEY": $fsk
                         }
-                        | if $orchestrator_url != "" then . + {"HICLAW_ORCHESTRATOR_URL": $orchestrator_url} else . end')
+                        | if $controller_url != "" then . + {"HICLAW_CONTROLLER_URL": $controller_url} else . end')
                     _create_body=$(jq -cn --arg name "${_worker_name}" --arg runtime "${_runtime}" --argjson env "${_env_map}" '{name: $name, runtime: $runtime, env: $env}')
                     worker_backend_create "${_create_body}" > /dev/null 2>&1 && _recreated=true && break
                     log "  Attempt ${_attempt}/3 failed for ${_worker_name}, retrying in $((5 * _attempt))s..."

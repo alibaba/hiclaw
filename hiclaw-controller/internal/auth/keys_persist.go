@@ -31,7 +31,7 @@ type OSSCredentialProvider interface {
 type OSSKeyPersister struct {
 	endpoint string // e.g. "oss-cn-hangzhou-internal.aliyuncs.com"
 	bucket   string
-	key      string // object key, e.g. "manager/orchestrator-worker-keys.json"
+	key      string // object key, e.g. "manager/controller-worker-keys.json"
 	creds    OSSCredentialProvider
 	client   *http.Client
 }
@@ -41,7 +41,7 @@ func NewOSSKeyPersister(region, bucket string, creds OSSCredentialProvider) *OSS
 	return &OSSKeyPersister{
 		endpoint: fmt.Sprintf("oss-%s-internal.aliyuncs.com", region),
 		bucket:   bucket,
-		key:      "manager/orchestrator-worker-keys.json",
+		key:      "manager/controller-worker-keys.json",
 		creds:    creds,
 		client:   &http.Client{Timeout: 30 * time.Second},
 	}

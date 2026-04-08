@@ -119,8 +119,8 @@ func (s *SAEBackend) Create(ctx context.Context, req CreateRequest) (*WorkerResu
 	if req.WorkerAPIKey != "" {
 		req.Env["HICLAW_WORKER_API_KEY"] = req.WorkerAPIKey
 	}
-	if req.OrchestratorURL != "" {
-		req.Env["HICLAW_ORCHESTRATOR_URL"] = req.OrchestratorURL
+	if req.ControllerURL != "" {
+		req.Env["HICLAW_CONTROLLER_URL"] = req.ControllerURL
 	}
 
 	envList := s.buildEnvList(req.Env)

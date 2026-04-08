@@ -23,7 +23,7 @@ type Config struct {
 	ContainerPrefix string
 
 	// Auth
-	ManagerAPIKey string // HICLAW_ORCHESTRATOR_API_KEY
+	ManagerAPIKey string // HICLAW_CONTROLLER_API_KEY
 
 	// Higress
 	HigressBaseURL    string
@@ -82,7 +82,7 @@ func LoadConfig() *Config {
 		SocketPath:      envOrDefault("HICLAW_PROXY_SOCKET", "/var/run/docker.sock"),
 		ContainerPrefix: envOrDefault("HICLAW_PROXY_CONTAINER_PREFIX", "hiclaw-worker-"),
 
-		ManagerAPIKey: os.Getenv("HICLAW_ORCHESTRATOR_API_KEY"),
+		ManagerAPIKey: os.Getenv("HICLAW_CONTROLLER_API_KEY"),
 
 		HigressBaseURL:    envOrDefault("HIGRESS_BASE_URL", "http://127.0.0.1:8001"),
 		HigressCookieFile: os.Getenv("HIGRESS_COOKIE_FILE"),
@@ -117,7 +117,7 @@ func LoadConfig() *Config {
 
 		ControllerURL: firstNonEmpty(
 			os.Getenv("HICLAW_CONTROLLER_URL"),
-			os.Getenv("HICLAW_ORCHESTRATOR_URL"),
+			os.Getenv("HICLAW_ORCHESTRATOR_URL"), // legacy fallback
 		),
 	}
 }

@@ -397,7 +397,7 @@ action_start() {
         local runtime
         runtime=$(jq -r --arg w "$worker" '.workers[$w].runtime // "openclaw"' "$REGISTRY_FILE" 2>/dev/null)
 
-        # Build create request for orchestrator (include env vars for worker to function)
+        # Build create request for controller (include env vars for worker to function)
         local env_map
         env_map=$(jq -cn \
             --arg name "$worker" \
@@ -406,14 +406,14 @@ action_start() {
             --arg fs_domain "${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}" \
             --arg fs_endpoint "${HICLAW_FS_ENDPOINT:-}" \
             --arg minio_bucket "${HICLAW_MINIO_BUCKET:-}" \
-            --arg orchestrator_url "${HICLAW_ORCHESTRATOR_URL:-}" \
+            --arg controller_url "${HICLAW_CONTROLLER_URL:-}" \
             '{
                 "HICLAW_WORKER_NAME": $name,
                 "HICLAW_FS_ENDPOINT": (if $fs_endpoint != "" then $fs_endpoint else ("http://" + ($fs_domain | split(":")[0]) + ":8080") end),
                 "HICLAW_FS_ACCESS_KEY": $fak,
                 "HICLAW_FS_SECRET_KEY": $fsk
             }
-            | if $orchestrator_url != "" then . + {"HICLAW_ORCHESTRATOR_URL": $orchestrator_url} else . end
+            | if $controller_url != "" then . + {"HICLAW_CONTROLLER_URL": $controller_url} else . end
             | if $minio_bucket != "" then . + {"HICLAW_MINIO_BUCKET": $minio_bucket} else . end')
 
         local create_body

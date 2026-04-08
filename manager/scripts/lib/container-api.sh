@@ -1,12 +1,12 @@
 #!/bin/bash
 # container-api.sh - Worker lifecycle API client
 #
-# Thin client for the hiclaw-orchestrator REST API.
-# All worker CRUD operations go through the orchestrator's unified API.
+# Thin client for the hiclaw-controller REST API.
+# All worker CRUD operations go through the controller's unified API.
 # Docker exec/logs operations still use Docker API passthrough.
 #
 # Required:
-#   HICLAW_ORCHESTRATOR_URL  - orchestrator URL (e.g. http://hiclaw-orchestrator:2375)
+#   HICLAW_CONTROLLER_URL  - controller URL (e.g. http://hiclaw-controller:8090)
 #
 # Usage:
 #   source /opt/hiclaw/scripts/lib/container-api.sh
@@ -14,7 +14,7 @@
 #   worker_backend_status "alice"
 #   worker_backend_delete "alice"
 
-CONTAINER_API_BASE="${HICLAW_ORCHESTRATOR_URL:-http://localhost:2375}"
+CONTAINER_API_BASE="${HICLAW_CONTROLLER_URL:-http://localhost:8090}"
 WORKER_CONTAINER_PREFIX="hiclaw-worker-"
 
 _log() {
@@ -22,15 +22,15 @@ _log() {
 }
 
 # ============================================================
-# Orchestrator API client
+# Controller API client
 # ============================================================
 
 _orch_api() {
     local method="$1" path="$2" body="${3:-}"
     local url="${CONTAINER_API_BASE}${path}"
     local auth_args=()
-    if [ -n "${HICLAW_ORCHESTRATOR_API_KEY:-}" ]; then
-        auth_args=(-H "Authorization: Bearer ${HICLAW_ORCHESTRATOR_API_KEY}")
+    if [ -n "${HICLAW_CONTROLLER_API_KEY:-}" ]; then
+        auth_args=(-H "Authorization: Bearer ${HICLAW_CONTROLLER_API_KEY}")
     fi
     if [ -n "$body" ]; then
         curl -s -X "$method" "$url" "${auth_args[@]}" \
@@ -44,8 +44,8 @@ _orch_api_code() {
     local method="$1" path="$2" body="${3:-}"
     local url="${CONTAINER_API_BASE}${path}"
     local auth_args=()
-    if [ -n "${HICLAW_ORCHESTRATOR_API_KEY:-}" ]; then
-        auth_args=(-H "Authorization: Bearer ${HICLAW_ORCHESTRATOR_API_KEY}")
+    if [ -n "${HICLAW_CONTROLLER_API_KEY:-}" ]; then
+        auth_args=(-H "Authorization: Bearer ${HICLAW_CONTROLLER_API_KEY}")
     fi
     if [ -n "$body" ]; then
         curl -s -o /dev/null -w '%{http_code}' -X "$method" "$url" "${auth_args[@]}" \
@@ -56,7 +56,7 @@ _orch_api_code() {
 }
 
 # ============================================================
-# Worker Backend API (unified — orchestrator handles Docker/SAE dispatch)
+# Worker Backend API (unified — controller handles Docker/SAE dispatch)
 # ============================================================
 
 # Create a worker. Accepts JSON body with name, image, runtime, env, etc.
@@ -99,7 +99,7 @@ worker_backend_list() {
     _orch_api GET /workers
 }
 
-# Check if orchestrator API is reachable.
+# Check if controller API is reachable.
 container_api_available() {
     local code
     code=$(_orch_api_code GET /workers 2>/dev/null) || true
@@ -110,7 +110,7 @@ container_api_available() {
 # Docker API passthrough (for exec, logs, inspect)
 # ============================================================
 # These operations require raw Docker API access and go through
-# the orchestrator's Docker API passthrough (catch-all route).
+# the controller's Docker API passthrough (catch-all route).
 # Reuses _orch_api/_orch_api_code since they hit the same endpoint.
 
 _api() { _orch_api "$@"; }
@@ -165,7 +165,7 @@ container_get_manager_ip() {
     hostname -I 2>/dev/null | awk '{print $1}'
 }
 
-# Wait for a worker to report ready via orchestrator.
+# Wait for a worker to report ready via controller.
 # Usage: worker_backend_wait_ready <worker_name> [timeout_seconds]
 worker_backend_wait_ready() {
     local worker_name="$1"

@@ -89,7 +89,7 @@ fi
 # ── Step 2: Build & load local images ──────────────────────────────────────
 
 MANAGER_IMAGE="hiclaw/manager:local"
-ORCHESTRATOR_IMAGE="hiclaw/orchestrator:local"
+CONTROLLER_IMAGE="hiclaw/hiclaw-controller:local"
 WORKER_IMAGE="hiclaw/worker-agent:local"
 COPAW_WORKER_IMAGE="hiclaw/copaw-worker:local"
 HELM_IMAGE_OVERRIDES=""
@@ -97,9 +97,9 @@ HELM_IMAGE_OVERRIDES=""
 if [ "$SKIP_BUILD" = "0" ]; then
     log "Building local images..."
 
-    # Orchestrator
-    log "Building orchestrator image..."
-    docker build -t "$ORCHESTRATOR_IMAGE" -f "${PROJECT_ROOT}/orchestrator/Dockerfile" "${PROJECT_ROOT}/orchestrator"
+    # Controller
+    log "Building controller image..."
+    docker build -t "$CONTROLLER_IMAGE" -f "${PROJECT_ROOT}/hiclaw-controller/Dockerfile" "${PROJECT_ROOT}/hiclaw-controller"
 
     # Manager (choose between all-in-one and k8s-lightweight)
     if [ "$BUILD_K8S_IMAGE" = "1" ]; then
@@ -126,7 +126,7 @@ if [ "$SKIP_BUILD" = "0" ]; then
 
     log "Loading images into kind cluster..."
     kind load docker-image "$MANAGER_IMAGE" --name "$CLUSTER_NAME"
-    kind load docker-image "$ORCHESTRATOR_IMAGE" --name "$CLUSTER_NAME"
+    kind load docker-image "$CONTROLLER_IMAGE" --name "$CLUSTER_NAME"
     kind load docker-image "$WORKER_IMAGE" --name "$CLUSTER_NAME"
     kind load docker-image "$COPAW_WORKER_IMAGE" --name "$CLUSTER_NAME"
 
@@ -139,7 +139,7 @@ if [ "$SKIP_BUILD" = "0" ]; then
     done
 
     HELM_IMAGE_OVERRIDES="--set manager.image.repository=hiclaw/manager --set manager.image.tag=local --set manager.image.pullPolicy=Never"
-    HELM_IMAGE_OVERRIDES="${HELM_IMAGE_OVERRIDES} --set orchestrator.image.repository=hiclaw/orchestrator --set orchestrator.image.tag=local --set orchestrator.image.pullPolicy=Never"
+    HELM_IMAGE_OVERRIDES="${HELM_IMAGE_OVERRIDES} --set controller.image.repository=hiclaw/hiclaw-controller --set controller.image.tag=local --set controller.image.pullPolicy=Never"
     HELM_IMAGE_OVERRIDES="${HELM_IMAGE_OVERRIDES} --set worker.defaultImage.openclaw.repository=hiclaw/worker-agent --set worker.defaultImage.openclaw.tag=local"
     HELM_IMAGE_OVERRIDES="${HELM_IMAGE_OVERRIDES} --set worker.defaultImage.copaw.repository=hiclaw/copaw-worker --set worker.defaultImage.copaw.tag=local"
 
@@ -180,9 +180,9 @@ log "Waiting for MinIO..."
 kubectl wait --for=condition=available deployment -l app.kubernetes.io/component=minio \
     -n "$NAMESPACE" --timeout=120s 2>/dev/null || log "MinIO not ready yet"
 
-log "Waiting for Orchestrator..."
-kubectl wait --for=condition=available deployment -l app.kubernetes.io/component=orchestrator \
-    -n "$NAMESPACE" --timeout=120s 2>/dev/null || log "Orchestrator not ready yet"
+log "Waiting for Controller..."
+kubectl wait --for=condition=available deployment -l app.kubernetes.io/component=controller \
+    -n "$NAMESPACE" --timeout=120s 2>/dev/null || log "Controller not ready yet"
 
 # ── Step 6: Print access information ──────────────────────────────────────
 

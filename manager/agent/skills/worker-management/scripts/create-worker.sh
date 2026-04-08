@@ -873,7 +873,7 @@ if [ "${REMOTE_MODE}" = true ]; then
     log "Step 9: Remote mode requested"
     INSTALL_CMD=$(_build_install_cmd)
 elif container_api_available; then
-    log "Step 9: Creating Worker via orchestrator (runtime=${WORKER_RUNTIME})..."
+    log "Step 9: Creating Worker via controller (runtime=${WORKER_RUNTIME})..."
 
     # Build environment variables for the worker
     WORKER_ENV=$(jq -cn \
@@ -893,7 +893,7 @@ elif container_api_available; then
         --arg fs_domain "${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}" \
         --arg fs_access_key "${WORKER_NAME}" \
         --arg fs_secret_key "${WORKER_MINIO_PASSWORD}" \
-        --arg orchestrator_url "${HICLAW_ORCHESTRATOR_URL:-}" \
+        --arg controller_url "${HICLAW_CONTROLLER_URL:-}" \
         --arg nacos_username "${HICLAW_NACOS_USERNAME:-}" \
         --arg nacos_password "${HICLAW_NACOS_PASSWORD:-}" \
         --arg nacos_token "${HICLAW_NACOS_TOKEN:-}" \
@@ -908,7 +908,7 @@ elif container_api_available; then
             "HICLAW_FS_ACCESS_KEY": $fs_access_key,
             "HICLAW_FS_SECRET_KEY": $fs_secret_key
         }
-        | if $orchestrator_url != "" then . + { "HICLAW_ORCHESTRATOR_URL": $orchestrator_url } else . end
+        | if $controller_url != "" then . + { "HICLAW_CONTROLLER_URL": $controller_url } else . end
         | if $oss_bucket != "" then . + { "HICLAW_OSS_BUCKET": $oss_bucket, "HICLAW_REGION": $region } else . end
         | if $minio_bucket != "" then . + { "HICLAW_MINIO_BUCKET": $minio_bucket } else . end
         | if $skills_api_url != "" then . + { "SKILLS_API_URL": $skills_api_url } else . end
@@ -957,7 +957,7 @@ elif container_api_available; then
         INSTALL_CMD=$(_build_install_cmd)
     fi
 else
-    log "Step 9: No orchestrator available"
+    log "Step 9: No controller available"
     INSTALL_CMD=$(_build_install_cmd)
 fi
 

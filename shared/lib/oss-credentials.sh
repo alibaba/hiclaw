@@ -3,12 +3,12 @@
 #
 # Two credential paths (checked in priority order):
 #
-# 1. RRSA OIDC (Manager, Orchestrator — any SAE app with oidc_role_name):
+# 1. RRSA OIDC (Manager, Controller — any SAE app with oidc_role_name):
 #    ALIBABA_CLOUD_OIDC_TOKEN_FILE exists → call STS AssumeRoleWithOIDC directly.
 #    Worker inline policy applied when HICLAW_WORKER_NAME is set.
 #
-# 2. Orchestrator-mediated STS (Workers without RRSA):
-#    HICLAW_ORCHESTRATOR_URL + HICLAW_WORKER_API_KEY → call orchestrator /credentials/sts.
+# 2. Controller-mediated STS (Workers without RRSA):
+#    HICLAW_CONTROLLER_URL (or legacy HICLAW_ORCHESTRATOR_URL) + HICLAW_WORKER_API_KEY → call controller /credentials/sts.
 #
 # 3. Neither → no-op (local mode, mc alias configured with static credentials).
 #
@@ -100,14 +100,15 @@ EOF
 }
 
 # --------------------------------------------------------------------------
-# Path 2: STS via Orchestrator (workers without RRSA)
+# Path 2: STS via Controller (workers without RRSA)
 # --------------------------------------------------------------------------
 
-_oss_refresh_sts_via_orchestrator() {
+_oss_refresh_sts_via_controller() {
+    local _controller_url="${HICLAW_CONTROLLER_URL:-${HICLAW_ORCHESTRATOR_URL:-}}"
     local resp http_code
     local sts_ak sts_sk sts_token oss_endpoint oss_bucket
 
-    resp=$(curl -s -w "\n%{http_code}" -X POST "${HICLAW_ORCHESTRATOR_URL}/credentials/sts" \
+    resp=$(curl -s -w "\n%{http_code}" -X POST "${_controller_url}/credentials/sts" \
         -H "Authorization: Bearer ${HICLAW_WORKER_API_KEY}" \
         --connect-timeout 10 --max-time 30 2>&1)
 
@@ -115,7 +116,7 @@ _oss_refresh_sts_via_orchestrator() {
     resp=$(echo "${resp}" | sed '$d')
 
     if [ "${http_code}" != "200" ]; then
-        echo "[oss-credentials] ERROR: orchestrator STS request failed (HTTP ${http_code})" >&2
+        echo "[oss-credentials] ERROR: controller STS request failed (HTTP ${http_code})" >&2
         echo "[oss-credentials] Response: ${resp}" >&2
         return 1
     fi
@@ -126,7 +127,7 @@ _oss_refresh_sts_via_orchestrator() {
     oss_endpoint=$(echo "${resp}" | jq -r '.oss_endpoint')
 
     if [ -z "${sts_ak}" ] || [ "${sts_ak}" = "null" ]; then
-        echo "[oss-credentials] ERROR: Failed to parse STS credentials from orchestrator" >&2
+        echo "[oss-credentials] ERROR: Failed to parse STS credentials from controller" >&2
         echo "[oss-credentials] Response: ${resp}" >&2
         return 1
     fi
@@ -140,7 +141,7 @@ _OSS_CRED_EXPIRES_AT=${expires_at}
 EOF
     chmod 600 "${_OSS_CRED_FILE}"
 
-    echo "[oss-credentials] STS credentials refreshed via orchestrator (AK prefix: ${sts_ak:0:8}..., expires: $(date -d @${expires_at} '+%H:%M:%S' 2>/dev/null || date -r ${expires_at} '+%H:%M:%S' 2>/dev/null || echo ${expires_at}))" >&2
+    echo "[oss-credentials] STS credentials refreshed via controller (AK prefix: ${sts_ak:0:8}..., expires: $(date -d @${expires_at} '+%H:%M:%S' 2>/dev/null || date -r ${expires_at} '+%H:%M:%S' 2>/dev/null || echo ${expires_at}))" >&2
 }
 
 # --------------------------------------------------------------------------
@@ -154,9 +155,9 @@ ensure_mc_credentials() {
         return $?
     fi
 
-    # Priority 2: Orchestrator URL + worker API key → orchestrator-mediated STS
-    if [ -n "${HICLAW_ORCHESTRATOR_URL:-}" ] && [ -n "${HICLAW_WORKER_API_KEY:-}" ]; then
-        _oss_ensure_refresh _oss_refresh_sts_via_orchestrator
+    # Priority 2: Controller URL + worker API key → controller-mediated STS
+    if [ -n "${HICLAW_CONTROLLER_URL:-${HICLAW_ORCHESTRATOR_URL:-}}" ] && [ -n "${HICLAW_WORKER_API_KEY:-}" ]; then
+        _oss_ensure_refresh _oss_refresh_sts_via_controller
         return $?
     fi
 

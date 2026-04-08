@@ -1,7 +1,7 @@
 #!/bin/bash
 # gateway-api.sh - Unified gateway consumer/route/MCP authorization abstraction
 #
-# Dispatches to Higress Console REST API (local) or orchestrator API (cloud).
+# Dispatches to Higress Console REST API (local) or controller API (cloud).
 #
 # Provides:
 #   gateway_ensure_session()                  — ensure Higress cookie (local) / no-op (cloud)

@@ -32,7 +32,7 @@ type WorkerReconciler struct {
 	Higress  *HigressClient
 
 	// Backend provides container lifecycle operations (Docker, K8s, SAE).
-	// Used by the HTTP API and available for future reconciler integration.
+	// TODO(phase3): use Backend for incluster reconcile, replacing shell scripts.
 	Backend  *backend.Registry
 	KubeMode string // "embedded" or "incluster"
 

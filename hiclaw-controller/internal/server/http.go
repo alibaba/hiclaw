@@ -12,8 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// HTTPServer serves both the controller management API and the merged
-// orchestrator worker/gateway/credentials APIs on a single port.
+// HTTPServer serves the controller management API and the
+// worker/gateway/credentials APIs on a single port.
 type HTTPServer struct {
 	KubeMode      string // "embedded" or "incluster"
 	StoragePrefix string // e.g. "hiclaw/hiclaw-storage"

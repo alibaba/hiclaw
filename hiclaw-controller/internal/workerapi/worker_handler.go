@@ -17,7 +17,7 @@ import (
 type WorkerHandler struct {
 	registry        *backend.Registry
 	keyStore        *auth.KeyStore
-	orchestratorURL string
+	controllerURL string
 
 	// Readiness tracking — workers report ready via POST /workers/{name}/ready
 	readyMu sync.RWMutex
@@ -25,11 +25,11 @@ type WorkerHandler struct {
 }
 
 // NewWorkerHandler creates a WorkerHandler.
-func NewWorkerHandler(registry *backend.Registry, keyStore *auth.KeyStore, orchestratorURL string) *WorkerHandler {
+func NewWorkerHandler(registry *backend.Registry, keyStore *auth.KeyStore, controllerURL string) *WorkerHandler {
 	return &WorkerHandler{
-		registry:        registry,
-		keyStore:        keyStore,
-		orchestratorURL: orchestratorURL,
+		registry:      registry,
+		keyStore:      keyStore,
+		controllerURL: controllerURL,
 		ready:           make(map[string]bool),
 	}
 }
@@ -57,7 +57,7 @@ func (h *WorkerHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate API key for backends that need orchestrator-mediated credentials
+	// Generate API key for backends that need controller-mediated credentials
 	var apiKey string
 	if b.NeedsCredentialInjection() && h.keyStore != nil && h.keyStore.AuthEnabled() {
 		apiKey = h.keyStore.GenerateWorkerKey(req.Name)
@@ -74,7 +74,7 @@ func (h *WorkerHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Network:         req.Network,
 		ExtraHosts:      req.ExtraHosts,
 		WorkingDir:      req.WorkingDir,
-		OrchestratorURL: h.orchestratorURL,
+		ControllerURL:   h.controllerURL,
 		WorkerAPIKey:    apiKey,
 	})
 	if err != nil {

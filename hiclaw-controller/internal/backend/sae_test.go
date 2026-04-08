@@ -154,7 +154,7 @@ func TestSAECreateInjectsCredentials(t *testing.T) {
 		Image:           "custom:v1",
 		Env:             map[string]string{"KEY": "VAL"},
 		WorkerAPIKey:    "test-key-123",
-		OrchestratorURL: "http://orchestrator:2375",
+		ControllerURL:   "http://controller:8090",
 	})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -171,8 +171,8 @@ func TestSAECreateInjectsCredentials(t *testing.T) {
 	if !strings.Contains(envs, "test-key-123") {
 		t.Error("expected HICLAW_WORKER_API_KEY value in env")
 	}
-	if !strings.Contains(envs, "http://orchestrator:2375") {
-		t.Error("expected HICLAW_ORCHESTRATOR_URL value in env")
+	if !strings.Contains(envs, "http://controller:8090") {
+		t.Error("expected HICLAW_CONTROLLER_URL value in env")
 	}
 }
 

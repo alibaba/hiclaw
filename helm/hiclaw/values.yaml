@@ -20,7 +20,7 @@ credentials:
   llmApiKey: ""               # LLM API key (required)
   llmProvider: "qwen"
   defaultModel: "qwen3.5-plus"
-  orchestratorApiKey: ""      # Orchestrator auth key (auto-generated if empty)
+  controllerApiKey: ""       # Controller auth key (auto-generated if empty)
   managerPassword: ""         # Manager Matrix password (auto-generated if empty)
   managerGatewayKey: ""       # Manager Higress consumer key (auto-generated if empty)
 

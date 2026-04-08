@@ -7,7 +7,7 @@
 #   - HICLAW_CONSOLE_PORT set   → standard mode (copaw-worker, PyPI CoPaw venv)
 #   - HICLAW_CONSOLE_PORT unset → lite mode (lite-copaw-worker, lite CoPaw venv)
 #
-# Environment variables (set by orchestrator during worker creation):
+# Environment variables (set by controller during worker creation):
 #   HICLAW_WORKER_NAME   - Worker name (required)
 #   HICLAW_FS_ENDPOINT   - MinIO endpoint (required in local mode)
 #   HICLAW_FS_ACCESS_KEY - MinIO access key (required in local mode)
@@ -67,9 +67,10 @@ ln -sfn "${WORKER_SKILLS_DIR}" "${HOME}/.agents/skills"
 # (OpenClaw workers use /root/hiclaw-fs natively; CoPaw stores synced files under INSTALL_DIR)
 ln -sfn "${INSTALL_DIR}/${WORKER_NAME}" /root/hiclaw-fs 2>/dev/null || true
 
-# Background readiness reporter — report ready to orchestrator when CoPaw bridge completes
+# Background readiness reporter — report ready to controller when CoPaw bridge completes
 _start_readiness_reporter() {
-    [ -z "${HICLAW_ORCHESTRATOR_URL:-}" ] && return 0
+    [ -z "${HICLAW_CONTROLLER_URL:-${HICLAW_ORCHESTRATOR_URL:-}}" ] && return 0
+    local _controller_url="${HICLAW_CONTROLLER_URL:-${HICLAW_ORCHESTRATOR_URL:-}}"
 
     # Build auth header if API key is available (cloud mode)
     local auth_header=""
@@ -82,14 +83,14 @@ _start_readiness_reporter() {
         while [ "${ELAPSED}" -lt "${TIMEOUT}" ]; do
             if [ -f "${CONFIG_FILE}" ] && grep -q '"channels"' "${CONFIG_FILE}" 2>/dev/null; then
                 for _attempt in 1 2 3; do
-                    if curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
+                    if curl -sf -X POST "${_controller_url}/workers/${WORKER_NAME}/ready" \
                         ${auth_header:+-H "${auth_header}"} 2>/dev/null; then
-                        log "Reported ready to orchestrator"
+                        log "Reported ready to controller"
                         break 2
                     fi
                     sleep 2
                 done
-                log "WARNING: POST to orchestrator failed, will retry health check loop"
+                log "WARNING: POST to controller failed, will retry health check loop"
             fi
             sleep 5; ELAPSED=$((ELAPSED + 5))
         done
@@ -99,11 +100,11 @@ _start_readiness_reporter() {
             exit 1
         fi
 
-        # Phase 2: Periodic heartbeat (every 60s) — self-heals after orchestrator restart
+        # Phase 2: Periodic heartbeat (every 60s) — self-heals after controller restart
         while true; do
             sleep 60
             if [ -f "${CONFIG_FILE}" ] && grep -q '"channels"' "${CONFIG_FILE}" 2>/dev/null; then
-                curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
+                curl -sf -X POST "${_controller_url}/workers/${WORKER_NAME}/ready" \
                     ${auth_header:+-H "${auth_header}"} 2>/dev/null || true
             fi
         done

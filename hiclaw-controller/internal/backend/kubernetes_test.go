@@ -102,7 +102,7 @@ func TestK8sCreate(t *testing.T) {
 		Env: map[string]string{
 			"HICLAW_MATRIX_URL": "http://matrix:6167",
 		},
-		OrchestratorURL: "http://orchestrator:2375",
+		ControllerURL: "http://controller:8090",
 		WorkerAPIKey:    "worker-key",
 	})
 	if err != nil {
@@ -139,8 +139,8 @@ func TestK8sCreate(t *testing.T) {
 	if envs["HICLAW_WORKER_API_KEY"] != "worker-key" {
 		t.Fatalf("expected injected worker api key, got %q", envs["HICLAW_WORKER_API_KEY"])
 	}
-	if envs["HICLAW_ORCHESTRATOR_URL"] != "http://orchestrator:2375" {
-		t.Fatalf("expected injected orchestrator URL, got %q", envs["HICLAW_ORCHESTRATOR_URL"])
+	if envs["HICLAW_CONTROLLER_URL"] != "http://controller:8090" {
+		t.Fatalf("expected injected controller URL, got %q", envs["HICLAW_CONTROLLER_URL"])
 	}
 }
 

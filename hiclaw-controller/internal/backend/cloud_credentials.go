@@ -31,7 +31,7 @@ func (p *DefaultCloudCredentialProvider) GetCredential() (credential.Credential,
 				SetRoleArn(os.Getenv("ALIBABA_CLOUD_ROLE_ARN")).
 				SetOIDCProviderArn(os.Getenv("ALIBABA_CLOUD_OIDC_PROVIDER_ARN")).
 				SetOIDCTokenFilePath(oidcTokenFile).
-				SetRoleSessionName("hiclaw-orchestrator").
+				SetRoleSessionName("hiclaw-controller").
 				SetSTSEndpoint(stsEndpoint)
 			return credential.NewCredential(config)
 		}

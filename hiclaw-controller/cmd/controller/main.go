@@ -178,9 +178,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// --- HTTP server (merged controller + orchestrator routes) ---
+	// --- HTTP server (merged controller API routes) ---
 	httpServer := server.NewHTTPServer(cfg.HTTPAddr, cfg.KubeMode)
-	registerOrchestratorRoutes(httpServer.Mux, cfg, authMw, registry, keyStore, stsService)
+	registerControllerAPIRoutes(httpServer.Mux, cfg, authMw, registry, keyStore, stsService)
 
 	go func() {
 		if err := httpServer.Start(); err != nil {
@@ -205,9 +205,9 @@ func main() {
 	}
 }
 
-// registerOrchestratorRoutes adds the worker/gateway/credentials/proxy routes
-// (previously served by the standalone orchestrator) to the controller's mux.
-func registerOrchestratorRoutes(
+// registerControllerAPIRoutes adds the worker/gateway/credentials/proxy routes
+// to the controller's mux.
+func registerControllerAPIRoutes(
 	mux *http.ServeMux,
 	cfg *config.Config,
 	authMw *authpkg.Middleware,

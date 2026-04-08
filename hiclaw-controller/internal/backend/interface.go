@@ -46,7 +46,7 @@ type CreateRequest struct {
 	WorkingDir string            `json:"working_dir,omitempty"`
 
 	// Credential injection — set by handler, backends that need it will inject into env.
-	OrchestratorURL string `json:"-"`
+	ControllerURL string `json:"-"`
 	WorkerAPIKey    string `json:"-"`
 }
 
@@ -81,7 +81,7 @@ type WorkerBackend interface {
 	Available(ctx context.Context) bool
 
 	// NeedsCredentialInjection reports whether this backend requires
-	// orchestrator-mediated credentials (API key + URL) injected into worker env.
+	// controller-mediated credentials (API key + URL) injected into worker env.
 	NeedsCredentialInjection() bool
 
 	// Create creates and starts a new worker.

@@ -281,9 +281,10 @@ export OPENCLAW_NO_RESPAWN=1
 # ============================================================
 # Step 5c: Background readiness reporter
 # ============================================================
-# Poll local gateway health and report ready to orchestrator when healthy.
-if [ -n "${HICLAW_ORCHESTRATOR_URL:-}" ]; then
-    (
+# Poll local gateway health and report ready to controller when healthy.
+if [ -n "${HICLAW_CONTROLLER_URL:-}${HICLAW_ORCHESTRATOR_URL:-}" ]; then
+    _CONTROLLER_URL="${HICLAW_CONTROLLER_URL:-${HICLAW_ORCHESTRATOR_URL:-}}"
+(
         # Build auth header if API key is available (cloud mode)
         AUTH_HEADER=""
         [ -n "${HICLAW_WORKER_API_KEY:-}" ] && AUTH_HEADER="Authorization: Bearer ${HICLAW_WORKER_API_KEY}"
@@ -293,14 +294,14 @@ if [ -n "${HICLAW_ORCHESTRATOR_URL:-}" ]; then
         while [ "${ELAPSED}" -lt "${TIMEOUT}" ]; do
             if openclaw gateway health --json 2>/dev/null | grep -q '"ok"' 2>/dev/null; then
                 for _attempt in 1 2 3; do
-                    if curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
+                    if curl -sf -X POST "${_CONTROLLER_URL}/workers/${WORKER_NAME}/ready" \
                         ${AUTH_HEADER:+-H "${AUTH_HEADER}"} 2>/dev/null; then
-                        log "Reported ready to orchestrator"
+                        log "Reported ready to controller"
                         break 2
                     fi
                     sleep 2
                 done
-                log "WARNING: POST to orchestrator failed, will retry health check loop"
+                log "WARNING: POST to controller failed, will retry health check loop"
             fi
             sleep 5; ELAPSED=$((ELAPSED + 5))
         done
@@ -310,11 +311,11 @@ if [ -n "${HICLAW_ORCHESTRATOR_URL:-}" ]; then
             exit 1
         fi
 
-        # Phase 2: Periodic heartbeat (every 60s) — self-heals after orchestrator restart
+        # Phase 2: Periodic heartbeat (every 60s) — self-heals after controller restart
         while true; do
             sleep 60
             if openclaw gateway health --json 2>/dev/null | grep -q '"ok"' 2>/dev/null; then
-                curl -sf -X POST "${HICLAW_ORCHESTRATOR_URL}/workers/${WORKER_NAME}/ready" \
+                curl -sf -X POST "${_CONTROLLER_URL}/workers/${WORKER_NAME}/ready" \
                     ${AUTH_HEADER:+-H "${AUTH_HEADER}"} 2>/dev/null || true
             fi
         done

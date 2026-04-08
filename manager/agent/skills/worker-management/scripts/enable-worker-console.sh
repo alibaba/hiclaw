@@ -99,7 +99,7 @@ else
     log "Disabling console"
 fi
 
-# --- Recreate container via orchestrator ---
+# --- Recreate container via controller ---
 log "Deleting worker ${WORKER_NAME}..."
 worker_backend_delete "${WORKER_NAME}" > /dev/null 2>&1 || true
 sleep 1

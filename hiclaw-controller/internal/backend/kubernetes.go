@@ -118,8 +118,8 @@ func (k *K8sBackend) Create(ctx context.Context, req CreateRequest) (*WorkerResu
 	if req.WorkerAPIKey != "" {
 		req.Env["HICLAW_WORKER_API_KEY"] = req.WorkerAPIKey
 	}
-	if req.OrchestratorURL != "" {
-		req.Env["HICLAW_ORCHESTRATOR_URL"] = req.OrchestratorURL
+	if req.ControllerURL != "" {
+		req.Env["HICLAW_CONTROLLER_URL"] = req.ControllerURL
 	}
 
 	image := req.Image
@@ -186,7 +186,7 @@ func (k *K8sBackend) Create(ctx context.Context, req CreateRequest) (*WorkerResu
 				"hiclaw.io/runtime": defaultRuntime(req.Runtime),
 			},
 			Annotations: map[string]string{
-				"hiclaw.io/created-by": "orchestrator",
+				"hiclaw.io/created-by": "controller",
 			},
 		},
 		Spec: podSpec,
@@ -316,7 +316,7 @@ func (k *K8sBackend) getCurrentPodImagePullSecrets(ctx context.Context) []corev1
 }
 
 // mergeOSSRegionFromProcessEnv sets HICLAW_OSS_BUCKET and HICLAW_REGION when the client
-// omitted them; the orchestrator process should already have these from the same Secret as Manager (envFrom).
+// omitted them; the controller process should already have these from the same Secret as Manager (envFrom).
 func mergeOSSRegionFromProcessEnv(env map[string]string) {
 	if env == nil {
 		return

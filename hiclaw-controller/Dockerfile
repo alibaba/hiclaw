@@ -4,12 +4,12 @@
 # Produces: /hiclaw-controller, /hiclaw, /kube-apiserver, /opt/hiclaw/config/crd/
 # Manager Dockerfile copies these artifacts via: COPY --from=hiclaw-controller ...
 #
-# Since v0.2: includes merged orchestrator (backend, auth, credentials, proxy).
+# Since v0.2: includes merged worker lifecycle, auth, credentials, and proxy.
 
 ARG HIGRESS_REGISTRY=higress-registry.cn-hangzhou.cr.aliyuncs.com
 
 # ============ Stage 1: Build Go binaries ============
-FROM golang:1.25-alpine AS builder
+FROM ${HIGRESS_REGISTRY}/higress/golang:1.25-alpine AS builder
 
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}

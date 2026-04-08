@@ -80,7 +80,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		log.Printf("[DENIED] %s %s", r.Method, r.URL.String())
-		http.Error(w, fmt.Sprintf(`{"message":"hiclaw-orchestrator: %s %s is not allowed"}`, r.Method, path), http.StatusForbidden)
+		http.Error(w, fmt.Sprintf(`{"message":"hiclaw-controller: %s %s is not allowed"}`, r.Method, path), http.StatusForbidden)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (h *Handler) handleContainerCreate(w http.ResponseWriter, r *http.Request) 
 	body, err := io.ReadAll(r.Body)
 	r.Body.Close()
 	if err != nil {
-		http.Error(w, `{"message":"hiclaw-orchestrator: failed to read request body"}`, http.StatusBadRequest)
+		http.Error(w, `{"message":"hiclaw-controller: failed to read request body"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -99,13 +99,13 @@ func (h *Handler) handleContainerCreate(w http.ResponseWriter, r *http.Request) 
 
 	var req ContainerCreateRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, `{"message":"hiclaw-orchestrator: invalid JSON in request body"}`, http.StatusBadRequest)
+		http.Error(w, `{"message":"hiclaw-controller: invalid JSON in request body"}`, http.StatusBadRequest)
 		return
 	}
 
 	if err := h.validator.ValidateContainerCreate(req, containerName); err != nil {
 		log.Printf("[BLOCKED] POST /containers/create name=%s: %s", containerName, err)
-		msg, _ := json.Marshal(map[string]string{"message": fmt.Sprintf("hiclaw-orchestrator: %s", err)})
+		msg, _ := json.Marshal(map[string]string{"message": fmt.Sprintf("hiclaw-controller: %s", err)})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		w.Write(msg)
