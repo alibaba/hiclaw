@@ -10,17 +10,17 @@
   <a href="https://discord.com/invite/NVjNA4BAVw"><img src="https://img.shields.io/badge/Discord-Join_Us-blueviolet.svg?logo=discord" alt="Discord"></a>
 </p>
 
-**HiClaw is an open-source Collaborative Multi-Agent OS for transparent, human-in-the-loop task coordination via Matrix rooms.**
+**HiClaw is an open-source collaborative multi-agent runtime platform. It enables multiple Agents to collaborate in a controlled and auditable room, with full human visibility and intervention capabilities throughout the process..**
 
-Built with a **Manager-Workers architecture**, HiClaw lets you coordinate multiple Worker Agents through a Manager Agent to complete complex tasks — all conversations are visible in Matrix rooms, and you can intervene at any time.
+Built on a **Manager-Workers architecture**, HiClaw features a Manager that centrally orchestrates multiple Workers, focusing on collaboration scenarios between humans and Agents, as well as among Agents within enterprise environments.
 
-Think of it as your AI team in a chat room: tell the Manager what you need, it spins up Workers, and you watch everything happen in real-time.
+HiClaw does not compete with other xxClaw projects. Instead of implementing Agent logic itself, it orchestrates and manages multiple Agent containers (including the Manager and numerous Workers).
 
 ## Key Features
 
 - 🧬 **Manager-Workers Architecture**: Eliminates the need for human oversight of individual Worker Claws by enabling Agents to manage other Agents.
 
-- 🦞 **Customizable Agents**: Each Agent supports flexible configurations including OpenClaw, Copaw, NanoClaw, ZeroClaw, and enterprise-built Agents—scaling from individual "shrimp farming" to full-scale "shrimp farm" operations..
+- 🦞 **Customizable Agents**: Each Agent supports flexible configurations including OpenClaw, Copaw, NanoClaw, ZeroClaw, and enterprise-built Agents—scaling from individual "shrimp farming" to full-scale "shrimp farm" operations.HiClaw Provides Worker and Team template marketplaces.
 
 - 📦 **MinIO Shared File System**: Introduces a shared file system for inter-Agent information exchange, significantly reducing token consumption in multi-Agent collaboration scenarios.
 
@@ -30,6 +30,7 @@ Think of it as your AI team in a chat room: tell the Manager what you need, it s
 
 ## News
 
+- **2026-04-03**: HiClaw 1.0.9 — introduces Kubernetes-style declarative resource management, allowing Worker, Team, and Human resources to be defined via YAML; launches a Worker Template Marketplace for creating Workers based on templates; supports Manager CoPaw runtime; and adds Nacos Skills Registry, among other features.
 - **2026-03-14**: HiClaw 1.0.6 — enterprise-grade MCP Server management, zero credential exposure. [Blog](blog/hiclaw-1.0.6-release.md)
 - **2026-03-10**: HiClaw 1.0.4 — CoPaw Worker support, 80% less memory. [Blog](blog/hiclaw-1.0.4-release.md)
 - **2026-03-04**: HiClaw open sourced. [Announcement](blog/hiclaw-announcement.md)

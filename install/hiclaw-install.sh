@@ -2187,6 +2187,13 @@ install_manager() {
     HICLAW_MINIO_PASSWORD="${HICLAW_MINIO_PASSWORD:-${HICLAW_ADMIN_PASSWORD}}"
     HICLAW_MANAGER_GATEWAY_KEY="${HICLAW_MANAGER_GATEWAY_KEY:-$(generate_key)}"
 
+    # Detect Apple Silicon (M1/M2/M3/M4) - need JVM fix for Higress Console
+    # See: https://github.com/agentscope-ai/HiClaw/issues/249
+    if [ -z "${JVM_ARGS:-}" ] && [ "$(uname -m)" = "arm64" ] && [ "$(uname -s)" = "Darwin" ]; then
+        log "Apple Silicon detected - setting JVM_ARGS to fix Higress Console SIGILL issue"
+        JVM_ARGS="-XX:+UnlockDiagnosticVMOptions -XX:-UseAESCTRIntrinsics -XX:UseSVE=0"
+    fi
+
     # Write .env file
     ENV_FILE="${HICLAW_ENV_FILE:-${HOME}/hiclaw-manager.env}"
     cat > "${ENV_FILE}" << EOF
@@ -2280,6 +2287,9 @@ HICLAW_PROXY_ALLOWED_REGISTRIES=${HICLAW_PROXY_ALLOWED_REGISTRIES:-}
 
 # Worker idle timeout in minutes (default: 720 = 12 hours)
 HICLAW_WORKER_IDLE_TIMEOUT=${HICLAW_WORKER_IDLE_TIMEOUT:-720}
+
+# JVM Args for Higress Console (fixes SIGILL on Apple Silicon)
+JVM_ARGS=${JVM_ARGS:-}
 
 # Higress WASM plugin image registry (auto-selected by timezone)
 HIGRESS_ADMIN_WASM_PLUGIN_IMAGE_REGISTRY=${HICLAW_REGISTRY}
@@ -2485,6 +2495,7 @@ EOF
         -w /root/manager-workspace \
         -e HOST_ORIGINAL_HOME="${HICLAW_HOST_SHARE_DIR}" \
         -e HICLAW_MANAGER_RUNTIME="${HICLAW_MANAGER_RUNTIME:-openclaw}" \
+        ${JVM_ARGS:+-e JVM_ARGS="${JVM_ARGS}"} \
         ${YOLO_ARGS} \
         ${TZ_ARGS} \
         ${SOCKET_MOUNT_ARGS} \
