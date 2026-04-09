@@ -217,12 +217,15 @@ func (i *Initializer) initGatewayRoutes(ctx context.Context) error {
 			logger.Error(err, "failed to create LLM provider (non-fatal)")
 		}
 
-		// 4. AI Route
+		// 4. AI Route — auth framework enabled with empty consumer list.
+		// ManagerReconciler/WorkerReconciler will bind consumers via
+		// AuthorizeAIRoutes after creating them, triggering Higress to
+		// sync credentials into the WASM key-auth config.
 		if err := i.Gateway.EnsureAIRoute(ctx, gateway.AIRouteRequest{
 			Name:             "default-ai-route",
 			PathPrefix:       "/v1",
 			Provider:         provider,
-			AllowedConsumers: []string{"manager"},
+			AllowedConsumers: []string{},
 		}); err != nil {
 			logger.Error(err, "failed to create AI route (non-fatal)")
 		}

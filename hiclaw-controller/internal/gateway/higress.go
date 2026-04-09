@@ -409,12 +409,12 @@ func (c *HigressClient) EnsureAIRoute(ctx context.Context, req AIRouteRequest) e
 			{"provider": req.Provider, "weight": 100, "modelMapping": map[string]interface{}{}},
 		},
 	}
-	if len(req.AllowedConsumers) > 0 {
-		body["authConfig"] = map[string]interface{}{
-			"enabled":                true,
-			"allowedCredentialTypes": []string{"key-auth"},
-			"allowedConsumers":       req.AllowedConsumers,
-		}
+	// Always enable key-auth on AI routes so the auth framework is in place.
+	// Consumers are bound later via AuthorizeAIRoutes after they are created.
+	body["authConfig"] = map[string]interface{}{
+		"enabled":                true,
+		"allowedCredentialTypes": []string{"key-auth"},
+		"allowedConsumers":       req.AllowedConsumers,
 	}
 	_, sc, err := c.doJSON(ctx, http.MethodPost, "/v1/ai/routes", body)
 	if err != nil {

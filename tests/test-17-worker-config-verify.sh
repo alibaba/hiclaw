@@ -20,11 +20,12 @@ STORAGE_PREFIX="hiclaw/hiclaw-storage"
 
 _cleanup() {
     log_info "Cleaning up: ${TEST_WORKER}"
-    exec_in_manager hiclaw delete worker "${TEST_WORKER}" 2>/dev/null || true
+    exec_in_agent hiclaw delete worker "${TEST_WORKER}" 2>/dev/null || true
     exec_in_manager mc rm "${STORAGE_PREFIX}/hiclaw-config/packages/${TEST_WORKER}.zip" 2>/dev/null || true
     sleep 5
     docker rm -f "hiclaw-worker-${TEST_WORKER}" 2>/dev/null || true
-    exec_in_manager rm -rf "/root/hiclaw-fs/agents/${TEST_WORKER}" 2>/dev/null || true
+    exec_in_agent rm -rf "/root/hiclaw-fs/agents/${TEST_WORKER}" 2>/dev/null || true
+    exec_in_agent rm -rf "/tmp/hiclaw-test-${TEST_WORKER}" 2>/dev/null || true
     exec_in_manager rm -rf "/tmp/hiclaw-test-${TEST_WORKER}" 2>/dev/null || true
     exec_in_manager mc rm -r --force "${STORAGE_PREFIX}/agents/${TEST_WORKER}/" 2>/dev/null || true
 }
@@ -37,6 +38,7 @@ log_section "Create and Import Worker"
 
 WORK_DIR="/tmp/hiclaw-test-${TEST_WORKER}"
 
+# Build ZIP in controller container (has zip command), then copy to agent container
 exec_in_manager bash -c "
     mkdir -p ${WORK_DIR}/package/config ${WORK_DIR}/package/skills/my-custom-skill
 
@@ -83,7 +85,13 @@ SKILL
     cd ${WORK_DIR}/package && zip -q -r ${WORK_DIR}/${TEST_WORKER}.zip .
 " 2>/dev/null
 
-APPLY_OUTPUT=$(exec_in_manager hiclaw apply worker --zip "${WORK_DIR}/${TEST_WORKER}.zip" --name "${TEST_WORKER}" 2>&1)
+# Copy ZIP from controller to agent container
+docker cp "${TEST_MANAGER_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
+exec_in_agent mkdir -p "${WORK_DIR}" 2>/dev/null
+docker cp /tmp/_hiclaw_test_zip_$$ "${TEST_AGENT_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" 2>/dev/null
+rm -f /tmp/_hiclaw_test_zip_$$ 2>/dev/null
+
+APPLY_OUTPUT=$(exec_in_agent hiclaw apply worker --zip "${WORK_DIR}/${TEST_WORKER}.zip" --name "${TEST_WORKER}" 2>&1)
 if echo "${APPLY_OUTPUT}" | grep -q "created"; then
     log_pass "Worker imported successfully"
 else
@@ -237,7 +245,12 @@ MANIFEST
     cd ${WORK_DIR}/package && zip -q -r ${WORK_DIR}/${TEST_WORKER}.zip .
 " 2>/dev/null
 
-REIMPORT_OUTPUT=$(exec_in_manager hiclaw apply worker --zip "${WORK_DIR}/${TEST_WORKER}.zip" --name "${TEST_WORKER}" 2>&1)
+# Copy updated ZIP from controller to agent container
+docker cp "${TEST_MANAGER_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
+docker cp /tmp/_hiclaw_test_zip_$$ "${TEST_AGENT_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" 2>/dev/null
+rm -f /tmp/_hiclaw_test_zip_$$ 2>/dev/null
+
+REIMPORT_OUTPUT=$(exec_in_agent hiclaw apply worker --zip "${WORK_DIR}/${TEST_WORKER}.zip" --name "${TEST_WORKER}" 2>&1)
 assert_contains "${REIMPORT_OUTPUT}" "updated" "Re-import reports 'updated'"
 
 # Wait for controller to reconcile the update (poll for "worker updated" in logs)
@@ -289,7 +302,7 @@ assert_contains "${AGENTS_AFTER}" "My Custom Agent Instructions" "User content s
 # ============================================================
 log_section "Delete Worker"
 
-DELETE_OUTPUT=$(exec_in_manager hiclaw delete worker "${TEST_WORKER}" 2>&1)
+DELETE_OUTPUT=$(exec_in_agent hiclaw delete worker "${TEST_WORKER}" 2>&1)
 assert_contains "${DELETE_OUTPUT}" "deleted" "Worker deleted successfully"
 
 # ============================================================
