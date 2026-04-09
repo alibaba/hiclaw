@@ -12,8 +12,12 @@
 
 # Auto-detect infrastructure container (embedded controller or legacy manager)
 if [ -z "${TEST_MANAGER_CONTAINER}" ]; then
-    export TEST_MANAGER_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager$' | head -1)"
-    export TEST_MANAGER_CONTAINER="${TEST_MANAGER_CONTAINER:-hiclaw-manager}"
+    export TEST_MANAGER_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-controller$' | head -1)"
+    # Fallback: legacy container name
+    if [ -z "${TEST_MANAGER_CONTAINER}" ]; then
+        export TEST_MANAGER_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager$' | head -1)"
+    fi
+    export TEST_MANAGER_CONTAINER="${TEST_MANAGER_CONTAINER:-hiclaw-controller}"
 fi
 
 # Auto-detect Manager Agent container (separate container in embedded-controller mode)

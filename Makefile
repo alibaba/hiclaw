@@ -452,10 +452,10 @@ push-native-copaw-worker: build-copaw-worker ## Push native-arch CoPaw Worker on
 # Usage: make wait-ready [CONTAINER=name]
 .PHONY: wait-ready
 wait-ready:
-	@echo "==> Waiting for Manager services to be ready (container: $(or $(CONTAINER),hiclaw-manager))..."
+	@echo "==> Waiting for Manager services to be ready (container: $(or $(CONTAINER),hiclaw-controller))..."
 	@TIMEOUT=300; ELAPSED=0; \
 	while [ "$$ELAPSED" -lt "$$TIMEOUT" ]; do \
-		RESULT=$$(docker exec $(or $(CONTAINER),hiclaw-manager) bash -c 'curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:6167/_matrix/client/versions" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:9000/minio/health/live" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8001/" 2>/dev/null || echo "000"' 2>/dev/null); \
+		RESULT=$$(docker exec $(or $(CONTAINER),hiclaw-controller) bash -c 'curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:6167/_matrix/client/versions" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:9000/minio/health/live" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8001/" 2>/dev/null || echo "000"' 2>/dev/null); \
 		MATRIX=$$(echo "$$RESULT" | tr -d '\n' | cut -d' ' -f1); \
 		MINIO=$$(echo "$$RESULT" | tr -d '\n' | cut -d' ' -f2); \
 		CONSOLE=$$(echo "$$RESULT" | tr -d '\n' | cut -d' ' -f3); \
@@ -476,7 +476,7 @@ wait-ready:
 test: ## Run integration tests (creates test container)
 ifdef SKIP_INSTALL
 	@echo "==> Running tests against existing installation"
-	@docker exec hiclaw-manager touch /root/manager-workspace/yolo-mode 2>/dev/null || true
+	@docker exec hiclaw-controller touch /root/manager-workspace/yolo-mode 2>/dev/null || true
 	./tests/run-all-tests.sh --skip-build --use-existing $(if $(TEST_FILTER),--test-filter "$(TEST_FILTER)")
 else
 	@echo "==> Installing test Manager and running tests"
@@ -573,7 +573,7 @@ wait-ready-embedded: ## Wait for embedded-mode services to be ready
 	@echo "==> Waiting for embedded services..."
 	@TIMEOUT=300; ELAPSED=0; \
 	while [ "$$ELAPSED" -lt "$$TIMEOUT" ]; do \
-		RESULT=$$(docker exec hiclaw-manager bash -c 'curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:6167/_matrix/client/versions" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:9000/minio/health/live" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8001/" 2>/dev/null || echo "000"' 2>/dev/null); \
+		RESULT=$$(docker exec hiclaw-controller bash -c 'curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:6167/_matrix/client/versions" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code} " "http://127.0.0.1:9000/minio/health/live" 2>/dev/null || echo "000 "; curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8001/" 2>/dev/null || echo "000"' 2>/dev/null); \
 		MATRIX=$$(echo "$$RESULT" | tr -d '\n' | cut -d' ' -f1); \
 		MINIO=$$(echo "$$RESULT" | tr -d '\n' | cut -d' ' -f2); \
 		CONSOLE=$$(echo "$$RESULT" | tr -d '\n' | cut -d' ' -f3); \
@@ -608,6 +608,7 @@ endif
 uninstall-embedded: ## Stop and remove embedded containers
 	@echo "==> Uninstalling HiClaw (embedded mode)..."
 	-docker stop hiclaw-manager-default 2>/dev/null && docker rm hiclaw-manager-default 2>/dev/null || true
+	-docker stop hiclaw-controller 2>/dev/null && docker rm hiclaw-controller 2>/dev/null || true
 	-docker stop hiclaw-manager 2>/dev/null && docker rm hiclaw-manager 2>/dev/null || true
 	@for c in $$(docker ps -a --filter "name=hiclaw-worker-" --format '{{.Names}}' 2>/dev/null); do \
 		echo "  Removing Worker: $$c"; \
@@ -619,7 +620,7 @@ uninstall-embedded: ## Stop and remove embedded containers
 # ---------- Replay ----------
 
 replay: ## Send a task to Manager (TASK="..." or interactive, YOLO mode auto-enabled)
-	@docker exec hiclaw-manager touch /root/manager-workspace/yolo-mode 2>/dev/null || true
+	@docker exec hiclaw-controller touch /root/manager-workspace/yolo-mode 2>/dev/null || true
 ifdef TASK
 	REPLAY_USE_DOCKER_EXEC=1 ./scripts/replay-task.sh "$(TASK)"
 else
@@ -639,7 +640,7 @@ replay-log: ## View the latest replay conversation log
 # ---------- Verify ----------
 
 verify: ## Run post-install verification against the running Manager container
-	@bash ./install/hiclaw-verify.sh $(or $(CONTAINER),hiclaw-manager)
+	@bash ./install/hiclaw-verify.sh $(or $(CONTAINER),hiclaw-controller)
 
 # ---------- Dev utils ----------
 
@@ -649,8 +650,8 @@ status: ## Show status of Manager and all Worker containers
 		|| echo "  (no containers found or Docker not available)"
 
 logs: ## Show recent logs for Manager and all Workers (override with LINES=N, default 50)
-	@echo "==> Manager logs (last $(LINES) lines):"
-	@docker logs hiclaw-manager --tail $(LINES) 2>/dev/null || echo "  (Manager container not found)"
+	@echo "==> Controller logs (last $(LINES) lines):"
+	@docker logs hiclaw-controller --tail $(LINES) 2>/dev/null || echo "  (Controller container not found)"
 	@echo ""
 	@for c in $$(docker ps -a --filter "name=hiclaw-worker-" --format '{{.Names}}' 2>/dev/null); do \
 		echo "==> Worker: $$c (last $(LINES) lines):"; \

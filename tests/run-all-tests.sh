@@ -64,7 +64,7 @@ HICLAW_PORT_GATEWAY)        export TEST_GATEWAY_PORT="${value}" ;;
             esac
         done < "${env_file}"
     fi
-    export TEST_MANAGER_CONTAINER="hiclaw-manager"
+    export TEST_MANAGER_CONTAINER="hiclaw-controller"
 }
 
 if [ "${USE_EXISTING}" = true ]; then
@@ -94,6 +94,9 @@ cleanup() {
     fi
 
     log "Cleaning up..."
+    docker stop hiclaw-controller 2>/dev/null || true
+    docker rm hiclaw-controller 2>/dev/null || true
+    # Legacy container name
     docker stop hiclaw-manager 2>/dev/null || true
     docker rm hiclaw-manager 2>/dev/null || true
 
@@ -137,7 +140,6 @@ if [ "${USE_EXISTING}" = true ]; then
 
     # Enable YOLO mode for test run (auto-decision, no interactive prompts)
     # Try agent container first (embedded mode), fall back to manager container (legacy mode)
-    local agent_container
     agent_container="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager-' | head -1)"
     agent_container="${agent_container:-${TEST_MANAGER_CONTAINER}}"
     docker exec "${agent_container}" touch /root/manager-workspace/yolo-mode 2>/dev/null && \
@@ -169,7 +171,6 @@ else
     log "  Console port:   ${TEST_CONSOLE_PORT}"
 
     # Enable YOLO mode for test run
-    local agent_container
     agent_container="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager-' | head -1)"
     agent_container="${agent_container:-${TEST_MANAGER_CONTAINER}}"
     docker exec "${agent_container}" touch /root/manager-workspace/yolo-mode 2>/dev/null && \
