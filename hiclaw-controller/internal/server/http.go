@@ -68,6 +68,13 @@ func NewHTTPServer(addr string, deps ServerDeps) *HTTPServer {
 	mux.Handle("GET /api/v1/humans/{name}", mw.RequireAuthz(authpkg.ActionGet, "human", nameFn)(http.HandlerFunc(rh.GetHuman)))
 	mux.Handle("DELETE /api/v1/humans/{name}", mw.RequireAuthz(authpkg.ActionDelete, "human", nameFn)(http.HandlerFunc(rh.DeleteHuman)))
 
+	// Managers
+	mux.Handle("POST /api/v1/managers", mw.RequireAuthz(authpkg.ActionCreate, "manager", nil)(http.HandlerFunc(rh.CreateManager)))
+	mux.Handle("GET /api/v1/managers", mw.RequireAuthz(authpkg.ActionList, "manager", nil)(http.HandlerFunc(rh.ListManagers)))
+	mux.Handle("GET /api/v1/managers/{name}", mw.RequireAuthz(authpkg.ActionGet, "manager", nameFn)(http.HandlerFunc(rh.GetManager)))
+	mux.Handle("PUT /api/v1/managers/{name}", mw.RequireAuthz(authpkg.ActionUpdate, "manager", nameFn)(http.HandlerFunc(rh.UpdateManager)))
+	mux.Handle("DELETE /api/v1/managers/{name}", mw.RequireAuthz(authpkg.ActionDelete, "manager", nameFn)(http.HandlerFunc(rh.DeleteManager)))
+
 	// --- Imperative lifecycle ---
 	lh := NewLifecycleHandler(deps.Client, deps.Backend, deps.Namespace)
 	mux.Handle("POST /api/v1/workers/{name}/wake", mw.RequireAuthz(authpkg.ActionWake, "worker", nameFn)(http.HandlerFunc(lh.Wake)))

@@ -23,7 +23,7 @@ const (
 // AuthzRequest describes the resource being accessed.
 type AuthzRequest struct {
 	Action       Action
-	ResourceKind string // "worker" | "team" | "human" | "gateway" | "status"
+	ResourceKind string // "worker" | "team" | "human" | "manager" | "gateway" | "status"
 	ResourceName string // target resource name (empty for list operations)
 	ResourceTeam string // target resource's team (resolved by handler/middleware)
 }

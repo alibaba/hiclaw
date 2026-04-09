@@ -106,7 +106,8 @@ func (a *App) Start(ctx context.Context) error {
 		}
 	}()
 
-	if a.cfg.KubeMode == "incluster" {
+	// Run cluster initialization in both embedded and incluster modes.
+	{
 		init := &initializer.Initializer{
 			OSS:     a.oss,
 			Matrix:  a.matrix,

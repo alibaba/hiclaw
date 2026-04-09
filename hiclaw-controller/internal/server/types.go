@@ -154,6 +154,50 @@ type HumanListResponse struct {
 	Total  int             `json:"total"`
 }
 
+// --- Manager API types ---
+
+type CreateManagerRequest struct {
+	Name       string                  `json:"name"`
+	Model      string                  `json:"model"`
+	Runtime    string                  `json:"runtime,omitempty"`
+	Image      string                  `json:"image,omitempty"`
+	Soul       string                  `json:"soul,omitempty"`
+	Agents     string                  `json:"agents,omitempty"`
+	Skills     []string                `json:"skills,omitempty"`
+	McpServers []string                `json:"mcpServers,omitempty"`
+	Package    string                  `json:"package,omitempty"`
+	Config     *v1beta1.ManagerConfig  `json:"config,omitempty"`
+}
+
+type UpdateManagerRequest struct {
+	Model      string                  `json:"model,omitempty"`
+	Runtime    string                  `json:"runtime,omitempty"`
+	Image      string                  `json:"image,omitempty"`
+	Soul       string                  `json:"soul,omitempty"`
+	Agents     string                  `json:"agents,omitempty"`
+	Skills     []string                `json:"skills,omitempty"`
+	McpServers []string                `json:"mcpServers,omitempty"`
+	Package    string                  `json:"package,omitempty"`
+	Config     *v1beta1.ManagerConfig  `json:"config,omitempty"`
+}
+
+type ManagerResponse struct {
+	Name         string `json:"name"`
+	Phase        string `json:"phase"`
+	Model        string `json:"model,omitempty"`
+	Runtime      string `json:"runtime,omitempty"`
+	Image        string `json:"image,omitempty"`
+	MatrixUserID string `json:"matrixUserID,omitempty"`
+	RoomID       string `json:"roomID,omitempty"`
+	Version      string `json:"version,omitempty"`
+	Message      string `json:"message,omitempty"`
+}
+
+type ManagerListResponse struct {
+	Managers []ManagerResponse `json:"managers"`
+	Total    int               `json:"total"`
+}
+
 // --- Gateway API types ---
 
 type CreateConsumerRequest struct {
