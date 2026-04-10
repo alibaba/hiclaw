@@ -284,7 +284,7 @@ else
 fi
 
 # Copy ZIP from controller to agent container
-docker cp "${TEST_MANAGER_CONTAINER}:${OVERRIDE_WORK_DIR}/${TEST_WORKER_OVERRIDE}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
+docker cp "${TEST_CONTROLLER_CONTAINER}:${OVERRIDE_WORK_DIR}/${TEST_WORKER_OVERRIDE}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
 exec_in_agent mkdir -p "${OVERRIDE_WORK_DIR}" 2>/dev/null
 docker cp /tmp/_hiclaw_test_zip_$$ "${TEST_AGENT_CONTAINER}:${OVERRIDE_WORK_DIR}/${TEST_WORKER_OVERRIDE}.zip" 2>/dev/null
 rm -f /tmp/_hiclaw_test_zip_$$ 2>/dev/null

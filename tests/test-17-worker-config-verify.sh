@@ -86,7 +86,7 @@ SKILL
 " 2>/dev/null
 
 # Copy ZIP from controller to agent container
-docker cp "${TEST_MANAGER_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
+docker cp "${TEST_CONTROLLER_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
 exec_in_agent mkdir -p "${WORK_DIR}" 2>/dev/null
 docker cp /tmp/_hiclaw_test_zip_$$ "${TEST_AGENT_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" 2>/dev/null
 rm -f /tmp/_hiclaw_test_zip_$$ 2>/dev/null
@@ -246,7 +246,7 @@ MANIFEST
 " 2>/dev/null
 
 # Copy updated ZIP from controller to agent container
-docker cp "${TEST_MANAGER_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
+docker cp "${TEST_CONTROLLER_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" /tmp/_hiclaw_test_zip_$$ 2>/dev/null
 docker cp /tmp/_hiclaw_test_zip_$$ "${TEST_AGENT_CONTAINER}:${WORK_DIR}/${TEST_WORKER}.zip" 2>/dev/null
 rm -f /tmp/_hiclaw_test_zip_$$ 2>/dev/null
 

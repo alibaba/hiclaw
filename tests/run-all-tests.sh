@@ -64,7 +64,7 @@ HICLAW_PORT_GATEWAY)        export TEST_GATEWAY_PORT="${value}" ;;
             esac
         done < "${env_file}"
     fi
-    export TEST_MANAGER_CONTAINER="hiclaw-controller"
+    export TEST_CONTROLLER_CONTAINER="hiclaw-controller"
 }
 
 if [ "${USE_EXISTING}" = true ]; then
@@ -133,15 +133,15 @@ if [ "${USE_EXISTING}" = true ]; then
     log "  Manager host: ${TEST_MANAGER_HOST}"
 
     # Verify the Manager is actually running (Matrix is not exposed; check via docker exec)
-    if ! docker exec "${TEST_MANAGER_CONTAINER}" curl -sf "http://127.0.0.1:6167/_matrix/client/versions" > /dev/null 2>&1; then
-        error "Manager does not appear to be running (container: ${TEST_MANAGER_CONTAINER}). Start it with 'make install' first."
+    if ! docker exec "${TEST_CONTROLLER_CONTAINER}" curl -sf "http://127.0.0.1:6167/_matrix/client/versions" > /dev/null 2>&1; then
+        error "Manager does not appear to be running (container: ${TEST_CONTROLLER_CONTAINER}). Start it with 'make install' first."
     fi
     log "Manager is reachable"
 
     # Enable YOLO mode for test run (auto-decision, no interactive prompts)
     # Try agent container first (embedded mode), fall back to manager container (legacy mode)
     agent_container="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager(-|$)' | head -1)"
-    agent_container="${agent_container:-${TEST_MANAGER_CONTAINER}}"
+    agent_container="${agent_container:-${TEST_CONTROLLER_CONTAINER}}"
     docker exec "${agent_container}" touch /root/manager-workspace/yolo-mode 2>/dev/null && \
         log "YOLO mode enabled (${agent_container})" || \
         log "WARNING: Could not enable YOLO mode (container may differ)"
@@ -172,7 +172,7 @@ else
 
     # Enable YOLO mode for test run
     agent_container="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager(-|$)' | head -1)"
-    agent_container="${agent_container:-${TEST_MANAGER_CONTAINER}}"
+    agent_container="${agent_container:-${TEST_CONTROLLER_CONTAINER}}"
     docker exec "${agent_container}" touch /root/manager-workspace/yolo-mode 2>/dev/null && \
         log "YOLO mode enabled (${agent_container})" || true
 fi
@@ -206,7 +206,7 @@ _setup_manager_identity() {
     # Check in agent container (embedded mode) or manager container (legacy mode)
     local _agent
     _agent="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^hiclaw-manager(-|$)' | head -1)"
-    _agent="${_agent:-${TEST_MANAGER_CONTAINER}}"
+    _agent="${_agent:-${TEST_CONTROLLER_CONTAINER}}"
 
     if docker exec "${_agent}" test -f /root/manager-workspace/soul-configured 2>/dev/null; then
         log "Manager identity already configured, skipping"
