@@ -184,6 +184,7 @@ fi
 # so Manager uses English regardless of host timezone/locale.
 
 source "${SCRIPT_DIR}/lib/matrix-client.sh"
+source "${SCRIPT_DIR}/lib/agent-metrics.sh"
 
 _setup_manager_identity() {
     log "Configuring Manager identity (English)..."
@@ -289,6 +290,9 @@ done
 for test_file in "${TESTS[@]}"; do
     test_name=$(basename "${test_file}" .sh)
     log "Running: ${test_name}"
+
+    # Wait for Manager to finish processing previous test before starting next
+    wait_for_session_stable 10 120
 
     if bash "${test_file}"; then
         RESULTS+=("PASS: ${test_name}")
