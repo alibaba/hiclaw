@@ -117,6 +117,20 @@ HICLAW_VERSION=v1.0.5 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 ```
 
 
+## 卸载
+
+**macOS / Linux:**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/higress-group/hiclaw/main/install/hiclaw-install.sh) uninstall
+```
+
+**Windows (PowerShell):**
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; $wc=New-Object Net.WebClient; $wc.Encoding=[Text.Encoding]::UTF8; $s=$wc.DownloadString('https://raw.githubusercontent.com/higress-group/hiclaw/main/install/hiclaw-install.ps1'); & ([scriptblock]::Create($s)) uninstall
+```
+
+将移除所有 HiClaw 容器（Manager、Worker、docker-proxy）、Docker 卷、网络、env 文件、工作空间目录和安装日志。
+
 ## 工作方式
 
 ### Manager 是你的 AI 管家
