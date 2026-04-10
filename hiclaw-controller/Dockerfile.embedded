@@ -62,7 +62,7 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
             /etc/apt/sources.list 2>/dev/null || true; \
     fi && \
     apt-get update -qq && \
-    apt-get install -y -qq nginx jq curl zip unzip > /dev/null 2>&1 && \
+    apt-get install -y -qq nginx jq curl zip unzip git > /dev/null 2>&1 && \
     rm -rf /var/lib/apt/lists/*
 
 # ---- Configuration ----
