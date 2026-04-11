@@ -228,9 +228,17 @@ else
     log_fail "hiclaw delete did not report success"
 fi
 
-sleep 2
-WORKER_AFTER=$(exec_in_agent hiclaw get workers "${TEST_WORKER}" -o json 2>&1 || echo "")
-if echo "${WORKER_AFTER}" | grep -q "not found\|error\|Error"; then
+# Wait for CR to be fully removed (finalizer may take time)
+WORKER_GONE=false
+for i in $(seq 1 12); do
+    WORKER_AFTER=$(exec_in_agent hiclaw get workers "${TEST_WORKER}" -o json 2>&1 || echo "")
+    if echo "${WORKER_AFTER}" | grep -q "not found\|error\|Error" || [ -z "${WORKER_AFTER}" ]; then
+        WORKER_GONE=true
+        break
+    fi
+    sleep 1
+done
+if [ "${WORKER_GONE}" = true ]; then
     log_pass "Worker CR removed after delete"
 elif [ -z "${WORKER_AFTER}" ]; then
     log_pass "Worker CR removed after delete"

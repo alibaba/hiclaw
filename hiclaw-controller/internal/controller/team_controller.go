@@ -364,6 +364,7 @@ func (r *TeamReconciler) buildLeaderCR(t *v1beta1.Team) *v1beta1.Worker {
 		},
 		Spec: v1beta1.WorkerSpec{
 			Model:         t.Spec.Leader.Model,
+			Runtime:       "copaw", // Team mode requires copaw runtime for leader too
 			Identity:      t.Spec.Leader.Identity,
 			Soul:          t.Spec.Leader.Soul,
 			Agents:        t.Spec.Leader.Agents,
