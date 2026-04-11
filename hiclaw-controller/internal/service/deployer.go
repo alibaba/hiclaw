@@ -268,6 +268,17 @@ func (d *Deployer) CleanupOSSData(ctx context.Context, workerName string) error 
 	return d.oss.DeletePrefix(ctx, agentPrefix)
 }
 
+// EnsureTeamStorage creates the shared storage directories for a team.
+func (d *Deployer) EnsureTeamStorage(ctx context.Context, teamName string) error {
+	prefix := fmt.Sprintf("teams/%s/", teamName)
+	for _, subdir := range []string{"shared/tasks/", "shared/projects/", "shared/knowledge/"} {
+		if err := d.oss.PutObject(ctx, prefix+subdir+".keep", []byte("")); err != nil {
+			return fmt.Errorf("create %s%s: %w", prefix, subdir, err)
+		}
+	}
+	return nil
+}
+
 // --- Manager Config Deployment ---
 
 // ManagerDeployRequest describes a Manager config deployment (create or update).

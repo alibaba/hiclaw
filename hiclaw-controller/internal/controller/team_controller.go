@@ -158,7 +158,12 @@ func (r *TeamReconciler) handleCreate(ctx context.Context, t *v1beta1.Team) (rec
 		}
 	}
 
-	// --- Step 6: Legacy teams-registry + Manager groupAllowFrom ---
+	// --- Step 6: Team shared storage ---
+	if err := r.Deployer.EnsureTeamStorage(ctx, t.Name); err != nil {
+		logger.Error(err, "team shared storage init failed (non-fatal)")
+	}
+
+	// --- Step 7: Legacy teams-registry + Manager groupAllowFrom ---
 	if r.Legacy != nil && r.Legacy.Enabled() {
 		if err := r.Legacy.UpdateTeamsRegistry(service.TeamRegistryEntry{
 			Name:           t.Name,

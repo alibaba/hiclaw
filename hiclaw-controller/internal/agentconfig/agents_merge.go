@@ -21,8 +21,8 @@ func MergeBuiltinSection(target, source string) string {
 		return wrapWithMarkers(source, userContent)
 	}
 
-	// Legacy file without markers — wrap source with markers
-	return wrapWithMarkers(source, "")
+	// Legacy file without markers — wrap source with markers, preserve target as user content
+	return wrapWithMarkers(source, target)
 }
 
 // ExtractFrontmatter separates YAML frontmatter from the body.
