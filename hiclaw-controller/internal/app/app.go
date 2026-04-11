@@ -241,6 +241,7 @@ func (a *App) initServiceLayer(_ context.Context) error {
 		a.legacy = service.NewLegacyCompat(service.LegacyConfig{
 			OSS:          a.oss,
 			MatrixDomain: cfg.MatrixDomain,
+			AgentFSDir:   cfg.AgentFSDir(),
 		})
 	}
 

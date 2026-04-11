@@ -295,7 +295,7 @@ func (i *Initializer) initGatewayRoutes(ctx context.Context) error {
 			Name:             "default-ai-route",
 			PathPrefix:       "/v1",
 			Provider:         provider,
-			AllowedConsumers: []string{"manager"},
+			AllowedConsumers: []string{},
 		}); err != nil {
 			logger.Error(err, "failed to create AI route (non-fatal)")
 		}

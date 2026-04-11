@@ -312,6 +312,7 @@ ${DOCKER_CMD} run -d \
     -v "${CONTAINER_SOCK}:/var/run/docker.sock" \
     --security-opt label=disable \
     -v "${HICLAW_DATA_DIR}:/data" \
+    -v "${HICLAW_WORKSPACE_DIR}:/root/hiclaw-fs/agents/manager" \
     -p "${PORT_PREFIX}${HICLAW_PORT_GATEWAY}:8080" \
     -p "${PORT_PREFIX}${HICLAW_PORT_CONSOLE}:8001" \
     -p "${PORT_PREFIX}${HICLAW_PORT_ELEMENT_WEB}:8088" \

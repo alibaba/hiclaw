@@ -24,6 +24,7 @@ type LegacyCompat struct {
 	OSS          oss.StorageClient
 	MatrixDomain string
 	ManagerName  string // Manager agent name, default "manager"
+	AgentFSDir   string // local filesystem root for agent workspaces (embedded: shared mount with manager)
 
 	mu sync.Mutex // serializes read-modify-write cycles on registry files
 }
@@ -33,6 +34,7 @@ type LegacyConfig struct {
 	OSS          oss.StorageClient
 	MatrixDomain string
 	ManagerName  string
+	AgentFSDir   string
 }
 
 func NewLegacyCompat(cfg LegacyConfig) *LegacyCompat {
@@ -44,6 +46,7 @@ func NewLegacyCompat(cfg LegacyConfig) *LegacyCompat {
 		OSS:          cfg.OSS,
 		MatrixDomain: cfg.MatrixDomain,
 		ManagerName:  managerName,
+		AgentFSDir:   cfg.AgentFSDir,
 	}
 }
 
@@ -59,6 +62,28 @@ func (l *LegacyCompat) MatrixUserID(name string) string {
 
 func (l *LegacyCompat) managerAgentPrefix() string {
 	return fmt.Sprintf("agents/%s", l.ManagerName)
+}
+
+// managerLocalConfigPath returns the local filesystem path for the manager's openclaw.json.
+// In embedded mode, this is a shared mount with the manager container.
+func (l *LegacyCompat) managerLocalConfigPath() string {
+	if l.AgentFSDir == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s/openclaw.json", l.AgentFSDir, l.ManagerName)
+}
+
+// writeManagerLocalConfig writes openclaw.json to the local filesystem (shared mount).
+// This ensures the manager container sees changes immediately without MinIO sync.
+func (l *LegacyCompat) writeManagerLocalConfig(data []byte) {
+	path := l.managerLocalConfigPath()
+	if path == "" {
+		return
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		// Non-fatal: MinIO is the source of truth
+		fmt.Printf("warning: failed to write manager local config %s: %v\n", path, err)
+	}
 }
 
 // --- Manager Config ---
@@ -91,7 +116,11 @@ func (l *LegacyCompat) PutManagerConfig(configJSON []byte) error {
 		}
 	}
 
-	return l.OSS.PutObject(ctx, key, configJSON)
+	if err := l.OSS.PutObject(ctx, key, configJSON); err != nil {
+		return err
+	}
+	l.writeManagerLocalConfig(configJSON)
+	return nil
 }
 
 // mergeGroupAllowFrom copies any extra groupAllowFrom entries from old config
@@ -187,7 +216,11 @@ func (l *LegacyCompat) UpdateManagerGroupAllowFrom(workerMatrixID string, add bo
 	if err != nil {
 		return fmt.Errorf("marshal manager config: %w", err)
 	}
-	return l.OSS.PutObject(ctx, key, out)
+	if err := l.OSS.PutObject(ctx, key, out); err != nil {
+		return err
+	}
+	l.writeManagerLocalConfig(out)
+	return nil
 }
 
 func extractStringSlice(v interface{}) []string {
