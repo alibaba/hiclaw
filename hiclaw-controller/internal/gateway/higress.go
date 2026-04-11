@@ -121,10 +121,29 @@ func (c *HigressClient) EnsureConsumer(ctx context.Context, req ConsumerRequest)
 		return nil, fmt.Errorf("ensure consumer %s: HTTP %d", req.Name, statusCode)
 	}
 
+	// Wait for consumer to be fully synced into WASM key-auth config.
+	// Without this, AuthorizeAIRoutes may trigger a config update that
+	// races with the consumer creation, causing 401 errors.
+	if status == "created" {
+		c.waitForConsumer(ctx, req.Name)
+	}
+
 	return &ConsumerResult{
 		Status: status,
 		APIKey: req.CredentialKey,
 	}, nil
+}
+
+// waitForConsumer polls until the consumer is visible via GET, ensuring
+// the Higress config has been fully synced before proceeding.
+func (c *HigressClient) waitForConsumer(ctx context.Context, name string) {
+	for i := 0; i < 10; i++ {
+		_, sc, err := c.doJSON(ctx, http.MethodGet, "/v1/consumers/"+name, nil)
+		if err == nil && sc == http.StatusOK {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func (c *HigressClient) DeleteConsumer(ctx context.Context, name string) error {
