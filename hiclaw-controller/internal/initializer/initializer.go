@@ -254,6 +254,8 @@ func (i *Initializer) initGatewayRoutes(ctx context.Context) error {
 					if err := i.Gateway.EnsureServiceSource(ctx, "openai-compat", host, port, proto); err != nil {
 						logger.Error(err, "failed to register openai-compat service source (non-fatal)")
 					}
+					// Wait for DNS service source to propagate before creating provider
+					time.Sleep(2 * time.Second)
 					raw := map[string]interface{}{
 						"hiclawMode":               true,
 						"openaiCustomUrl":           cfg.OpenAIBaseURL,

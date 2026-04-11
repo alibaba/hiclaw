@@ -121,29 +121,10 @@ func (c *HigressClient) EnsureConsumer(ctx context.Context, req ConsumerRequest)
 		return nil, fmt.Errorf("ensure consumer %s: HTTP %d", req.Name, statusCode)
 	}
 
-	// Wait for consumer to be fully synced into WASM key-auth config.
-	// Without this, AuthorizeAIRoutes may trigger a config update that
-	// races with the consumer creation, causing 401 errors.
-	if status == "created" {
-		c.waitForConsumer(ctx, req.Name)
-	}
-
 	return &ConsumerResult{
 		Status: status,
 		APIKey: req.CredentialKey,
 	}, nil
-}
-
-// waitForConsumer polls until the consumer is visible via GET, ensuring
-// the Higress config has been fully synced before proceeding.
-func (c *HigressClient) waitForConsumer(ctx context.Context, name string) {
-	for i := 0; i < 10; i++ {
-		_, sc, err := c.doJSON(ctx, http.MethodGet, "/v1/consumers/"+name, nil)
-		if err == nil && sc == http.StatusOK {
-			return
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
 }
 
 func (c *HigressClient) DeleteConsumer(ctx context.Context, name string) error {
@@ -226,10 +207,15 @@ func (c *HigressClient) modifyAIRoutes(ctx context.Context, consumerName string,
 			consumers := toStringSlice(authConfig["allowedConsumers"])
 
 			if add {
-				if containsString(consumers, consumerName) {
-					break // already authorized
+				if !containsString(consumers, consumerName) {
+					consumers = append(consumers, consumerName)
+					authConfig["allowedConsumers"] = consumers
+					route["authConfig"] = authConfig
 				}
-				consumers = append(consumers, consumerName)
+				// Always PUT to trigger WASM key-auth resync — the consumer
+				// may have been created after the route was last written,
+				// so WASM needs to reload credentials even if the name was
+				// already in allowedConsumers.
 			} else {
 				consumers = removeString(consumers, consumerName)
 			}
