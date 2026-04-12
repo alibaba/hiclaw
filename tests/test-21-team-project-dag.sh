@@ -102,7 +102,12 @@ TEAM_JSON=$(exec_in_agent hiclaw get teams "${TEST_TEAM}" -o json 2>/dev/null)
 TEAM_ROOM=$(echo "${TEAM_JSON}" | jq -r '.teamRoomID // empty')
 LEADER_DM=$(echo "${TEAM_JSON}" | jq -r '.leaderDMRoomID // empty')
 
-LEADER_ROOM=$(exec_in_agent hiclaw get workers "${TEST_LEADER}" -o json 2>/dev/null | jq -r '.roomID // empty')
+LEADER_ROOM=""
+for i in $(seq 1 24); do
+    LEADER_ROOM=$(exec_in_agent hiclaw get workers "${TEST_LEADER}" -o json 2>/dev/null | jq -r '.roomID // empty')
+    [ -n "${LEADER_ROOM}" ] && break
+    sleep 5
+done
 W1_ROOM=$(exec_in_agent hiclaw get workers "${TEST_W1}" -o json 2>/dev/null | jq -r '.roomID // empty')
 W2_ROOM=$(exec_in_agent hiclaw get workers "${TEST_W2}" -o json 2>/dev/null | jq -r '.roomID // empty')
 
