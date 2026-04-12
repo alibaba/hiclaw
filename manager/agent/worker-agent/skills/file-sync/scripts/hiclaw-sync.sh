@@ -32,6 +32,9 @@ mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --ov
     --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" 2>&1
 mc mirror "${HICLAW_STORAGE_PREFIX}/shared/" "${HICLAW_ROOT}/shared/" --overwrite 2>/dev/null || true
 
+# Update pull marker so the local→remote sync loop doesn't push back freshly-pulled files
+touch "${WORKSPACE}/.last-pull"
+
 # Merge openclaw.json: remote (MinIO, now in workspace) as base + local Worker additions
 if [ -f "${SAVED_LOCAL}" ] && [ -f "${LOCAL_OPENCLAW}" ]; then
     merge_openclaw_config "${LOCAL_OPENCLAW}" "${SAVED_LOCAL}"

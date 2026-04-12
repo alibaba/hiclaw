@@ -86,15 +86,15 @@ HICLAW_DATA_DIR="${HICLAW_DATA_DIR:-hiclaw-data}"
 HICLAW_WORKSPACE_DIR="${HICLAW_WORKSPACE_DIR:-${HOME}/hiclaw-manager}"
 HICLAW_HOST_SHARE_DIR="${HICLAW_HOST_SHARE_DIR:-${HOME}}"
 
-HICLAW_MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN:-matrix-local.hiclaw.io:8080}"
-HICLAW_AI_GATEWAY_DOMAIN="${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io:8080}"
-HICLAW_FS_DOMAIN="${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io:8080}"
+HICLAW_MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN:-matrix-local.hiclaw.io:${HICLAW_PORT_GATEWAY}}"
+HICLAW_AI_GATEWAY_DOMAIN="${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io:${HICLAW_PORT_GATEWAY}}"
+HICLAW_FS_DOMAIN="${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io:${HICLAW_PORT_GATEWAY}}"
 
 # Normalize domain variables: append :8080 if no port specified
 # (handles legacy env files that stored domains without port)
-case "${HICLAW_MATRIX_DOMAIN}" in *:*) ;; *) HICLAW_MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN}:8080" ;; esac
-case "${HICLAW_AI_GATEWAY_DOMAIN}" in *:*) ;; *) HICLAW_AI_GATEWAY_DOMAIN="${HICLAW_AI_GATEWAY_DOMAIN}:8080" ;; esac
-case "${HICLAW_FS_DOMAIN}" in *:*) ;; *) HICLAW_FS_DOMAIN="${HICLAW_FS_DOMAIN}:8080" ;; esac
+case "${HICLAW_MATRIX_DOMAIN}" in *:*) ;; *) HICLAW_MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN}:${HICLAW_PORT_GATEWAY}" ;; esac
+case "${HICLAW_AI_GATEWAY_DOMAIN}" in *:*) ;; *) HICLAW_AI_GATEWAY_DOMAIN="${HICLAW_AI_GATEWAY_DOMAIN}:${HICLAW_PORT_GATEWAY}" ;; esac
+case "${HICLAW_FS_DOMAIN}" in *:*) ;; *) HICLAW_FS_DOMAIN="${HICLAW_FS_DOMAIN}:${HICLAW_PORT_GATEWAY}" ;; esac
 
 HICLAW_MANAGER_RUNTIME="${HICLAW_MANAGER_RUNTIME:-openclaw}"
 
@@ -312,6 +312,7 @@ ${DOCKER_CMD} run -d \
     -v "${CONTAINER_SOCK}:/var/run/docker.sock" \
     --security-opt label=disable \
     -v "${HICLAW_DATA_DIR}:/data" \
+    -v "${HICLAW_WORKSPACE_DIR}:/root/hiclaw-fs/agents/manager" \
     -p "${PORT_PREFIX}${HICLAW_PORT_GATEWAY}:8080" \
     -p "${PORT_PREFIX}${HICLAW_PORT_CONSOLE}:8001" \
     -p "${PORT_PREFIX}${HICLAW_PORT_ELEMENT_WEB}:8088" \

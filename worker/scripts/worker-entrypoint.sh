@@ -56,6 +56,11 @@ mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --ov
     --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" --exclude "credentials/**"
 mc mirror "${HICLAW_STORAGE_PREFIX}/shared/" "${HICLAW_ROOT}/shared/" --overwrite 2>/dev/null || true
 
+# Mark pull completion — the local→remote sync loop uses this marker to avoid
+# pushing back files that were just pulled (their mtime is fresh from the pull).
+PULL_MARKER="${WORKSPACE}/.last-pull"
+touch "${PULL_MARKER}"
+
 # Verify essential files exist, retry if sync is still in progress
 RETRY=0
 while [ ! -f "${WORKSPACE}/openclaw.json" ] || [ ! -f "${WORKSPACE}/SOUL.md" ] \
@@ -69,6 +74,7 @@ while [ ! -f "${WORKSPACE}/openclaw.json" ] || [ ! -f "${WORKSPACE}/SOUL.md" ] \
     sleep 5
     mc mirror "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite \
         --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" --exclude "credentials/**" 2>/dev/null || true
+    touch "${PULL_MARKER}"
 done
 
 # HOME is already set to WORKSPACE via docker run -e HOME=...
@@ -146,7 +152,7 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 #   Local -> Remote: change-triggered push of Worker-managed content
 #     - Uses find to detect files modified in last 10s; only runs mc mirror when needed
 #     - Avoids mc mirror --watch TOCTOU bug (crashes on atomic ops like npm install)
-#     - Excludes Manager-managed files (openclaw.json, config/mcporter.json) and caches
+#     - Excludes Manager-managed files (openclaw.json, SOUL.md, AGENTS.md, HEARTBEAT.md, mcporter) and caches
 #
 #   Remote -> Local: on-demand pull via file-sync skill (triggered by Manager @mention)
 #     + 5-minute fallback pull of Manager-managed paths as safety net
@@ -154,14 +160,17 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 # ────────────────────────────────────────────────────────────────────────────
 (
     while true; do
-        CHANGED=$(find "${WORKSPACE}/" -type f -newermt "10 seconds ago" 2>/dev/null | head -1)
+        # Only push files modified AFTER the last pull (avoids pushing back freshly-pulled files)
+        CHANGED=$(find "${WORKSPACE}/" -type f -newer "${PULL_MARKER}" 2>/dev/null | head -1)
         if [ -n "${CHANGED}" ]; then
             ensure_mc_credentials 2>/dev/null || true
             if ! mc mirror "${WORKSPACE}/" "${HICLAW_STORAGE_PREFIX}/agents/${WORKER_NAME}/" --overwrite \
-                --exclude "openclaw.json" --exclude "config/mcporter.json" --exclude "mcporter-servers.json" --exclude ".agents/**" \
+                --exclude "openclaw.json" \
+                --exclude "config/mcporter.json" --exclude "mcporter-servers.json" --exclude ".agents/**" \
                 --exclude "credentials/**" \
                 --exclude ".cache/**" --exclude ".npm/**" \
                 --exclude ".local/**" --exclude ".mc/**" --exclude "*.lock" \
+                --exclude ".last-pull" \
                 --exclude ".openclaw/matrix/**" --exclude ".openclaw/canvas/**" 2>&1; then
                 log "WARNING: Local->Remote sync failed"
             fi

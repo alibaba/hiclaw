@@ -166,6 +166,8 @@ spec:
                   enum: [Pending, Active, Degraded, Failed]
                 teamRoomID:
                   type: string
+                leaderDMRoomID:
+                  type: string
                 leaderReady:
                   type: boolean
                 readyWorkers:

@@ -615,6 +615,9 @@ uninstall-embedded: ## Stop and remove embedded containers
 		docker rm -f "$$c" 2>/dev/null || true; \
 	done
 	-docker volume rm hiclaw-data 2>/dev/null && echo "  Removed volume: hiclaw-data" || true
+	@if [ -d "$${HOME}/hiclaw-manager" ]; then \
+		rm -rf "$${HOME}/hiclaw-manager" && echo "  Cleaned workspace: ~/hiclaw-manager"; \
+	fi
 	@echo "==> HiClaw (embedded) uninstalled"
 
 # ---------- Replay ----------
