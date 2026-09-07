@@ -694,8 +694,8 @@ func (h *ResourceHandler) UpdateManager(w http.ResponseWriter, r *http.Request) 
 		if req.Model != "" {
 			mgr.Spec.Model = req.Model
 		}
-		if req.ModelProvider != "" {
-			mgr.Spec.ModelProvider = req.ModelProvider
+		if req.ModelProvider != nil {
+			mgr.Spec.ModelProvider = *req.ModelProvider
 		}
 		if req.Runtime != "" {
 			mgr.Spec.Runtime = req.Runtime
