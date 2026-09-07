@@ -412,7 +412,9 @@ class AgentTeamsMatrixChannel(BaseChannel):
         self._user_id: Optional[str] = None
         self._sync_task: Optional[asyncio.Task] = None
         self._callback_tasks: set[asyncio.Task[Any]] = set()
+        self._room_callback_locks: Dict[str, asyncio.Lock] = {}
         self._typing_tasks: Dict[str, asyncio.Task] = {}
+        self._typing_locks: Dict[str, asyncio.Lock] = {}
         self._room_histories: Dict[str, List[HistoryEntry]] = {}
         self._dm_room_cache: Dict[str, Dict[str, Any]] = {}
         self._teamharness_task_room_cache: Dict[str, Dict[str, Any]] = {}
@@ -817,6 +819,14 @@ class AgentTeamsMatrixChannel(BaseChannel):
         self._callback_tasks.add(task)
         task.add_done_callback(self._callback_tasks.discard)
 
+    def _get_room_callback_lock(self, room_id: str) -> asyncio.Lock:
+        """Return the lock that serializes callbacks for one Matrix room."""
+        locks = getattr(self, "_room_callback_locks", None)
+        if locks is None:
+            locks = {}
+            self._room_callback_locks = locks
+        return locks.setdefault(room_id, asyncio.Lock())
+
     async def _run_event_callback(
         self,
         callback: Callable[[MatrixRoom, Any], Any],
@@ -824,11 +834,16 @@ class AgentTeamsMatrixChannel(BaseChannel):
         event: Any,
     ) -> None:
         event_id = str(getattr(event, "event_id", "") or "")
+        room_id = str(getattr(room, "room_id", "") or "")
         try:
-            await asyncio.wait_for(
-                callback(room, event),
-                timeout=MATRIX_EVENT_CALLBACK_TIMEOUT_S,
-            )
+            # Keep callbacks for one room ordered because handlers share
+            # room history and typing state.  Callbacks for other rooms can
+            # still make progress while this one waits or performs I/O.
+            async with self._get_room_callback_lock(room_id):
+                await asyncio.wait_for(
+                    callback(room, event),
+                    timeout=MATRIX_EVENT_CALLBACK_TIMEOUT_S,
+                )
         except asyncio.TimeoutError:
             logger.error(
                 "MatrixChannel: event callback timed out component=matrix "
@@ -997,6 +1012,15 @@ class AgentTeamsMatrixChannel(BaseChannel):
                 task.cancel()
             await asyncio.gather(*callback_tasks, return_exceptions=True)
             self._callback_tasks.clear()
+        self._room_callback_locks.clear()
+        if self._typing_tasks:
+            typing_tasks = tuple(self._typing_tasks.values())
+            for task in typing_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*typing_tasks, return_exceptions=True)
+            self._typing_tasks.clear()
+        self._typing_locks.clear()
         if self._http_client:
             await self._http_client.aclose()
             self._http_client = None
@@ -3102,27 +3126,34 @@ class AgentTeamsMatrixChannel(BaseChannel):
         """
         if not self._client:
             return
-        # Cancel any existing renewal task for this room
-        existing = self._typing_tasks.pop(room_id, None)
-        if existing and not existing.done():
-            existing.cancel()
-        try:
-            await self._client.room_typing(
-                room_id,
-                typing_state=typing,
-                timeout=timeout,
-            )
-        except Exception as exc:
-            logger.debug(
-                "MatrixChannel: typing indicator failed for %s: %s",
-                room_id,
-                exc,
-            )
-        # Start renewal loop if turning on
-        if typing:
-            self._typing_tasks[room_id] = asyncio.create_task(
-                self._typing_renewal_loop(room_id, timeout),
-            )
+        locks = getattr(self, "_typing_locks", None)
+        if locks is None:
+            locks = {}
+            self._typing_locks = locks
+        async with locks.setdefault(room_id, asyncio.Lock()):
+            if not self._client:
+                return
+            # Cancel any existing renewal task for this room
+            existing = self._typing_tasks.pop(room_id, None)
+            if existing and not existing.done():
+                existing.cancel()
+            try:
+                await self._client.room_typing(
+                    room_id,
+                    typing_state=typing,
+                    timeout=timeout,
+                )
+            except Exception as exc:
+                logger.debug(
+                    "MatrixChannel: typing indicator failed for %s: %s",
+                    room_id,
+                    exc,
+                )
+            # Start renewal loop if turning on
+            if typing:
+                self._typing_tasks[room_id] = asyncio.create_task(
+                    self._typing_renewal_loop(room_id, timeout),
+                )
 
     async def _typing_renewal_loop(
         self,
@@ -3166,7 +3197,9 @@ class AgentTeamsMatrixChannel(BaseChannel):
                         room_id,
                         exc,
                     )
-            self._typing_tasks.pop(room_id, None)
+            current_task = asyncio.current_task()
+            if self._typing_tasks.get(room_id) is current_task:
+                self._typing_tasks.pop(room_id, None)
 
     # ------------------------------------------------------------------
     # build_agent_request_from_native (BaseChannel protocol)
