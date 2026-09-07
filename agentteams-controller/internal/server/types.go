@@ -194,7 +194,7 @@ type CreateManagerRequest struct {
 
 type UpdateManagerRequest struct {
 	Model         string                             `json:"model,omitempty"`
-	ModelProvider string                             `json:"modelProvider,omitempty"`
+	ModelProvider *string                            `json:"modelProvider,omitempty"`
 	Runtime       string                             `json:"runtime,omitempty"`
 	Image         string                             `json:"image,omitempty"`
 	Soul          string                             `json:"soul,omitempty"`
