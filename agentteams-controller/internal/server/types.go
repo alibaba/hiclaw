@@ -21,6 +21,7 @@ type CreateWorkerRequest struct {
 	Expose        []v1beta1.ExposePort               `json:"expose,omitempty"`
 	ChannelPolicy *v1beta1.ChannelPolicySpec         `json:"channelPolicy,omitempty"`
 	Resources     *v1beta1.AgentResourceRequirements `json:"resources,omitempty"`
+	Env           map[string]string                  `json:"env,omitempty"`
 
 	// ContainerManaged indicates whether the controller should manage
 	// container lifecycle for this worker. When false, container
@@ -46,6 +47,7 @@ type UpdateWorkerRequest struct {
 	Expose        []v1beta1.ExposePort               `json:"expose,omitempty"`
 	ChannelPolicy *v1beta1.ChannelPolicySpec         `json:"channelPolicy,omitempty"`
 	Resources     *v1beta1.AgentResourceRequirements `json:"resources,omitempty"`
+	Env           map[string]string                  `json:"env,omitempty"`
 
 	// ContainerManaged indicates whether the controller should manage
 	// container lifecycle for this worker. When false, container
@@ -190,6 +192,7 @@ type CreateManagerRequest struct {
 	Config        *v1beta1.ManagerConfig             `json:"config,omitempty"`
 	State         *string                            `json:"state,omitempty"` // desired lifecycle state: Running, Sleeping, Stopped
 	Resources     *v1beta1.AgentResourceRequirements `json:"resources,omitempty"`
+	Env           map[string]string                  `json:"env,omitempty"`
 }
 
 type UpdateManagerRequest struct {
@@ -206,6 +209,7 @@ type UpdateManagerRequest struct {
 	Config        *v1beta1.ManagerConfig             `json:"config,omitempty"`
 	State         *string                            `json:"state,omitempty"` // desired lifecycle state: Running, Sleeping, Stopped
 	Resources     *v1beta1.AgentResourceRequirements `json:"resources,omitempty"`
+	Env           map[string]string                  `json:"env,omitempty"`
 }
 
 type ManagerResponse struct {
